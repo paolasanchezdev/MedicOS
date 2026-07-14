@@ -1,0 +1,20 @@
+{
+  "name": "medicos",
+  "private": true,
+  "version": "1.0.0",
+  "description": "MedicOS - Sistema Inteligente para Brigadas Médicas Comunitarias",
+  "author": "Paola Sánchez",
+  "license": "MIT",
+  "packageManager": "npm@11",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "dev": "echo \"Configuring Turborepo...\"",
+    "build": "echo \"Build\"",
+    "lint": "echo \"Lint\"",
+    "test": "echo \"Tests\""
+  }
+}

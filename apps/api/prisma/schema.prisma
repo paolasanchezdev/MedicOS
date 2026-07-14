@@ -1,0 +1,408 @@
+// ======================================================
+// MedicOS MVP - Esquema Oficial y Congelado
+// Prisma ORM 7.x / 8.x Compatible
+// Motor de Base de Datos: PostgreSQL
+// Arquitectura: Offline First (Outbox Pattern)
+// Entorno: Servidor Central Cloud / Raspberry Pi
+// ======================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ======================================================
+// ENUMS GLOBALES DE CONTROL Y DOMINIO CLÍNICO
+// ======================================================
+
+enum Role {
+  ADMIN
+  DOCTOR
+  BRIGADISTA
+  AUTHORITY
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCED
+  CONFLICT
+}
+
+enum SyncOperation {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum QueueStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum QueuePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum DeviceStatus {
+  ACTIVE
+  OFFLINE
+  BLOCKED
+  RETIRED
+}
+
+enum BrigadeStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum Sex {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum ConsultationStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum BloodType {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  UNKNOWN
+}
+
+// ======================================================
+// INFRAESTRUCTURA Y DISPOSITIVOS
+// ======================================================
+
+model Device {
+  id              String       @id @default(uuid())
+  name            String
+  serialNumber    String       @unique
+  operatingSystem String
+  appVersion      String
+  publicKey       String?
+  location        String?
+  lastSyncAt      DateTime?
+  status          DeviceStatus @default(ACTIVE)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones inversas
+  auditLogs  AuditLog[]
+  syncQueues SyncQueue[]
+
+  @@index([status])
+  @@index([serialNumber])
+}
+
+// ======================================================
+// COLA DE SINCRONIZACIÓN (TRANSACTIONAL OUTBOX PATTERN)
+// ======================================================
+
+model SyncQueue {
+  id        String        @id @default(uuid())
+  deviceId  String?
+  entity    String
+  entityId  String
+  operation SyncOperation
+  payload   Json
+  priority  QueuePriority @default(MEDIUM)
+  status    QueueStatus   @default(PENDING)
+
+  retryCount   Int       @default(0)
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+  syncedAt     DateTime?
+
+  // Relaciones
+  device Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([status, priority, createdAt])
+  @@index([entity, entityId])
+  @@index([deviceId])
+}
+
+// ======================================================
+// GESTIÓN DE ACCESO E IDENTIDAD (IAM)
+// ======================================================
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  role         Role       @default(BRIGADISTA)
+  status       UserStatus @default(ACTIVE)
+  firstName    String
+  lastName     String
+  phone        String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
+
+  // Relaciones
+  brigadesLed      Brigade[]       @relation("BrigadeLeader")
+  brigadesAssigned BrigadeMember[]
+  consultations    Consultation[]  @relation("DoctorConsultations")
+  auditLogs        AuditLog[]
+
+  @@index([role])
+  @@index([status])
+  @@index([lastName, firstName])
+}
+
+// ======================================================
+// CONTROLES DE EXPEDICIONES Y BRIGADAS MÉDICAS
+// ======================================================
+
+model Brigade {
+  id           String        @id @default(uuid())
+  name         String
+  department   String
+  municipality String
+  latitude     Float?
+  longitude    Float?
+  status       BrigadeStatus @default(PLANNED)
+  startDate    DateTime
+  endDate      DateTime?
+  leaderId     String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+
+  // Relaciones
+  leader        User?           @relation("BrigadeLeader", fields: [leaderId], references: [id], onDelete: SetNull)
+  members       BrigadeMember[]
+  consultations Consultation[]
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String
+  lastModifiedByDeviceId String
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([status])
+  @@index([syncStatus])
+  @@index([lastModified])
+  @@index([originDeviceId])
+  @@index([lastModifiedByDeviceId])
+}
+
+model BrigadeMember {
+  id        String   @id @default(uuid())
+  userId    String
+  brigadeId String
+  joinedAt  DateTime @default(now())
+
+  // Relaciones
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brigade Brigade @relation(fields: [brigadeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, brigadeId])
+}
+
+// ======================================================
+// CORE CLÍNICO: PACIENTES Y EXPEDIENTES
+// ======================================================
+
+model Patient {
+  id                String   @id @default(uuid())
+  firstName         String
+  lastName          String
+  dateOfBirth       DateTime
+  dui               String?  @unique
+  sex               Sex      @default(OTHER)
+  phone             String?
+  address           String
+  emergencyName     String?
+  emergencyPhone    String?
+  emergencyRelation String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones clínicas
+  clinicalRecord ClinicalRecord?
+  consultations  Consultation[]
+  vitalSigns     VitalSigns[]
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String
+  lastModifiedByDeviceId String
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([lastName, firstName])
+  @@index([dui])
+  @@index([syncStatus])
+  @@index([lastModified])
+  @@index([originDeviceId])
+  @@index([lastModifiedByDeviceId])
+}
+
+model ClinicalRecord {
+  id              String    @id @default(uuid())
+  patientId       String    @unique
+  bloodType       BloodType @default(UNKNOWN)
+  familyHistory   String?
+  surgicalHistory String?
+  observations    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  // Relaciones
+  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  consultations Consultation[]
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String
+  lastModifiedByDeviceId String
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([syncStatus])
+  @@index([lastModified])
+  @@index([originDeviceId])
+  @@index([lastModifiedByDeviceId])
+}
+
+// ======================================================
+// ENCUENTROS CLÍNICOS Y SIGNOS VITALES
+// ======================================================
+
+model Consultation {
+  id               String             @id @default(uuid())
+  patientId        String
+  doctorId         String
+  clinicalRecordId String
+  brigadeId        String
+  status           ConsultationStatus @default(DRAFT)
+
+  // Metodología SOAP (Campos Obligatorios de Entrada Manual)
+  chiefComplaint String
+  physicalExam   String
+  diagnosisCode  String?
+  diagnosisDesc  String
+  treatmentPlan  String
+
+  // Control de tiempos clínicos y administrativos
+  consultationDate DateTime  @default(now())
+  followUpDate     DateTime?
+  startedAt        DateTime  @default(now())
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  // Relaciones
+  patient        Patient        @relation(fields: [patientId], references: [id])
+  doctor         User           @relation("DoctorConsultations", fields: [doctorId], references: [id])
+  clinicalRecord ClinicalRecord @relation(fields: [clinicalRecordId], references: [id])
+  brigade        Brigade        @relation(fields: [brigadeId], references: [id])
+  vitalSigns     VitalSigns[]
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String
+  lastModifiedByDeviceId String
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([brigadeId])
+  @@index([status])
+  @@index([syncStatus])
+  @@index([lastModified])
+  @@index([originDeviceId])
+  @@index([lastModifiedByDeviceId])
+}
+
+model VitalSigns {
+  id             String    @id @default(uuid())
+  patientId      String
+  consultationId String?
+  temperature    Float
+  heartRate      Int
+  oxygenSat      Int
+  systolic       Int
+  diastolic      Int
+  weight         Float?
+  height         Float?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  // Relaciones
+  patient      Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  consultation Consultation? @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String
+  lastModifiedByDeviceId String
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([patientId])
+  @@index([consultationId])
+  @@index([syncStatus])
+  @@index([createdAt])
+  @@index([originDeviceId])
+  @@index([lastModifiedByDeviceId])
+}
+
+// ======================================================
+// AUDITORÍA Y SEGURIDAD OPERATIVA
+// ======================================================
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  userId        String?
+  deviceId      String?
+  action        String
+  entity        String
+  entityId      String
+  changedFields Json?
+  ipAddress     String?
+  createdAt     DateTime @default(now())
+
+  // Relaciones
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  device Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}

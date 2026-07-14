@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "declaration": true,
+    "composite": true,
+    "skipLibCheck": true
+  },
+  "files": [],
+  "references": [
+    { "path": "./packages/shared-types" }
+  ]
+}
