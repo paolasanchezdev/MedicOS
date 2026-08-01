@@ -1,24 +1,21 @@
-import type { Patient } from '@medicos/shared-types';
+// =========================================================================
+// ARCHIVO: apps/web/src/App.tsx
+// DESCRIPCIÓN: Componente raíz de MedicOS. Provee el contexto global de
+//              autenticación y habilita el enrutado con React Router.
+// =========================================================================
 
-function App() {
-  // Testigo en el frontend
-  const testPatient: Patient = {
-    id: "web-456",
-    fullName: "Paciente Frontend de Prueba",
-    dateOfBirth: "1995-05-20",
-    createdAt: "2026-07-14"
-  };
-  
-  console.log("[Validación Frontend Monorepo]:", testPatient.fullName);
+import React from 'react';
+import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from './core/context/AuthContext';
+import { AppRoutes } from './app/router/routes';
 
+export function App(): React.JSX.Element {
   return (
-    <>
-      <h1>MedicOS</h1>
-      <p>Sistema Inteligente para Brigadas Médicas</p>
-      <p style={{ color: 'green', fontWeight: 'bold' }}>
-        ✓ Conexión con shared-types activa para: {testPatient.fullName}
-      </p>
-    </>
+    <AuthProvider>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

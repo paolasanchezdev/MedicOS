@@ -1,0 +1,179 @@
+/* =========================================================================
+   ARCHIVO: apps/web/src/index.css
+   DESCRIPCIÓN: Hoja de estilos global de la aplicación MedicOS.
+                Configuración del Design System para Tailwind CSS v4.
+   ========================================================================= */
+
+/* 1. Importa el motor completo de Tailwind CSS v4 */
+@import "tailwindcss";
+
+/* ==========================================================================
+   2. CONFIGURACIÓN DEL TEMA (Variables y Animaciones)
+   ========================================================================== */
+@theme {
+  /* --- LIENZO Y SUPERFICIES --- */
+  /* Fondo general: Tono hueso/marfil cálido ultra suave (#FAF8F5) */
+  --color-medicos-canvas: #FAF8F5;
+  
+  /* Superficie de tarjetas y contenedores: Blanco puro */
+  --color-medicos-surface: #FFFFFF;
+
+  /* Fondo secundario / Highlight médico: Menta/Celeste helado sutil */
+  --color-medicos-light-bg: #EEF7F8;
+
+  /* --- BORDES Y DIVISIONES --- */
+  --color-medicos-soft-border: #D3E8EC;
+
+  /* --- IDENTIDAD INSTITUCIONAL --- */
+  --color-medicos-teal: #166E7A;
+  --color-medicos-cyan: #48BDCD;
+
+  /* --- TIPOGRAFÍA --- */
+  --color-medicos-dark-blue: #1A282D;
+  --color-medicos-muted: #52656C;
+
+  /* --- ANIMACIONES REGISTRADAS EN TAILWIND --- */
+  @keyframes float-rotate {
+    0%   { transform: translateY(0px) rotate(0deg); }
+    50%  { transform: translateY(-20px) rotate(10deg); }
+    100% { transform: translateY(0px) rotate(0deg); }
+  }
+  --animate-float-rotate: float-rotate 6s ease-in-out infinite;
+
+  @keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(28px); }
+    to   { opacity: 1; transform: translateY(0px); }
+  }
+  --animate-fade-in-up: fade-in-up 0.75s ease-out forwards;
+
+  @keyframes core-pulse {
+    0%, 100% { transform: scale(1);    opacity: 0.85; }
+    50%       { transform: scale(1.1); opacity: 1; }
+  }
+  --animate-core-pulse: core-pulse 2.8s ease-in-out infinite;
+
+  @keyframes soft-blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.45; }
+  }
+  --animate-soft-blink: soft-blink 1.2s ease-in-out infinite;
+
+  @keyframes typing-cursor {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+  }
+  --animate-typing-cursor: typing-cursor 1s step-end infinite;
+
+  @keyframes dot-bounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+    40%           { transform: translateY(-6px); opacity: 1; }
+  }
+  --animate-dot-bounce: dot-bounce 1.4s ease-in-out infinite;
+
+  @keyframes orbit-cw {
+    from { transform: rotateX(72deg) rotateZ(0deg); }
+    to   { transform: rotateX(72deg) rotateZ(360deg); }
+  }
+  --animate-orbit-cw: orbit-cw 14s linear infinite;
+
+  @keyframes orbit-ccw {
+    from { transform: rotateX(65deg) rotateZ(360deg); }
+    to   { transform: rotateX(65deg) rotateZ(0deg); }
+  }
+  --animate-orbit-ccw: orbit-ccw 20s linear infinite;
+
+  @keyframes glass-sweep {
+
+  0% {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+
+  25% {
+    opacity: .35;
+  }
+
+  50% {
+    transform: translateX(120%);
+    opacity: .15;
+  }
+
+  100% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+@keyframes fadeSlide {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+}
+
+/* ==========================================================================
+   3. ESTILOS BASE GLOBALES (Previene fallos de contraste y color)
+   ========================================================================== */
+@layer base {
+  *, ::before, ::after {
+    border-color: var(--color-medicos-soft-border);
+  }
+
+  html, body {
+    background-color: var(--color-medicos-canvas);
+    color: var(--color-medicos-dark-blue);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* ==========================================================================
+   4. UTILIDADES CUSTOM
+   ========================================================================== */
+@utility scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   5. KEYFRAMES GLOBALES (Para inline styles en BioNeuralCore / Canvas SVG)
+   ========================================================================== */
+@keyframes particle-float-a {
+  0%, 100% { transform: translateY(0px)   translateX(0px);  opacity: 0.55; }
+  33%      { transform: translateY(-14px) translateX(7px);  opacity: 1; }
+  66%      { transform: translateY(-7px)  translateX(-9px); opacity: 0.75; }
+}
+
+@keyframes particle-float-b {
+  0%, 100% { transform: translateY(0px)   translateX(0px);  opacity: 0.5; }
+  33%      { transform: translateY(-10px) translateX(-6px); opacity: 1; }
+  66%      { transform: translateY(-18px) translateX(5px);  opacity: 0.7; }
+}
+
+@keyframes particle-float-c {
+  0%, 100% { transform: translateY(0px)  translateX(0px); opacity: 0.6; }
+  50%      { transform: translateY(-8px) translateX(12px); opacity: 1; }
+}
+
+@keyframes neural-signal {
+  0%   { stroke-dashoffset: 120; opacity: 0; }
+  15%  { opacity: 0.9; }
+  85%  { opacity: 0.9; }
+  100% { stroke-dashoffset: 0;   opacity: 0; }
+}
+
+@keyframes ripple-out {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(2.2); opacity: 0; }
+}

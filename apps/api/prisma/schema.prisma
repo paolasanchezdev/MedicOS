@@ -23,6 +23,7 @@ enum Role {
   DOCTOR
   BRIGADISTA
   AUTHORITY
+  PATIENT
 }
 
 enum UserStatus {

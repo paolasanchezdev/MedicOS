@@ -1,5 +1,8 @@
+// apps/api/src/server.ts (o index.ts)
 import dotenv from "dotenv";
-import app from "./app.js";
+dotenv.config(); // 👈 1. Cargamos las variables de entorno AL PRINCIPIO
+
+import app from "./app.js"; // 👈 2. Importamos app DESPUÉS de dotenv
 import { Patient } from "@medicos/shared-types";
 
 // Testigo técnico de tipos compartidos
@@ -12,10 +15,8 @@ const testPatient: Patient = {
 
 console.log(`[Validación Monorepo] Tipo cargado para: ${testPatient.fullName}`);
 
-dotenv.config();
-
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log(`🚀 MedicOS API funcionando en puerto ${PORT}`);
-});
+app.listen(3000, '0.0.0.0', () => {
+  console.log('API ejecutándose en el puerto 3000')
+})

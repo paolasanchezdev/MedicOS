@@ -5,16 +5,20 @@
   "description": "MedicOS - Sistema Inteligente para Brigadas Médicas Comunitarias",
   "author": "Paola Sánchez",
   "license": "MIT",
-  "packageManager": "npm@11",
+  "packageManager": "npm@11.12.1",
   "workspaces": [
     "apps/*",
     "packages/*",
     "services/*"
   ],
   "scripts": {
-    "dev": "echo \"Configuring Turborepo...\"",
-    "build": "echo \"Build\"",
-    "lint": "echo \"Lint\"",
-    "test": "echo \"Tests\""
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "medicos": "sh ./run.sh"
+  },
+  "devDependencies": {
+    "turbo": "^2.10.8"
   }
 }

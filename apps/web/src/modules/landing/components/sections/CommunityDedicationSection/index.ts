@@ -1,0 +1,1 @@
+export { CommunityDedicationSection } from "./CommunityDedicationSection";
