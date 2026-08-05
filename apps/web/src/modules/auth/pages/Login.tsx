@@ -6,10 +6,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
-import { LoginBanner } from '../../../core/auth/components/LoginBanner';
-import { LoginForm, type LoginFormData } from '../../../core/auth/components/LoginForm';
-import { RegisterForm, type RegisterFormData } from '../../../core/auth/components/RegisterForm';
-import { authService } from '../../../core/auth/auth.service';
+import { LoginBanner } from '../components/LoginBanner';
+import { LoginForm, type LoginFormData } from '../components/LoginForm';
+import { RegisterForm, type RegisterFormData } from '../components/RegisterForm';
+import { authService } from '../services/auth.service';
 
 export const Login: React.FC = () => {
   const [mode, setMode] = useState<'login' | 'register'>('login');

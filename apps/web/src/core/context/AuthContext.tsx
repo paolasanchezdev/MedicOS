@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { AuthContext } from './AuthContextInstance';
 import type { User } from './AuthTypes';
 import { apiClient } from '../../services/api/apiClient';
-import { useIdleTimeout } from '../auth/hooks/useIdleTimeout';
+import { useIdleTimeout } from '../../modules/auth/hooks/useIdleTimeout';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(() => {

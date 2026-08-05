@@ -5,8 +5,16 @@
 //              seguridad (Login, Registro, etc.) usando el cliente de API global.
 // =========================================================================
 
-import { apiClient } from '../../services/api/apiClient';
-import type { User } from '../context/AuthTypes';
+import { apiClient } from '../../../services/api/apiClient';
+// NOTE: El tipo User se define localmente aquí para evitar errores de importación
+// cuando la ruta ../context/AuthTypes no existe o cambia. Ajustar según el
+// tipo real compartido en el proyecto si se dispone de ese archivo.
+type User = {
+  id: string;
+  email: string;
+  name?: string;
+  role?: string;
+};
 
 // Definimos la estructura de lo que nos responde el servidor al iniciar sesión
 interface AuthResponse {

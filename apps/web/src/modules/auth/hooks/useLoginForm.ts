@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/useAuth';
+import { useAuth } from '../../../core/context/useAuth';
 import { apiClient } from '../../../services/api/apiClient';
 
 interface LoginResponse {

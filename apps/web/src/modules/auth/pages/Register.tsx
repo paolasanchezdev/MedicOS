@@ -4,8 +4,8 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RegisterForm, type RegisterFormData } from '../../../core/auth/components/RegisterForm';
-import { authService } from '../../../core/auth/auth.service';
+import { RegisterForm, type RegisterFormData } from '../components/RegisterForm';
+import { authService } from '../services/auth.service';
 
 export const Register: React.FC = () => {
   const navigate = useNavigate();
