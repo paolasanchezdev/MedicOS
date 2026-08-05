@@ -8,11 +8,12 @@ import LandingPage from '../../modules/landing/LandingPage';
 import Login from '../../modules/auth/pages/Login';
 import { Register } from '../../modules/auth/pages/Register';
 
-// Componentes de Portales (Usando importaciones nombradas conforme a tus archivos)
+// Componentes de Portales
 import { AdminPanel } from '../../portals/admin/AdminPanel';
 import { PatientPanel } from '../../portals/patient/PatientPanel';
-import { BrigadistPanel } from '../../portals/brigadist/BrigadistPanel';
+//import { BrigadistPanel } from '../../portals/brigadist/BrigadistPanel';
 import { DoctorPanel } from '../../portals/doctor/DoctorPanel';
+import { AuthorityPanel } from '../../portals/authority/AuthorityPanel';
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -42,15 +43,6 @@ export const AppRoutes: React.FC = () => {
         }
       />
 
-      {/* Portal Brigadista */}
-      <Route
-        path="/brigadista/*"
-        element={
-          <ProtectedRoute allowedRoles={['BRIGADIST', 'BRIGADISTA']}>
-            <BrigadistPanel />
-          </ProtectedRoute>
-        }
-      />
 
       {/* Portal Médico */}
       <Route
@@ -67,9 +59,7 @@ export const AppRoutes: React.FC = () => {
         path="/autoridad/*"
         element={
           <ProtectedRoute allowedRoles={['AUTHORITY', 'AUTORIDAD']}>
-            <div className="p-6 font-medium text-slate-700">
-              Portal Autoridad en desarrollo
-            </div>
+            <AuthorityPanel />
           </ProtectedRoute>
         }
       />

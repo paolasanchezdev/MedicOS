@@ -25,7 +25,7 @@ export const PatientHeader: React.FC<PatientHeaderProps> = ({ onOpenSidebar }) =
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-medicos-surface/90 backdrop-blur-md border-b border-medicos-soft-border shadow-2xs">
+    <header className="h-16 shrink-0 z-30 bg-medicos-surface/90 backdrop-blur-md border-b border-medicos-soft-border shadow-2xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
 

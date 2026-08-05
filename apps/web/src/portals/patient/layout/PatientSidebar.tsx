@@ -12,7 +12,7 @@ interface PatientSidebarProps {
 export const PatientSidebar: React.FC<PatientSidebarProps> = ({ open, onClose }) => {
   return (
     <>
-      {/* Overlay con efecto Blur para móviles */}
+      {/* Overlay para móviles */}
       {open && (
         <div
           className="fixed inset-0 bg-medicos-dark-blue/40 z-40 md:hidden backdrop-blur-xs transition-opacity"
@@ -22,11 +22,11 @@ export const PatientSidebar: React.FC<PatientSidebarProps> = ({ open, onClose })
 
       {/* Sidebar Principal */}
       <aside
-        className={`fixed md:static top-0 left-0 z-50 h-full w-64 bg-medicos-surface border-r border-medicos-soft-border flex flex-col transition-transform duration-300 ease-in-out shadow-sm ${
+        className={`fixed md:static top-0 left-0 z-50 md:z-auto h-full w-64 bg-medicos-surface border-r border-medicos-soft-border flex flex-col transition-transform duration-300 ease-in-out shadow-sm ${
           open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
-        {/* Cabecera del Sidebar para vista Móvil */}
+        {/* Cabecera Móvil */}
         <div className="p-4 border-b border-medicos-soft-border flex items-center justify-between md:hidden bg-medicos-light-bg/50">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-medicos-teal/10 flex items-center justify-center text-medicos-teal font-bold text-sm">
@@ -84,7 +84,7 @@ export const PatientSidebar: React.FC<PatientSidebarProps> = ({ open, onClose })
           ))}
         </nav>
 
-        {/* Footer del Sidebar con indicador de estado seguro */}
+        {/* Footer del Sidebar */}
         <div className="p-3 border-t border-medicos-soft-border bg-medicos-canvas/60">
           <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-medicos-light-bg/80 text-[11px] text-medicos-teal font-medium border border-medicos-soft-border/50">
             <ShieldCheck className="w-4 h-4 shrink-0 text-medicos-teal" />

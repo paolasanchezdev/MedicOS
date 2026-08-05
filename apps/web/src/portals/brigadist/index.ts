@@ -1,1 +1,0 @@
-export { BrigadistPanel } from './BrigadistPanel';

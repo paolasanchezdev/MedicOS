@@ -9,10 +9,10 @@ export const PatientLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="h-screen w-full bg-slate-50 flex flex-col overflow-hidden">
       <PatientHeader onOpenSidebar={() => setSidebarOpen(true)} />
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         <PatientSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         
         <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6">

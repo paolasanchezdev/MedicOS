@@ -1,5 +1,3 @@
-
-
 ## Project Structure
 
 ```text
@@ -34,7 +32,6 @@ MedicOS/
 │   │   ├── src/
 │   │   │   ├── config/
 │   │   │   │   └── prisma.ts
-│   │   │   ├── database/
 │   │   │   ├── middleware/
 │   │   │   │   ├── auth.middleware.ts
 │   │   │   │   ├── error.middleware.ts
@@ -53,13 +50,13 @@ MedicOS/
 │   │   │   │   └── base.service.ts
 │   │   │   ├── app.ts
 │   │   │   ├── create-admin.ts
+│   │   │   ├── create-authority-user.ts
 │   │   │   ├── server.ts
 │   │   │   └── test-db.ts
 │   │   ├── .gitignore
 │   │   ├── package.json
 │   │   ├── prisma.config.ts
 │   │   └── tsconfig.json
-│   ├── station/
 │   └── web/
 │       ├── .turbo/
 │       │   ├── turbo-build.log
@@ -87,7 +84,6 @@ MedicOS/
 │       │   └── sv.svg
 │       ├── src/
 │       │   ├── app/
-│       │   │   ├── providers/
 │       │   │   ├── router/
 │       │   │   │   ├── protectedRoutes.tsx
 │       │   │   │   └── routes.tsx
@@ -101,6 +97,7 @@ MedicOS/
 │       │   │   │   │   ├── RegisterBanner.tsx
 │       │   │   │   │   └── RegisterForm.tsx
 │       │   │   │   ├── hooks/
+│       │   │   │   │   ├── useIdleTimeout.ts
 │       │   │   │   │   └── useLoginForm.ts
 │       │   │   │   ├── auth.service.ts
 │       │   │   │   ├── session.ts
@@ -125,18 +122,10 @@ MedicOS/
 │       │   │   │   └── roles.ts
 │       │   │   └── security/
 │       │   │       └── Gate.tsx
-│       │   ├── data/
 │       │   ├── layouts/
-│       │   │   ├── AuthLayout/
-│       │   │   │   └── AuthLayout.tsx
-│       │   │   ├── DashboardLayout/
-│       │   │   │   ├── components/
-│       │   │   │   │   └── Header.tsx
-│       │   │   │   └── DashboardLayout.tsx
-│       │   │   └── PublicLayout/
-│       │   │       └── PublicLayout.tsx
+│       │   │   └── DashboardLayout/
+│       │   │       └── DashboardLayout.tsx
 │       │   ├── modules/
-│       │   │   ├── ai/
 │       │   │   ├── auth/
 │       │   │   │   └── pages/
 │       │   │   │       ├── Login.tsx
@@ -151,76 +140,64 @@ MedicOS/
 │       │   │   │   │   └── useBrigade.ts
 │       │   │   │   └── types/
 │       │   │   │       └── brigade.types.ts
-│       │   │   ├── clinical-records/
-│       │   │   ├── consultations/
-│       │   │   ├── landing/
-│       │   │   │   ├── components/
-│       │   │   │   │   ├── layout/
-│       │   │   │   │   │   ├── Footer.tsx
-│       │   │   │   │   │   └── Header.tsx
-│       │   │   │   │   ├── sections/
-│       │   │   │   │   │   ├── AiSupportSection/
-│       │   │   │   │   │   │   ├── components/
-│       │   │   │   │   │   │   ├── data/
-│       │   │   │   │   │   │   ├── AiSupportSection.styles.ts
-│       │   │   │   │   │   │   ├── AiSupportSection.tsx
-│       │   │   │   │   │   │   └── index.ts
-│       │   │   │   │   │   ├── CommunityDedicationSection/
-│       │   │   │   │   │   │   ├── CommunityDedicationSection.styles.ts
-│       │   │   │   │   │   │   ├── CommunityDedicationSection.tsx
-│       │   │   │   │   │   │   └── index.ts
-│       │   │   │   │   │   ├── Hero/
-│       │   │   │   │   │   │   ├── panels/
-│       │   │   │   │   │   │   ├── Hero.styles.ts
-│       │   │   │   │   │   │   ├── Hero.tsx
-│       │   │   │   │   │   │   ├── HeroBackground.tsx
-│       │   │   │   │   │   │   ├── HeroDashboardPreview.tsx
-│       │   │   │   │   │   │   ├── HeroGlassBadge.tsx
-│       │   │   │   │   │   │   ├── HeroWidgets.tsx
-│       │   │   │   │   │   │   └── useHeroInteractions.ts
-│       │   │   │   │   │   ├── HowItWorks/
-│       │   │   │   │   │   │   ├── HowItWorks.styles.ts
-│       │   │   │   │   │   │   └── HowItWorks.tsx
-│       │   │   │   │   │   ├── ImpactSection/
-│       │   │   │   │   │   │   ├── components/
-│       │   │   │   │   │   │   ├── ImpactSection.styles.ts
-│       │   │   │   │   │   │   ├── ImpactSection.tsx
-│       │   │   │   │   │   │   └── index.ts
-│       │   │   │   │   │   ├── MainModules/
-│       │   │   │   │   │   │   ├── components/
-│       │   │   │   │   │   │   ├── data/
-│       │   │   │   │   │   │   ├── MainModules.styles.ts
-│       │   │   │   │   │   │   └── MainModules.tsx
-│       │   │   │   │   │   ├── ProblemSection/
-│       │   │   │   │   │   │   ├── ProblemSection.styles.ts
-│       │   │   │   │   │   │   └── ProblemSection.tsx
-│       │   │   │   │   │   └── SolutionSection/
-│       │   │   │   │   │       ├── SolutionSection.styles.ts
-│       │   │   │   │   │       └── SolutionSection.tsx
-│       │   │   │   │   └── ui/
-│       │   │   │   │       ├── DemoModal/
-│       │   │   │   │       │   ├── DemoModal.tsx
-│       │   │   │   │       │   └── index.ts
-│       │   │   │   │       ├── FeatureCard.tsx
-│       │   │   │   │       └── ScrollReveal.tsx
-│       │   │   │   ├── data/
-│       │   │   │   │   ├── featuresData.ts
-│       │   │   │   │   └── landingData.ts
-│       │   │   │   ├── hooks/
-│       │   │   │   │   └── useParallax.ts
-│       │   │   │   ├── types/
-│       │   │   │   │   └── parallax.ts
-│       │   │   │   └── LandingPage.tsx
-│       │   │   ├── patients/
-│       │   │   ├── reports/
-│       │   │   ├── statistics/
-│       │   │   └── users/
-│       │   ├── offline/
-│       │   │   ├── cache/
-│       │   │   ├── conflict-resolution/
-│       │   │   ├── indexeddb/
-│       │   │   ├── service-worker/
-│       │   │   └── sync/
+│       │   │   └── landing/
+│       │   │       ├── components/
+│       │   │       │   ├── layout/
+│       │   │       │   │   ├── Footer.tsx
+│       │   │       │   │   └── Header.tsx
+│       │   │       │   ├── sections/
+│       │   │       │   │   ├── AiSupportSection/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   ├── data/
+│       │   │       │   │   │   ├── AiSupportSection.styles.ts
+│       │   │       │   │   │   ├── AiSupportSection.tsx
+│       │   │       │   │   │   └── index.ts
+│       │   │       │   │   ├── CommunityDedicationSection/
+│       │   │       │   │   │   ├── CommunityDedicationSection.styles.ts
+│       │   │       │   │   │   ├── CommunityDedicationSection.tsx
+│       │   │       │   │   │   └── index.ts
+│       │   │       │   │   ├── Hero/
+│       │   │       │   │   │   ├── panels/
+│       │   │       │   │   │   ├── Hero.styles.ts
+│       │   │       │   │   │   ├── Hero.tsx
+│       │   │       │   │   │   ├── HeroBackground.tsx
+│       │   │       │   │   │   ├── HeroDashboardPreview.tsx
+│       │   │       │   │   │   ├── HeroGlassBadge.tsx
+│       │   │       │   │   │   ├── HeroWidgets.tsx
+│       │   │       │   │   │   └── useHeroInteractions.ts
+│       │   │       │   │   ├── HowItWorks/
+│       │   │       │   │   │   ├── HowItWorks.styles.ts
+│       │   │       │   │   │   └── HowItWorks.tsx
+│       │   │       │   │   ├── ImpactSection/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   ├── ImpactSection.styles.ts
+│       │   │       │   │   │   ├── ImpactSection.tsx
+│       │   │       │   │   │   └── index.ts
+│       │   │       │   │   ├── MainModules/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   ├── data/
+│       │   │       │   │   │   ├── MainModules.styles.ts
+│       │   │       │   │   │   └── MainModules.tsx
+│       │   │       │   │   ├── ProblemSection/
+│       │   │       │   │   │   ├── ProblemSection.styles.ts
+│       │   │       │   │   │   └── ProblemSection.tsx
+│       │   │       │   │   └── SolutionSection/
+│       │   │       │   │       ├── SolutionSection.styles.ts
+│       │   │       │   │       └── SolutionSection.tsx
+│       │   │       │   └── ui/
+│       │   │       │       ├── DemoModal/
+│       │   │       │       │   ├── DemoModal.tsx
+│       │   │       │       │   └── index.ts
+│       │   │       │       ├── FeatureCard.tsx
+│       │   │       │       └── ScrollReveal.tsx
+│       │   │       ├── data/
+│       │   │       │   ├── featuresData.ts
+│       │   │       │   └── landingData.ts
+│       │   │       ├── hooks/
+│       │   │       │   └── useParallax.ts
+│       │   │       ├── types/
+│       │   │       │   └── parallax.ts
+│       │   │       └── LandingPage.tsx
 │       │   ├── portals/
 │       │   │   ├── admin/
 │       │   │   │   ├── components/
@@ -235,48 +212,54 @@ MedicOS/
 │       │   │   │   ├── navigation/
 │       │   │   │   │   └── admin.navigation.ts
 │       │   │   │   ├── pages/
-│       │   │   │   │   ├── configuracion/
-│       │   │   │   │   │   ├── gestion-documental/
-│       │   │   │   │   │   ├── integraciones/
-│       │   │   │   │   │   ├── notificaciones-sistema/
-│       │   │   │   │   │   └── parametros-generales/
 │       │   │   │   │   ├── dashboard/
 │       │   │   │   │   │   ├── resumen/
-│       │   │   │   │   │   │   ├── components/
-│       │   │   │   │   │   │   ├── hooks/
 │       │   │   │   │   │   │   ├── ResumenPage.tsx
 │       │   │   │   │   │   │   └── services.ts
 │       │   │   │   │   │   └── salud-sistema/
-│       │   │   │   │   │       ├── components/
-│       │   │   │   │   │       ├── hooks/
 │       │   │   │   │   │       ├── SaludSistemaPage.tsx
 │       │   │   │   │   │       └── services.ts
-│       │   │   │   │   ├── gestion-principal/
-│       │   │   │   │   │   ├── brigadas-medicas/
-│       │   │   │   │   │   ├── catalogos-sistema/
-│       │   │   │   │   │   ├── dispositivos-nodos/
-│       │   │   │   │   │   ├── inventario-suministros/
-│       │   │   │   │   │   └── usuarios-roles/
-│       │   │   │   │   │       ├── components/
-│       │   │   │   │   │       ├── hooks/
-│       │   │   │   │   │       ├── constants.ts
-│       │   │   │   │   │       ├── schemas.ts
-│       │   │   │   │   │       ├── services.ts
-│       │   │   │   │   │       ├── types.ts
-│       │   │   │   │   │       └── UsuariosRolesPage.tsx
-│       │   │   │   │   ├── operaciones/
-│       │   │   │   │   │   ├── auditoria/
-│       │   │   │   │   │   ├── seguridad/
-│       │   │   │   │   │   └── sincronizacion/
-│       │   │   │   │   └── reportes/
-│       │   │   │   │       ├── exportaciones-programadas/
-│       │   │   │   │       ├── reportes-operativos/
-│       │   │   │   │       └── uso-sistema/
+│       │   │   │   │   └── gestion-principal/
+│       │   │   │   │       └── usuarios-roles/
+│       │   │   │   │           ├── constants.ts
+│       │   │   │   │           ├── schemas.ts
+│       │   │   │   │           ├── services.ts
+│       │   │   │   │           ├── types.ts
+│       │   │   │   │           └── UsuariosRolesPage.tsx
 │       │   │   │   ├── routes/
 │       │   │   │   │   └── AdminRoutes.tsx
 │       │   │   │   ├── AdminPanel.tsx
 │       │   │   │   └── index.ts
 │       │   │   ├── authority/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── AlertaEpidemiologicaCard.tsx
+│       │   │   │   │   ├── IndicadorSaludCard.tsx
+│       │   │   │   │   ├── MapaCoberturaCard.tsx
+│       │   │   │   │   ├── ResumenEjecutivoCard.tsx
+│       │   │   │   │   ├── RiesgoComunitarioCard.tsx
+│       │   │   │   │   └── TendenciaCard.tsx
+│       │   │   │   ├── layout/
+│       │   │   │   │   ├── shared/
+│       │   │   │   │   │   └── components/
+│       │   │   │   │   │       ├── Button.tsx
+│       │   │   │   │   │       ├── FloatingIcon.tsx
+│       │   │   │   │   │       └── Input.tsx
+│       │   │   │   │   ├── AuthorityHeader.tsx
+│       │   │   │   │   ├── AuthorityLayout.tsx
+│       │   │   │   │   ├── AuthoritySidebar.tsx
+│       │   │   │   │   ├── EstadoSistemaBadge.tsx
+│       │   │   │   │   └── index.ts
+│       │   │   │   ├── navigation/
+│       │   │   │   │   └── authority.navigation.ts
+│       │   │   │   ├── pages/
+│       │   │   │   │   └── dashboard/
+│       │   │   │   │       └── resumen/
+│       │   │   │   │           ├── ResumenAutoridadPage.tsx
+│       │   │   │   │           └── services.ts
+│       │   │   │   ├── routes/
+│       │   │   │   │   └── AuthorityRoutes.tsx
+│       │   │   │   ├── AuthorityPanel.tsx
+│       │   │   │   └── index.ts
 │       │   │   ├── brigadist/
 │       │   │   │   ├── layout/
 │       │   │   │   │   ├── BrigadistBottomNav.tsx
@@ -329,69 +312,17 @@ MedicOS/
 │       │   │       ├── navigation/
 │       │   │       │   └── patient.navigation.ts
 │       │   │       ├── pages/
-│       │   │       │   ├── asistente-ia/
-│       │   │       │   │   ├── chat/
-│       │   │       │   │   ├── educacion/
-│       │   │       │   │   ├── evaluacion-rapida/
-│       │   │       │   │   ├── recomendaciones/
-│       │   │       │   │   └── sintomas/
-│       │   │       │   ├── consultas/
-│       │   │       │   │   ├── diagnosticos/
-│       │   │       │   │   ├── historial/
-│       │   │       │   │   ├── ordenes-medicas/
-│       │   │       │   │   ├── proximas/
-│       │   │       │   │   ├── recetas/
-│       │   │       │   │   └── seguimientos/
-│       │   │       │   ├── dashboard/
-│       │   │       │   │   └── resumen/
-│       │   │       │   │       ├── components/
-│       │   │       │   │       ├── hooks/
-│       │   │       │   │       ├── PatientDashboardPage.tsx
-│       │   │       │   │       └── services.ts
-│       │   │       │   ├── familia/
-│       │   │       │   │   ├── autorizaciones/
-│       │   │       │   │   ├── miembros/
-│       │   │       │   │   ├── pacientes-a-cargo/
-│       │   │       │   │   └── solicitudes/
-│       │   │       │   ├── notificaciones/
-│       │   │       │   │   └── bandeja/
-│       │   │       │   ├── perfil/
-│       │   │       │   │   ├── contactos/
-│       │   │       │   │   ├── datos-personales/
-│       │   │       │   │   ├── dispositivos/
-│       │   │       │   │   ├── emergencias/
-│       │   │       │   │   ├── preferencias/
-│       │   │       │   │   ├── privacidad/
-│       │   │       │   │   ├── seguridad/
-│       │   │       │   │   └── seguro-medico/
-│       │   │       │   ├── qr/
-│       │   │       │   │   └── credencial/
-│       │   │       │   └── salud/
-│       │   │       │       ├── alergias/
-│       │   │       │       ├── documentos/
-│       │   │       │       ├── embarazo/
-│       │   │       │       ├── enfermedades-cronicas/
-│       │   │       │       ├── medicamentos/
-│       │   │       │       ├── resumen/
-│       │   │       │       ├── signos-vitales/
-│       │   │       │       └── vacunas/
+│       │   │       │   └── dashboard/
+│       │   │       │       └── resumen/
+│       │   │       │           ├── PatientDashboardPage.tsx
+│       │   │       │           └── services.ts
 │       │   │       ├── routes/
 │       │   │       │   └── PatientRoutes.tsx
 │       │   │       ├── index.ts
 │       │   │       └── PatientPanel.tsx
 │       │   ├── services/
-│       │   │   ├── ai/
-│       │   │   ├── api/
-│       │   │   │   └── apiClient.ts
-│       │   │   ├── qr/
-│       │   │   └── websocket/
-│       │   ├── shared/
-│       │   │   ├── components/
-│       │   │   │   ├── Button.tsx
-│       │   │   │   ├── FloatingIcon.tsx
-│       │   │   │   └── Input.tsx
-│       │   │   ├── hooks/
-│       │   │   └── utils/
+│       │   │   └── api/
+│       │   │       └── apiClient.ts
 │       │   ├── App.tsx
 │       │   ├── index.css
 │       │   └── main.tsx
@@ -406,37 +337,12 @@ MedicOS/
 │       ├── tsconfig.json
 │       ├── tsconfig.node.json
 │       └── vite.config.ts
-├── docs/
-│   ├── adr/
-│   ├── api/
-│   ├── architecture/
-│   ├── database/
-│   ├── diagrams/
-│   ├── manuals/
-│   └── security/
-├── infrastructure/
-│   ├── backups/
-│   ├── docker/
-│   ├── hosting/
-│   ├── nginx/
-│   ├── raspberry/
-│   └── scripts/
 ├── packages/
-│   ├── design-system/
-│   ├── shared-types/
-│   │   ├── src/
-│   │   │   └── index.ts
-│   │   ├── package.json
-│   │   └── tsconfig.json
-│   ├── utils/
-│   └── validation/
-├── services/
-│   └── ai-service/
-├── tests/
-│   ├── api/
-│   ├── e2e/
-│   ├── integration/
-│   └── unit/
+│   └── shared-types/
+│       ├── src/
+│       │   └── index.ts
+│       ├── package.json
+│       └── tsconfig.json
 ├── .dockerignore
 ├── .env.example
 ├── .gitignore

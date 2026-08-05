@@ -1,67 +1,85 @@
+// apps/web/src/portals/patient/navigation/patient.navigation.ts
 import {
-  LayoutDashboard, FileHeart, History, Syringe, ShieldAlert,
-  HeartPulse, CalendarCheck, Stethoscope, Pill, FlaskConical, FileText,
-  FileCheck2, Settings, User, Lock
+  LayoutDashboard, HeartPulse, Activity, Pill, ShieldAlert, FileText,
+  Syringe, Baby, FolderOpen, CalendarCheck, History, Stethoscope,
+  FileSpreadsheet, ClipboardList, Sparkles, Brain, MessageSquare,
+  Lightbulb, GraduationCap, Users, UserPlus, ShieldCheck, Clock,
+  QrCode, Bell, User, PhoneCall, Shield, Smartphone, Lock, EyeOff, Sliders
 } from 'lucide-react';
-import type { RoleNavigation } from '../types';
 
-export const PACIENTE_NAVIGATION: RoleNavigation = {
-  role: 'PACIENTE',
-  portalName: 'Mi Portal de Salud',
-  portalRoot: '/patient',
-  tagline: 'Tu información de salud, siempre contigo',
-  sections: [
-    {
-      id: 'patient-dashboard',
-      archetype: 'dashboard',
-      label: 'Dashboard',
-      icon: LayoutDashboard,
-      items: [
-        { id: 'patient-overview', label: 'Inicio', path: '/dashboard', icon: LayoutDashboard, component: 'DashboardCard', status: 'active' },
-      ],
-    },
-    {
-      id: 'patient-core-modules',
-      archetype: 'core-modules',
-      label: 'Mi Expediente',
-      icon: FileHeart,
-      items: [
-        { id: 'patient-clinical-history', label: 'Historial Clínico', path: '/clinical-history', icon: History, component: 'DetailsPage', status: 'active' },
-        { id: 'patient-vaccines', label: 'Vacunas', path: '/vaccines', icon: Syringe, component: 'ListPage', status: 'active' },
-        { id: 'patient-allergies', label: 'Alergias', path: '/allergies', icon: ShieldAlert, component: 'ListPage', status: 'active' },
-        { id: 'patient-vitals', label: 'Signos Vitales', path: '/vitals', icon: HeartPulse, component: 'StatsWidget', status: 'active' },
-      ],
-    },
-    {
-      id: 'patient-operations',
-      archetype: 'operations',
-      label: 'Citas y Atención',
-      icon: CalendarCheck,
-      items: [
-        { id: 'patient-appointments', label: 'Mis Citas', path: '/appointments', icon: CalendarCheck, component: 'CalendarView', status: 'active' },
-        { id: 'patient-consultations', label: 'Consultas', path: '/consultations', icon: Stethoscope, component: 'ListPage', status: 'active' },
-        { id: 'patient-prescriptions', label: 'Recetas', path: '/prescriptions', icon: Pill, component: 'ListPage', status: 'active' },
-        { id: 'patient-labs', label: 'Laboratorios', path: '/labs', icon: FlaskConical, component: 'ListPage', status: 'active' },
-      ],
-    },
-    {
-      id: 'patient-reports',
-      archetype: 'reports',
-      label: 'Certificados',
-      icon: FileText,
-      items: [
-        { id: 'patient-certificates', label: 'Certificados y Cartilla', path: '/certificates', icon: FileCheck2, component: 'DetailsPage', status: 'active' },
-      ],
-    },
-    {
-      id: 'patient-settings',
-      archetype: 'settings',
-      label: 'Configuración',
-      icon: Settings,
-      items: [
-        { id: 'patient-profile', label: 'Perfil', path: '/profile', icon: User, component: 'SettingsPage', status: 'active' },
-        { id: 'patient-security', label: 'Seguridad y Acceso', path: '/security', icon: Lock, component: 'SettingsPage', status: 'active' },
-      ],
-    },
-  ],
-};
+export const PATIENT_NAVIGATION = [
+  {
+    title: 'DASHBOARD',
+    items: [
+      { name: 'Resumen General', path: '/paciente/dashboard/resumen', icon: LayoutDashboard },
+    ],
+  },
+  {
+    title: 'MI SALUD Y EXPEDIENTE',
+    items: [
+      { name: 'Resumen de Salud', path: '/paciente/salud/resumen', icon: HeartPulse },
+      { name: 'Signos Vitales', path: '/paciente/salud/signos-vitales', icon: Activity },
+      { name: 'Medicamentos Activos', path: '/paciente/salud/medicamentos', icon: Pill },
+      { name: 'Alergias y Reacciones', path: '/paciente/salud/alergias', icon: ShieldAlert },
+      { name: 'Enfermedades Crónicas', path: '/paciente/salud/enfermedades-cronicas', icon: FileText },
+      { name: 'Historial de Vacunación', path: '/paciente/salud/vacunas', icon: Syringe },
+      { name: 'Control de Embarazo', path: '/paciente/salud/embarazo', icon: Baby },
+      { name: 'Documentos Médicos', path: '/paciente/salud/documentos', icon: FolderOpen },
+    ],
+  },
+  {
+    title: 'CONSULTAS Y ATENCIÓN',
+    items: [
+      { name: 'Próximas Citas', path: '/paciente/consultas/proximas', icon: CalendarCheck },
+      { name: 'Historial de Consultas', path: '/paciente/consultas/historial', icon: History },
+      { name: 'Diagnósticos Médicos', path: '/paciente/consultas/diagnosticos', icon: Stethoscope },
+      { name: 'Recetas Médicas', path: '/paciente/consultas/recetas', icon: FileSpreadsheet },
+      { name: 'Órdenes Médicas', path: '/paciente/consultas/ordenes-medicas', icon: ClipboardList },
+      { name: 'Seguimientos Médicos', path: '/paciente/consultas/seguimientos', icon: Clock },
+    ],
+  },
+  {
+    title: 'ASISTENTE IA',
+    items: [
+      { name: 'Chat con IA', path: '/paciente/asistente-ia/chat', icon: Sparkles },
+      { name: 'Evaluación Rápida', path: '/paciente/asistente-ia/evaluacion-rapida', icon: Brain },
+      { name: 'Registro de Síntomas', path: '/paciente/asistente-ia/sintomas', icon: MessageSquare },
+      { name: 'Recomendaciones', path: '/paciente/asistente-ia/recomendaciones', icon: Lightbulb },
+      { name: 'Educación en Salud', path: '/paciente/asistente-ia/educacion', icon: GraduationCap },
+    ],
+  },
+  {
+    title: 'GESTIÓN FAMILIAR',
+    items: [
+      { name: 'Pacientes a Cargo', path: '/paciente/familia/pacientes-a-cargo', icon: Users },
+      { name: 'Miembros de Familia', path: '/paciente/familia/miembros', icon: Users },
+      { name: 'Autorizaciones', path: '/paciente/familia/autorizaciones', icon: ShieldCheck },
+      { name: 'Solicitudes Pendientes', path: '/paciente/familia/solicitudes', icon: UserPlus },
+    ],
+  },
+  {
+    title: 'IDENTIFICACIÓN',
+    items: [
+      { name: 'Credencial QR Digital', path: '/paciente/qr/credencial', icon: QrCode },
+    ],
+  },
+  {
+    title: 'NOTIFICACIONES',
+    items: [
+      { name: 'Bandeja de Entrada', path: '/paciente/notificaciones/bandeja', icon: Bell },
+    ],
+  },
+  {
+    title: 'PERFIL Y AJUSTES',
+    items: [
+      { name: 'Datos Personales', path: '/paciente/perfil/datos-personales', icon: User },
+      { name: 'Información de Emergencia', path: '/paciente/perfil/emergencias', icon: ShieldAlert },
+      { name: 'Contactos de Emergencia', path: '/paciente/perfil/contactos', icon: PhoneCall },
+      { name: 'Seguro Médico', path: '/paciente/perfil/seguro-medico', icon: Shield },
+      { name: 'Dispositivos Vinculados', path: '/paciente/perfil/dispositivos', icon: Smartphone },
+      { name: 'Seguridad de Cuenta', path: '/paciente/perfil/seguridad', icon: Lock },
+      { name: 'Privacidad y Datos', path: '/paciente/perfil/privacidad', icon: EyeOff },
+      { name: 'Preferencias del Sistema', path: '/paciente/perfil/preferencias', icon: Sliders },
+    ],
+  },
+];
