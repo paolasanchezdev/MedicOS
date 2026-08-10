@@ -1,46 +1,45 @@
-// =========================================================================
-// ARCHIVO: apps/web/src/modules/auth/pages/Login.tsx
-// DESCRIPCIÓN: Página principal de Autenticación (Login / Registro de Pacientes)
-// =========================================================================
-
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { LoginBanner } from '../components/LoginBanner';
 import { LoginForm, type LoginFormData } from '../components/LoginForm';
 import { RegisterForm, type RegisterFormData } from '../components/RegisterForm';
 import { authService } from '../services/auth.service';
+import { useAuth } from '../../../core/context/useAuth';
 
 export const Login: React.FC = () => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Redirección directa según el rol del usuario a los portales reales
+  // Redirección SPA mediante useNavigate en lugar de reload completo
   const redirectByUserRole = (role?: string) => {
     const userRole = role?.toUpperCase();
     console.log("Rol detectado para redirección:", userRole);
 
     switch (userRole) {
       case 'ADMIN':
-        window.location.href = '/admin/dashboard/resumen';
+        navigate('/admin/dashboard/resumen');
         break;
       case 'BRIGADIST':
       case 'BRIGADISTA':
-        window.location.href = '/brigadista';
+        navigate('/brigadista');
         break;
       case 'DOCTOR':
-        window.location.href = '/doctor';
+        navigate('/doctor');
         break;
       case 'AUTHORITY':
       case 'AUTORIDAD':
-        window.location.href = '/autoridad';
+        navigate('/autoridad');
         break;
       case 'PATIENT':
       case 'PACIENTE':
       default:
-        window.location.href = '/paciente/dashboard/resumen';
+        navigate('/paciente/dashboard/resumen');
         break;
     }
   };
@@ -60,15 +59,12 @@ export const Login: React.FC = () => {
       const response = await authService.login(data.email, data.password, data.turnstileToken);
       console.log("3. Respuesta completa del servidor:", response);
       
-      if (response?.token) {
-        localStorage.setItem('token', response.token);
+      if (response?.token && response?.user) {
+        login(response.token, response.user);
+        redirectByUserRole(response.user.role);
+      } else {
+        setError('Respuesta incompleta del servidor al iniciar sesión.');
       }
-      if (response?.user) {
-        localStorage.setItem('user', JSON.stringify(response.user));
-        localStorage.setItem('role', response.user.role);
-      }
-
-      redirectByUserRole(response?.user?.role);
 
     } catch (err: unknown) {
       console.error('❌ ERROR CRÍTICO DETALLADO:', err);
@@ -117,24 +113,20 @@ export const Login: React.FC = () => {
       );
 
       let loggedUser = regResponse?.user;
+      let userToken = (regResponse as unknown as { token?: string })?.token;
 
       if (!loggedUser) {
         try {
           const loginResponse = await authService.login(payload.email, payload.password);
-          if (loginResponse?.token) {
-            localStorage.setItem('token', loginResponse.token);
-          }
-          if (loginResponse?.user) {
-            loggedUser = loginResponse.user;
-          }
+          if (loginResponse?.token) userToken = loginResponse.token;
+          if (loginResponse?.user) loggedUser = loginResponse.user;
         } catch (loginErr) {
           console.warn("Auto-login no completado automáticamente, se solicitará ingresar manual:", loginErr);
         }
       }
 
-      if (loggedUser) {
-        localStorage.setItem('user', JSON.stringify(loggedUser));
-        localStorage.setItem('role', loggedUser.role || 'PATIENT');
+      if (loggedUser && userToken) {
+        login(userToken, loggedUser);
       }
 
       setSuccessMessage('¡Cuenta registrada exitosamente! Redirigiendo...');

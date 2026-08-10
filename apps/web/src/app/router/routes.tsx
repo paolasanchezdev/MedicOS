@@ -1,8 +1,3 @@
-// =========================================================================
-// ARCHIVO: apps/web/src/app/router/routes.tsx
-// DESCRIPCIÓN: Definición central de rutas públicas y protegidas de MedicOS.
-// =========================================================================
-
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './protectedRoutes';
@@ -12,7 +7,7 @@ import LandingPage from '../../modules/landing/LandingPage';
 import Login from '../../modules/auth/pages/Login';
 import { Register } from '../../modules/auth/pages/Register';
 
-// Componentes de Portales (Rutas corregidas en español)
+// Componentes de Portales
 import { AdminPanel } from '../../portals/admin/AdminPanel';
 import { PacientePanel } from '../../portals/paciente/PacientePanel';
 import { MedicoPanel } from '../../portals/medico/MedicoPanel';

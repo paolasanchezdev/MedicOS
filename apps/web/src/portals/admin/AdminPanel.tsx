@@ -1,9 +1,8 @@
 import React from 'react';
+import { AdminRoutes } from './routes/AdminRoutes';
 
 export const AdminPanel: React.FC = () => {
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold">Portal Administrador</h1>
-    </div>
-  );
+  return <AdminRoutes />;
 };
+
+export default AdminPanel;

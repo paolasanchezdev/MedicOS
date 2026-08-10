@@ -8,24 +8,8 @@ MedicOS/
 │   ├── history/
 │   │   └── 1785534733625-a420fdad.md
 │   └── .gitignore
-├── .turbo/
-│   └── cache/
-│       ├── 102914d5773447f3-manifest.json
-│       ├── 102914d5773447f3-meta.json
-│       ├── 102914d5773447f3.tar.zst
-│       ├── 845f713455ba3d8b-manifest.json
-│       ├── 845f713455ba3d8b-meta.json
-│       ├── 845f713455ba3d8b.tar.zst
-│       ├── baa6eacda26a3470-manifest.json
-│       ├── baa6eacda26a3470-meta.json
-│       ├── baa6eacda26a3470.tar.zst
-│       ├── cdf4b227a59f8c6c-manifest.json
-│       ├── cdf4b227a59f8c6c-meta.json
-│       └── cdf4b227a59f8c6c.tar.zst
 ├── apps/
 │   ├── api/
-│   │   ├── .turbo/
-│   │   │   └── turbo-build.log
 │   │   ├── prisma/
 │   │   │   ├── migrations/
 │   │   │   │   ├── 20260714200750_init_medicos_mvp_core/
@@ -84,9 +68,6 @@ MedicOS/
 │   │   ├── prisma.config.ts
 │   │   └── tsconfig.json
 │   └── web/
-│       ├── .turbo/
-│       │   ├── turbo-build.log
-│       │   └── turbo-lint.log
 │       ├── public/
 │       │   ├── images/
 │       │   │   ├── flow/
@@ -811,6 +792,7 @@ MedicOS/
 │       │   ├── services/
 │       │   ├── shared/
 │       │   │   ├── components/
+│       │   │   │   └── UnderConstruction.tsx
 │       │   │   ├── constants/
 │       │   │   ├── hooks/
 │       │   │   ├── lib/
@@ -850,7 +832,6 @@ MedicOS/
 ├── create-authority-portal.ps1
 ├── create-brigadista-portal.sh
 ├── create-medico-portal.sh
-├── docker-compose.yml
 ├── install_all.sh
 ├── LICENSE
 ├── medicos_backup.sql
@@ -862,6 +843,5 @@ MedicOS/
 ├── run.ps1
 ├── run.sh
 ├── tsconfig.json
-├── tsconfig.tsbuildinfo
 └── turbo.json
 ```
