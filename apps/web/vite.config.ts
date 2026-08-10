@@ -7,10 +7,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@modules': path.resolve(__dirname, './src/modules'),
-      '@portals': path.resolve(__dirname, './src/portals'),
-      '@core': path.resolve(__dirname, './src/core'),
-      '@shared': path.resolve(__dirname, './src/shared'),
     },
   },
   css: {

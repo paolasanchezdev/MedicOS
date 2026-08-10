@@ -1,0 +1,1 @@
+export const USER_ROLES = ['ADMIN', 'AUTHORITY', 'DOCTOR', 'PATIENT'];

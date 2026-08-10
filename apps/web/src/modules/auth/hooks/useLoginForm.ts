@@ -1,23 +1,23 @@
 // =========================================================================
-// ARCHIVO: apps/web/src/core/auth/hooks/useLoginForm.ts
-// DESCRIPCIÓN: Lógica para formulario, autenticación Google y QR.
+// ARCHIVO: apps/web/src/modules/auth/hooks/useLoginForm.ts
+// DESCRIPCIÓN: Hook para la gestión y flujo de inicio de sesión de MedicOS.
 // =========================================================================
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/context/useAuth';
-import { apiClient } from '../../../services/api/apiClient';
+import { authService } from '../services/auth.service';
 
-interface LoginResponse {
-  token: string;
-  user: {
-    id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    role: string;
-  };
-}
+const ROLE_REDIRECT_MAP: Record<string, string> = {
+  ADMIN: '/admin/dashboard/resumen',
+  BRIGADIST: '/brigadista/dashboard',
+  BRIGADISTA: '/brigadista/dashboard',
+  DOCTOR: '/doctor/dashboard',
+  AUTHORITY: '/autoridad/dashboard',
+  AUTORIDAD: '/autoridad/dashboard',
+  PATIENT: '/paciente/dashboard/resumen',
+  PACIENTE: '/paciente/dashboard/resumen',
+};
 
 export const useLoginForm = () => {
   const [email, setEmail] = useState('');
@@ -36,25 +36,16 @@ export const useLoginForm = () => {
     setLoading(true);
 
     try {
-      const data = await apiClient<LoginResponse>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      });
+      const data = await authService.login(email, password);
 
+      // Guarda la sesión en el contexto global y sessionManager
       login(data.token, data.user);
 
-      const userRole = data.user?.role?.toUpperCase();
-      if (userRole === 'ADMIN') {
-        navigate('/admin/dashboard/resumen');
-      } else if (userRole === 'BRIGADIST' || userRole === 'BRIGADISTA') {
-        navigate('/brigadista');
-      } else if (userRole === 'DOCTOR') {
-        navigate('/doctor');
-      } else if (userRole === 'AUTHORITY' || userRole === 'AUTORIDAD') {
-        navigate('/autoridad');
-      } else {
-        navigate('/paciente/dashboard/resumen');
-      }
+      // Redirección centralizada basada en el rol
+      const userRole = data.user?.role?.toUpperCase() || '';
+      const targetPath = ROLE_REDIRECT_MAP[userRole] || '/paciente/dashboard/resumen';
+
+      navigate(targetPath, { replace: true });
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
@@ -70,7 +61,8 @@ export const useLoginForm = () => {
     setGoogleLoading(true);
     setError('');
     try {
-      window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/google`;
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+      window.location.href = `${apiUrl}/auth/google`;
     } catch {
       setError('No se pudo conectar con el servicio de Google.');
       setGoogleLoading(false);

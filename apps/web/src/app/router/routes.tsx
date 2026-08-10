@@ -1,4 +1,8 @@
-// apps/web/src/app/router/routes.tsx
+// =========================================================================
+// ARCHIVO: apps/web/src/app/router/routes.tsx
+// DESCRIPCIÓN: Definición central de rutas públicas y protegidas de MedicOS.
+// =========================================================================
+
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './protectedRoutes';
@@ -11,9 +15,9 @@ import { Register } from '../../modules/auth/pages/Register';
 // Componentes de Portales
 import { AdminPanel } from '../../portals/admin/AdminPanel';
 import { PatientPanel } from '../../portals/patient/PatientPanel';
-//import { BrigadistPanel } from '../../portals/brigadist/BrigadistPanel';
 import { DoctorPanel } from '../../portals/doctor/DoctorPanel';
 import { AuthorityPanel } from '../../portals/authority/AuthorityPanel';
+// import { BrigadistPanel } from '../../portals/brigadist/BrigadistPanel';
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -43,6 +47,16 @@ export const AppRoutes: React.FC = () => {
         }
       />
 
+      {/* Portal Brigadista */}
+      <Route
+        path="/brigadista/*"
+        element={
+          <ProtectedRoute allowedRoles={['BRIGADIST', 'BRIGADISTA']}>
+            {/* Reemplazar por <BrigadistPanel /> al integrar su modulo */}
+            <Navigate to="/paciente/dashboard/resumen" replace />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Portal Médico */}
       <Route

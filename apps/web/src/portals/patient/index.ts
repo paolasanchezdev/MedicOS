@@ -1,1 +1,0 @@
-export { PatientPanel } from './PatientPanel';
