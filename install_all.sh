@@ -1,23 +1,9 @@
-
 #!/usr/bin/env bash
 
 # ============================================================
-# MedicOS - Instalador completo
+# MedicOS - Instalador completo y automatizado
 # ============================================================
-# Compatible con Ubuntu 24.04+
-#
-# Hace:
-#   1. Dependencias básicas
-#   2. Node.js 22
-#   3. Docker
-#   4. PostgreSQL mediante Docker
-#   5. Usuario y BD PostgreSQL
-#   6. apps/api/.env
-#   7. npm install
-#   8. Prisma generate + db push
-#   9. Levanta MedicOS
-#
-# NO crea usuarios administrativos de MedicOS.
+# Compatible con Ubuntu 24.04+ (Sistemas limpios)
 # ============================================================
 
 set -u
@@ -54,15 +40,18 @@ error() {
 }
 
 # ------------------------------------------------------------
-# Verificar Bash
+# Verificar ejecutor y sudo
 # ------------------------------------------------------------
 
-if [ -z "${BASH_VERSION:-}" ]; then
-    echo "Este instalador debe ejecutarse con Bash."
-    echo "Ejecuta:"
-    echo "  chmod +x install_all.sh"
-    echo "  sudo bash ./install_all.sh"
-    exit 1
+if [ "$EUID" -ne 0 ]; then
+    error "Este instalador requiere permisos de administrador.\nEjecuta: sudo bash ./install_all.sh"
+fi
+
+# Detectar usuario real tras el sudo
+REAL_USER="${SUDO_USER:-$USER}"
+
+if [ "$REAL_USER" = "root" ]; then
+    warning "Advertencia: Estás ejecutando esto directamente como el usuario root."
 fi
 
 # ------------------------------------------------------------
@@ -70,35 +59,34 @@ fi
 # ------------------------------------------------------------
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 cd "$PROJECT_DIR" || exit 1
 
 echo
 echo "============================================================"
-echo "                 MedicOS Installer v2.0"
+echo "                 MedicOS Installer v2.1"
 echo "============================================================"
-echo
-echo "Directorio del proyecto:"
-echo "$PROJECT_DIR"
+echo "Usuario objetivo: $REAL_USER"
+echo "Directorio      : $PROJECT_DIR"
+echo "============================================================"
 echo
 
 # ------------------------------------------------------------
 # Verificar estructura
 # ------------------------------------------------------------
 
-[ -d "$PROJECT_DIR/apps/api" ] || error "No existe apps/api."
-[ -d "$PROJECT_DIR/apps/web" ] || error "No existe apps/web."
+[ -d "$PROJECT_DIR/apps/api" ] || error "No existe la carpeta apps/api."
+[ -d "$PROJECT_DIR/apps/web" ] || error "No existe la carpeta apps/web."
 [ -f "$PROJECT_DIR/package.json" ] || error "No existe package.json en la raíz."
 
-success "Estructura de MedicOS detectada."
+success "Estructura de MedicOS validada."
 
 # ------------------------------------------------------------
-# 1. Dependencias básicas
+# 1. Dependencias del sistema
 # ------------------------------------------------------------
 
-log "[1/9] Instalando dependencias básicas..."
+log "[1/9] Instalando paquetes base del sistema..."
 
-apt-get update
+apt-get update -y
 
 apt-get install -y \
     curl \
@@ -111,70 +99,57 @@ apt-get install -y \
     openssl \
     postgresql-client
 
-success "Dependencias básicas listas."
+success "Dependencias básicas instaladas."
 
 # ------------------------------------------------------------
 # 2. Node.js 22
 # ------------------------------------------------------------
 
-log "[2/9] Verificando Node.js..."
+log "[2/9] Verificando entorno Node.js..."
 
 NODE_MAJOR=0
 
 if command -v node >/dev/null 2>&1; then
     NODE_VERSION="$(node -v | sed 's/^v//')"
     NODE_MAJOR="$(echo "$NODE_VERSION" | cut -d. -f1)"
-else
-    NODE_VERSION="0"
 fi
 
 if [ "$NODE_MAJOR" -lt 22 ]; then
-
-    warning "Node.js 22 o superior es requerido. Instalando Node.js 22..."
-
+    warning "Instalando Node.js 22 LTS..."
     curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-
     apt-get install -y nodejs
-
 fi
 
-NODE_VERSION="$(node -v)"
-NPM_VERSION="$(npm -v)"
-
-success "Node.js $NODE_VERSION"
-success "npm $NPM_VERSION"
+success "Node.js $(node -v) / npm $(npm -v)"
 
 # ------------------------------------------------------------
-# 3. Docker
+# 3. Docker Engine
 # ------------------------------------------------------------
 
 log "[3/9] Verificando Docker..."
 
 if ! command -v docker >/dev/null 2>&1; then
-
-    warning "Docker no está instalado. Instalando..."
-
-    apt-get update
-
-    apt-get install -y \
-        docker.io \
-        docker-compose-plugin
-
-else
-    success "Docker ya está instalado."
+    warning "Docker no detectado. Instalando Motor de Docker y Compose..."
+    apt-get update -y
+    apt-get install -y docker.io docker-compose-plugin
 fi
 
 systemctl enable docker >/dev/null 2>&1 || true
 systemctl start docker >/dev/null 2>&1 || true
 
-if ! docker info >/dev/null 2>&1; then
-    error "Docker no está funcionando correctamente."
+# Asignar usuario real al grupo docker si aplica
+if [ -n "${SUDO_USER:-}" ]; then
+    usermod -aG docker "$REAL_USER" || true
 fi
 
-success "Docker disponible."
+if ! docker info >/dev/null 2>&1; then
+    error "El demonio de Docker no está respondiendo."
+fi
+
+success "Docker configurado correctamente."
 
 # ------------------------------------------------------------
-# Variables PostgreSQL
+# Definición de variables de entorno del proyecto
 # ------------------------------------------------------------
 
 DB_CONTAINER="medicos_db"
@@ -190,35 +165,25 @@ WEB_PORT="5173"
 # 4. Crear docker-compose.yml
 # ------------------------------------------------------------
 
-log "[4/9] Configurando PostgreSQL..."
+log "[4/9] Generando archivo docker-compose.yml..."
 
 cat > "$PROJECT_DIR/docker-compose.yml" <<EOF
 services:
-
   postgres:
     image: postgres:16-alpine
     container_name: ${DB_CONTAINER}
-
     restart: unless-stopped
-
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-
     ports:
       - "${DB_PORT}:5432"
-
     volumes:
       - postgres_data:/var/lib/postgresql/data
-
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${DB_USER} -d ${DB_NAME}"
-        ]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 3s
       timeout: 5s
       retries: 20
 
@@ -226,218 +191,128 @@ volumes:
   postgres_data:
 EOF
 
-success "docker-compose.yml configurado."
+success "docker-compose.yml preparado."
 
 # ------------------------------------------------------------
-# 5. Crear apps/api/.env
+# 5. Generar .env de API y WEB
 # ------------------------------------------------------------
 
-log "[5/9] Configurando variables de entorno..."
+log "[5/9] Generando archivos de entorno (.env)..."
 
 JWT_SECRET="$(openssl rand -hex 64)"
 
+# API .env
 API_ENV="$PROJECT_DIR/apps/api/.env"
-
 cat > "$API_ENV" <<EOF
 PORT=${API_PORT}
-
 DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}?schema=public"
-
 JWT_SECRET=${JWT_SECRET}
-
 TURNSTILE_SECRET_KEY=0x4AAAAAAD8UiHj9T22_Ygg0IC7wlQayK8Y
 EOF
 
-chmod 600 "$API_ENV"
+# WEB .env
+WEB_ENV="$PROJECT_DIR/apps/web/.env"
+cat > "$WEB_ENV" <<EOF
+VITE_API_URL=http://localhost:${API_PORT}
+EOF
 
-success "apps/api/.env creado automáticamente."
+chmod 644 "$API_ENV" "$WEB_ENV"
 
-echo
-echo "Configuración:"
-echo "  Usuario DB : ${DB_USER}"
-echo "  Base datos : ${DB_NAME}"
-echo "  Puerto DB  : ${DB_PORT}"
-echo "  Puerto API : ${API_PORT}"
-echo "  Puerto Web : ${WEB_PORT}"
-echo
+success "Variables configuradas en apps/api/.env y apps/web/.env"
 
 # ------------------------------------------------------------
-# 6. PostgreSQL
+# 6. Desplegar e Inicializar PostgreSQL
 # ------------------------------------------------------------
 
-log "[6/9] Preparando PostgreSQL..."
+log "[6/9] Desplegando PostgreSQL en Docker..."
 
-# Detener instalación anterior.
-docker compose down --remove-orphans >/dev/null 2>&1 || true
-
-# Eliminar volumen anterior SOLO para garantizar una instalación
-# limpia y que las credenciales definidas arriba sean aplicadas.
 docker compose down -v --remove-orphans >/dev/null 2>&1 || true
-
-success "Instalación PostgreSQL anterior limpiada."
-
-echo
-echo "Iniciando PostgreSQL..."
-
 docker compose up -d
 
-if [ $? -ne 0 ]; then
-    error "No se pudo iniciar PostgreSQL."
-fi
-
-echo
-echo "Esperando a PostgreSQL..."
+log "Esperando inicio del motor de base de datos..."
 
 READY=0
-
-for i in $(seq 1 60); do
-
-    if docker exec "$DB_CONTAINER" \
-        pg_isready \
-        -U "$DB_USER" \
-        -d "$DB_NAME" >/dev/null 2>&1; then
-
+for i in $(seq 1 40); do
+    if docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1; then
         READY=1
         break
     fi
-
     printf "."
     sleep 1
-
 done
-
 echo
 
 if [ "$READY" -ne 1 ]; then
-
-    echo
-    echo "Estado del contenedor:"
     docker compose ps
-
-    echo
-    echo "Últimos logs:"
-    docker logs "$DB_CONTAINER" --tail 50
-
-    error "PostgreSQL no estuvo disponible."
+    docker logs "$DB_CONTAINER" --tail 30
+    error "La base de datos no estuvo lista a tiempo."
 fi
 
-success "PostgreSQL funcionando."
+success "PostgreSQL listo en puerto ${DB_PORT}."
 
 # ------------------------------------------------------------
-# Verificar autenticación real
+# Ajuste de Permisos antes de usar Node/npm
 # ------------------------------------------------------------
 
-echo
-echo "Verificando credenciales PostgreSQL..."
-
-PGPASSWORD="$DB_PASSWORD" \
-psql \
-    -h 127.0.0.1 \
-    -p "$DB_PORT" \
-    -U "$DB_USER" \
-    -d "$DB_NAME" \
-    -c "SELECT 1;" >/dev/null 2>&1
-
-if [ $? -ne 0 ]; then
-
-    echo
-    docker compose ps
-
-    echo
-    docker logs "$DB_CONTAINER" --tail 50
-
-    error "Las credenciales PostgreSQL no coinciden."
+if [ -n "${SUDO_USER:-}" ]; then
+    chown -R "$REAL_USER:$REAL_USER" "$PROJECT_DIR"
 fi
 
-success "Credenciales PostgreSQL correctas."
-
 # ------------------------------------------------------------
-# 7. Dependencias Node
+# 7. Instalación de dependencias npm
 # ------------------------------------------------------------
 
-log "[7/9] Instalando dependencias del proyecto..."
+log "[7/9] Instalando paquetes de Node.js..."
 
-cd "$PROJECT_DIR" || exit 1
+# Ejecutar npm install con la identidad del usuario no-root
+run_as_user() {
+    if [ -n "${SUDO_USER:-}" ]; then
+        sudo -u "$REAL_USER" "$@"
+    else
+        "$@"
+    fi
+}
 
-if [ -f package-lock.json ]; then
-    npm ci
-else
-    npm install
-fi
+run_as_user npm install
 
-if [ $? -ne 0 ]; then
-    error "npm no pudo instalar las dependencias."
-fi
-
-success "Dependencias instaladas."
+success "Dependencias de Node.js instaladas."
 
 # ------------------------------------------------------------
-# 8. Prisma
+# 8. Generación e integración con Prisma
 # ------------------------------------------------------------
 
-log "[8/9] Configurando Prisma..."
+log "[8/9] Ejecutando Prisma (Generate & DB Push)..."
 
 cd "$PROJECT_DIR/apps/api" || exit 1
 
-npx prisma generate
-
-if [ $? -ne 0 ]; then
-    error "Prisma generate falló."
-fi
-
-success "Prisma Client generado."
-
-npx prisma db push
-
-if [ $? -ne 0 ]; then
-    error "Prisma db push falló."
-fi
-
-success "Base de datos sincronizada con Prisma."
-
-# ------------------------------------------------------------
-# 9. Finalizar
-# ------------------------------------------------------------
-
-log "[9/9] MedicOS listo."
+run_as_user npx prisma generate || error "Fallo en npx prisma generate"
+run_as_user npx prisma db push || error "Fallo en npx prisma db push"
 
 cd "$PROJECT_DIR" || exit 1
 
-echo
-echo "============================================================"
-echo "                 INSTALACIÓN COMPLETADA"
-echo "============================================================"
-echo
-echo "PostgreSQL:"
-echo "  Host     : localhost"
-echo "  Puerto   : ${DB_PORT}"
-echo "  Usuario  : ${DB_USER}"
-echo "  Base     : ${DB_NAME}"
-echo
-echo "API:"
-echo "  Puerto   : ${API_PORT}"
-echo
-echo "Web:"
-echo "  Puerto   : ${WEB_PORT}"
-echo
-echo "Archivo generado:"
-echo "  apps/api/.env"
-echo
-echo "No se creó ningún administrador de MedicOS."
-echo
-echo "============================================================"
-echo
+success "Esquema de base de datos sincronizado con éxito."
 
 # ------------------------------------------------------------
-# Iniciar MedicOS
+# 9. Finalización y Lanzamiento
 # ------------------------------------------------------------
 
-echo "Iniciando MedicOS..."
+# Corregir propiedad final de todos los archivos generados
+if [ -n "${SUDO_USER:-}" ]; then
+    chown -R "$REAL_USER:$REAL_USER" "$PROJECT_DIR"
+fi
+
 echo
-echo "Cuando Vite/Node muestre las URLs, abre la correspondiente."
-echo
-echo "Para detener MedicOS:"
-echo "  Ctrl + C"
+echo "============================================================"
+echo "           INSTALACIÓN COMPLETADA EXITOSAMENTE"
+echo "============================================================"
+echo "Servicios configurados:"
+echo "  • Base de Datos : postgresql://${DB_USER}:****@localhost:${DB_PORT}/${DB_NAME}"
+echo "  • API Backend   : http://localhost:${API_PORT}"
+echo "  • Web Frontend  : http://localhost:${WEB_PORT}"
+echo "============================================================"
+echo "Iniciando MedicOS en modo desarrollo..."
+echo "Presiona Ctrl + C para detener la aplicación."
 echo
 
-npm run dev
+# Iniciar servidor como el usuario estándar para no bloquear permisos futuros
+run_as_user npm run dev

@@ -1,3 +1,25 @@
+# Dependencias
 node_modules/
-.env
+.pnpm-store/
+
+# Compilados y Caché
 dist/
+build/
+.turbo/
+*.tsbuildinfo
+.vite/
+
+# Archivos de entorno y secretos
+.env
+.env.local
+apps/api/.env
+apps/web/.env
+
+# Archivos generados dinámicamente
+docker-compose.yml
+
+# Archivos de sistema operativo / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
