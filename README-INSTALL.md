@@ -13,7 +13,7 @@ Ejecuta los siguientes comandos en la terminal de la nueva computadora:
 
 Paso 1: Clonar el repositorio
 Bash
-git clone <URL_DE_TU_REPOSISTORIO>
+git clone
 cd MedicOS
 Paso 2: Otorgar permisos de ejecución al instalador
 Bash

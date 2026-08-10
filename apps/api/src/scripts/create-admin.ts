@@ -3,48 +3,127 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
+import readline from 'node:readline/promises';
+import { stdin as input, stdout as output } from 'node:process';
 
-// Cargar variables de entorno (.env)
 dotenv.config();
 
-// Configuración requerida para Prisma 7.x
-const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+  console.error('❌ ERROR: No se encontró DATABASE_URL en el archivo .env');
+  process.exit(1);
+}
+
+const pool = new pg.Pool({
+  connectionString: databaseUrl,
+});
+
 const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+
+const prisma = new PrismaClient({
+  adapter,
+});
+
+async function ask(question: string): Promise<string> {
+  const rl = readline.createInterface({
+    input,
+    output,
+  });
+
+  const answer = await rl.question(question);
+
+  rl.close();
+
+  return answer.trim();
+}
 
 async function main() {
-  // 👈 AQUÍ ESTABA EL ERROR: Cambiamos 'admin123' por la contraseña real
-  const plainPassword = 'MedicOS@2026';
-  const hashedPassword = await bcrypt.hash(plainPassword, 10);
+  console.log('');
+  console.log('==========================================');
+  console.log('       CONFIGURACIÓN INICIAL - MedicOS');
+  console.log('==========================================');
+  console.log('');
+  console.log('Crea el usuario administrador inicial.');
+  console.log('');
 
-  const admin = await prisma.user.upsert({
-    where: { email: 'paola@medicos.com' },
-    update: {
-      role: Role.ADMIN,
-      status: UserStatus.ACTIVE,
-      passwordHash: hashedPassword, // Aseguramos que se actualice también si ya existía
-    },
-    create: {
-      email: 'paola@medicos.com',
-      firstName: 'Paola',
-      lastName: 'Rodríguez',
-      passwordHash: hashedPassword,
-      role: Role.ADMIN,
-      status: UserStatus.ACTIVE,
+  const name = await ask('👤 Nombre del administrador: ');
+
+  if (!name) {
+    console.error('❌ El nombre no puede estar vacío.');
+    process.exit(1);
+  }
+
+  const password = await ask('🔐 Contraseña: ');
+
+  if (!password) {
+    console.error('❌ La contraseña no puede estar vacía.');
+    process.exit(1);
+  }
+
+  if (password.length < 6) {
+    console.error('❌ La contraseña debe tener al menos 6 caracteres.');
+    process.exit(1);
+  }
+
+  const email = `admin@medicos.local`;
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const existingAdmin = await prisma.user.findUnique({
+    where: {
+      email,
     },
   });
 
-  console.log('-------------------------------------------');
-  console.log('✅ USUARIO ADMINISTRADOR CREADO / ACTUALIZADO:');
-  console.log('Correo:    ', admin.email);
-  console.log('Contraseña:', plainPassword);
-  console.log('Rol:       ', admin.role);
-  console.log('-------------------------------------------');
+  let admin;
+
+  if (existingAdmin) {
+    admin = await prisma.user.update({
+      where: {
+        email,
+      },
+      data: {
+        firstName: name,
+        lastName: '',
+        passwordHash: hashedPassword,
+        role: Role.ADMIN,
+        status: UserStatus.ACTIVE,
+        deletedAt: null,
+      },
+    });
+  } else {
+    admin = await prisma.user.create({
+      data: {
+        email,
+        firstName: name,
+        lastName: '',
+        passwordHash: hashedPassword,
+        role: Role.ADMIN,
+        status: UserStatus.ACTIVE,
+      },
+    });
+  }
+
+  console.log('');
+  console.log('==========================================');
+  console.log('       ✅ ADMINISTRADOR CONFIGURADO');
+  console.log('==========================================');
+  console.log('');
+  console.log(`👤 Nombre: ${admin.firstName}`);
+  console.log(`📧 Usuario: ${admin.email}`);
+  console.log(`🔐 Contraseña: configurada`);
+  console.log(`🛡️ Rol: ${admin.role}`);
+  console.log('');
+  console.log('MedicOS está listo para utilizarse.');
+  console.log('==========================================');
 }
 
 main()
-  .catch((e) => {
-    console.error('❌ Error al crear usuario:', e);
+  .catch((error) => {
+    console.error('');
+    console.error('❌ Error al crear el administrador:');
+    console.error(error);
     process.exit(1);
   })
   .finally(async () => {
