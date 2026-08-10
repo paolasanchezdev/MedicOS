@@ -376,119 +376,438 @@ MedicOS/
 │       │   │   │   ├── routes/
 │       │   │   │   │   └── AdminRoutes.tsx
 │       │   │   │   └── AdminPanel.tsx
-│       │   │   └── authority/
+│       │   │   ├── authority/
+│       │   │   │   ├── layout/
+│       │   │   │   │   ├── AuthorityHeader.tsx
+│       │   │   │   │   ├── AuthorityLayout.tsx
+│       │   │   │   │   ├── AuthoritySidebar.tsx
+│       │   │   │   │   ├── EstadoSistemaBadge.tsx
+│       │   │   │   │   └── index.ts
+│       │   │   │   ├── navigation/
+│       │   │   │   │   └── authority.navigation.ts
+│       │   │   │   ├── pages/
+│       │   │   │   │   ├── brigadas/
+│       │   │   │   │   │   ├── cobertura/
+│       │   │   │   │   │   │   └── CoberturaBrigadasPage.tsx
+│       │   │   │   │   │   ├── historial/
+│       │   │   │   │   │   │   └── HistorialBrigadasPage.tsx
+│       │   │   │   │   │   ├── programadas/
+│       │   │   │   │   │   │   └── BrigadasProgramadasPage.tsx
+│       │   │   │   │   │   └── resultados/
+│       │   │   │   │   │       └── ResultadosBrigadasPage.tsx
+│       │   │   │   │   ├── campanas/
+│       │   │   │   │   │   ├── activas/
+│       │   │   │   │   │   │   └── CampanasActivasPage.tsx
+│       │   │   │   │   │   ├── planificacion/
+│       │   │   │   │   │   │   └── PlanificacionCampanasPage.tsx
+│       │   │   │   │   │   ├── resultados/
+│       │   │   │   │   │   │   └── ResultadosCampanasPage.tsx
+│       │   │   │   │   │   └── seguimiento/
+│       │   │   │   │   │       └── SeguimientoCampanasPage.tsx
+│       │   │   │   │   ├── configuracion/
+│       │   │   │   │   │   ├── accesos/
+│       │   │   │   │   │   │   └── AccesosPage.tsx
+│       │   │   │   │   │   ├── auditoria/
+│       │   │   │   │   │   │   └── AuditoriaPage.tsx
+│       │   │   │   │   │   ├── notificaciones/
+│       │   │   │   │   │   │   └── NotificacionesPage.tsx
+│       │   │   │   │   │   └── preferencias/
+│       │   │   │   │   │       └── PreferenciasPage.tsx
+│       │   │   │   │   ├── dashboard/
+│       │   │   │   │   │   ├── resumen/
+│       │   │   │   │   │   │   └── ResumenAutoridadPage.tsx
+│       │   │   │   │   │   └── salud-sistema/
+│       │   │   │   │   │       └── SaludSistemaPage.tsx
+│       │   │   │   │   ├── epidemiologia/
+│       │   │   │   │   │   ├── alertas/
+│       │   │   │   │   │   │   └── AlertasEpidemiologicasPage.tsx
+│       │   │   │   │   │   ├── brotes/
+│       │   │   │   │   │   │   └── BrotesPage.tsx
+│       │   │   │   │   │   ├── factores-riesgo/
+│       │   │   │   │   │   │   └── FactoresRiesgoPage.tsx
+│       │   │   │   │   │   ├── tendencias/
+│       │   │   │   │   │   │   └── TendenciasEpidemiologicasPage.tsx
+│       │   │   │   │   │   └── vigilancia/
+│       │   │   │   │   │       └── VigilanciaEpidemiologicaPage.tsx
+│       │   │   │   │   ├── establecimientos/
+│       │   │   │   │   │   ├── clinicas/
+│       │   │   │   │   │   │   └── ClinicasPage.tsx
+│       │   │   │   │   │   ├── hospitales/
+│       │   │   │   │   │   │   └── HospitalesPage.tsx
+│       │   │   │   │   │   ├── recursos/
+│       │   │   │   │   │   │   └── RecursosEstablecimientosPage.tsx
+│       │   │   │   │   │   └── unidades-salud/
+│       │   │   │   │   │       └── UnidadesSaludPage.tsx
+│       │   │   │   │   ├── estadisticas/
+│       │   │   │   │   │   ├── brigadas/
+│       │   │   │   │   │   │   └── EstadisticasBrigadasPage.tsx
+│       │   │   │   │   │   ├── cobertura/
+│       │   │   │   │   │   │   └── CoberturaPage.tsx
+│       │   │   │   │   │   ├── comunidades/
+│       │   │   │   │   │   │   └── EstadisticasComunidadesPage.tsx
+│       │   │   │   │   │   ├── enfermedades/
+│       │   │   │   │   │   │   └── EstadisticasEnfermedadesPage.tsx
+│       │   │   │   │   │   ├── pacientes/
+│       │   │   │   │   │   │   └── EstadisticasPacientesPage.tsx
+│       │   │   │   │   │   ├── salud-materno-infantil/
+│       │   │   │   │   │   │   └── SaludMaternoInfantilPage.tsx
+│       │   │   │   │   │   └── vacunacion/
+│       │   │   │   │   │       └── VacunacionPage.tsx
+│       │   │   │   │   ├── inteligencia-artificial/
+│       │   │   │   │   │   ├── consultas/
+│       │   │   │   │   │   │   └── ConsultasIAPage.tsx
+│       │   │   │   │   │   ├── predicciones/
+│       │   │   │   │   │   │   └── PrediccionesIAPage.tsx
+│       │   │   │   │   │   ├── recomendaciones/
+│       │   │   │   │   │   │   └── RecomendacionesIAPage.tsx
+│       │   │   │   │   │   ├── resumenes/
+│       │   │   │   │   │   │   └── ResumenesIAPage.tsx
+│       │   │   │   │   │   └── tendencias/
+│       │   │   │   │   │       └── TendenciasIAPage.tsx
+│       │   │   │   │   ├── mapas/
+│       │   │   │   │   │   ├── brigadas/
+│       │   │   │   │   │   │   └── MapaBrigadasPage.tsx
+│       │   │   │   │   │   ├── calor-epidemiologico/
+│       │   │   │   │   │   │   └── MapaCalorEpidemiologicoPage.tsx
+│       │   │   │   │   │   ├── cobertura/
+│       │   │   │   │   │   │   └── MapaCoberturaPage.tsx
+│       │   │   │   │   │   ├── comunidades/
+│       │   │   │   │   │   │   └── MapaComunidadesPage.tsx
+│       │   │   │   │   │   └── zonas-prioritarias/
+│       │   │   │   │   │       └── ZonasPrioritariasPage.tsx
+│       │   │   │   │   └── reportes/
+│       │   │   │   │       ├── brigadas/
+│       │   │   │   │       │   └── ReportesBrigadasPage.tsx
+│       │   │   │   │       ├── ejecutivos/
+│       │   │   │   │       │   └── ReportesEjecutivosPage.tsx
+│       │   │   │   │       ├── epidemiologicos/
+│       │   │   │   │       │   └── ReportesEpidemiologicosPage.tsx
+│       │   │   │   │       ├── exportaciones/
+│       │   │   │   │       │   └── ExportacionesPage.tsx
+│       │   │   │   │       └── personalizados/
+│       │   │   │   │           └── ReportesPersonalizadosPage.tsx
+│       │   │   │   ├── routes/
+│       │   │   │   │   └── AuthorityRoutes.tsx
+│       │   │   │   └── AuthorityPanel.tsx
+│       │   │   ├── brigadista/
+│       │   │   │   ├── layout/
+│       │   │   │   │   ├── BrigadistaBottomNav.tsx
+│       │   │   │   │   ├── BrigadistaHeader.tsx
+│       │   │   │   │   ├── BrigadistaLayout.tsx
+│       │   │   │   │   ├── BrigadistaSidebar.tsx
+│       │   │   │   │   ├── BrigadistaStatusBadge.tsx
+│       │   │   │   │   └── index.ts
+│       │   │   │   ├── navigation/
+│       │   │   │   │   └── brigadista.navigation.ts
+│       │   │   │   ├── pages/
+│       │   │   │   │   ├── brigada/
+│       │   │   │   │   │   ├── jornada/
+│       │   │   │   │   │   │   └── JornadaBrigadaPage.tsx
+│       │   │   │   │   │   ├── pacientes/
+│       │   │   │   │   │   │   └── PacientesBrigadaPage.tsx
+│       │   │   │   │   │   └── resumen/
+│       │   │   │   │   │       └── ResumenBrigadaPage.tsx
+│       │   │   │   │   ├── consultas/
+│       │   │   │   │   │   ├── historial/
+│       │   │   │   │   │   │   └── HistorialConsultasPage.tsx
+│       │   │   │   │   │   ├── nueva/
+│       │   │   │   │   │   │   └── NuevaConsultaPage.tsx
+│       │   │   │   │   │   └── pendientes/
+│       │   │   │   │   │       └── ConsultasPendientesPage.tsx
+│       │   │   │   │   ├── dashboard/
+│       │   │   │   │   │   ├── actividad/
+│       │   │   │   │   │   │   └── ActividadBrigadistaPage.tsx
+│       │   │   │   │   │   └── resumen/
+│       │   │   │   │   │       └── ResumenBrigadistaPage.tsx
+│       │   │   │   │   ├── evaluacion/
+│       │   │   │   │   │   ├── antecedentes/
+│       │   │   │   │   │   │   └── AntecedentesPage.tsx
+│       │   │   │   │   │   ├── observaciones/
+│       │   │   │   │   │   │   └── ObservacionesPage.tsx
+│       │   │   │   │   │   ├── signos-vitales/
+│       │   │   │   │   │   │   └── SignosVitalesPage.tsx
+│       │   │   │   │   │   └── sintomas/
+│       │   │   │   │   │       └── SintomasPage.tsx
+│       │   │   │   │   ├── mapa/
+│       │   │   │   │   │   ├── establecimientos/
+│       │   │   │   │   │   │   └── MapaEstablecimientosPage.tsx
+│       │   │   │   │   │   ├── pacientes/
+│       │   │   │   │   │   │   └── MapaPacientesPage.tsx
+│       │   │   │   │   │   └── ubicacion/
+│       │   │   │   │   │       └── UbicacionPage.tsx
+│       │   │   │   │   ├── notificaciones/
+│       │   │   │   │   │   ├── alertas/
+│       │   │   │   │   │   │   └── AlertasPage.tsx
+│       │   │   │   │   │   └── centro/
+│       │   │   │   │   │       └── CentroNotificacionesPage.tsx
+│       │   │   │   │   ├── pacientes/
+│       │   │   │   │   │   ├── buscar/
+│       │   │   │   │   │   │   └── BuscarPacientePage.tsx
+│       │   │   │   │   │   ├── escanear/
+│       │   │   │   │   │   │   └── EscanearPacientePage.tsx
+│       │   │   │   │   │   ├── expediente/
+│       │   │   │   │   │   │   └── ExpedientePacientePage.tsx
+│       │   │   │   │   │   └── registrar/
+│       │   │   │   │   │       └── RegistrarPacientePage.tsx
+│       │   │   │   │   ├── perfil/
+│       │   │   │   │   │   ├── datos/
+│       │   │   │   │   │   │   └── DatosBrigadistaPage.tsx
+│       │   │   │   │   │   ├── preferencias/
+│       │   │   │   │   │   │   └── PreferenciasBrigadistaPage.tsx
+│       │   │   │   │   │   └── seguridad/
+│       │   │   │   │   │       └── SeguridadBrigadistaPage.tsx
+│       │   │   │   │   ├── reportes/
+│       │   │   │   │   │   ├── brigada/
+│       │   │   │   │   │   │   └── ReportesBrigadaPage.tsx
+│       │   │   │   │   │   ├── consultas/
+│       │   │   │   │   │   │   └── ReportesConsultasPage.tsx
+│       │   │   │   │   │   └── pacientes/
+│       │   │   │   │   │       └── ReportesPacientesPage.tsx
+│       │   │   │   │   ├── seguimiento/
+│       │   │   │   │   │   ├── alertas/
+│       │   │   │   │   │   │   └── AlertasSeguimientoPage.tsx
+│       │   │   │   │   │   ├── controles/
+│       │   │   │   │   │   │   └── ControlesPage.tsx
+│       │   │   │   │   │   └── pacientes/
+│       │   │   │   │   │       └── SeguimientoPacientesPage.tsx
+│       │   │   │   │   ├── sincronizacion/
+│       │   │   │   │   │   ├── estado/
+│       │   │   │   │   │   │   └── EstadoSincronizacionPage.tsx
+│       │   │   │   │   │   ├── historial/
+│       │   │   │   │   │   │   └── HistorialSincronizacionPage.tsx
+│       │   │   │   │   │   └── pendientes/
+│       │   │   │   │   │       └── PendientesSincronizacionPage.tsx
+│       │   │   │   │   └── tratamientos/
+│       │   │   │   │       ├── indicaciones/
+│       │   │   │   │       │   └── IndicacionesPage.tsx
+│       │   │   │   │       ├── medicamentos/
+│       │   │   │   │       │   └── MedicamentosPage.tsx
+│       │   │   │   │       └── seguimiento/
+│       │   │   │   │           └── SeguimientoTratamientoPage.tsx
+│       │   │   │   ├── routes/
+│       │   │   │   │   └── BrigadistaRoutes.tsx
+│       │   │   │   ├── BrigadistaPanel.tsx
+│       │   │   │   └── index.ts
+│       │   │   ├── medico/
+│       │   │   │   ├── layout/
+│       │   │   │   │   ├── index.ts
+│       │   │   │   │   ├── MedicoBottomNav.tsx
+│       │   │   │   │   ├── MedicoHeader.tsx
+│       │   │   │   │   ├── MedicoLayout.tsx
+│       │   │   │   │   ├── MedicoSidebar.tsx
+│       │   │   │   │   └── MedicoStatusBadge.tsx
+│       │   │   │   ├── navigation/
+│       │   │   │   │   └── medico.navigation.ts
+│       │   │   │   ├── pages/
+│       │   │   │   │   ├── consultas/
+│       │   │   │   │   │   ├── agenda/
+│       │   │   │   │   │   │   └── AgendaConsultasPage.tsx
+│       │   │   │   │   │   ├── historial/
+│       │   │   │   │   │   │   └── HistorialConsultasPage.tsx
+│       │   │   │   │   │   ├── nueva/
+│       │   │   │   │   │   │   └── NuevaConsultaPage.tsx
+│       │   │   │   │   │   └── seguimiento/
+│       │   │   │   │   │       └── SeguimientoConsultasPage.tsx
+│       │   │   │   │   ├── dashboard/
+│       │   │   │   │   │   ├── actividad/
+│       │   │   │   │   │   │   └── ActividadMedicoPage.tsx
+│       │   │   │   │   │   ├── agenda/
+│       │   │   │   │   │   │   └── AgendaMedicoPage.tsx
+│       │   │   │   │   │   ├── alertas/
+│       │   │   │   │   │   │   └── AlertasClinicasPage.tsx
+│       │   │   │   │   │   └── resumen/
+│       │   │   │   │   │       └── ResumenMedicoPage.tsx
+│       │   │   │   │   ├── diagnosticos/
+│       │   │   │   │   │   ├── catalogo/
+│       │   │   │   │   │   │   └── CatalogoDiagnosticosPage.tsx
+│       │   │   │   │   │   ├── historial/
+│       │   │   │   │   │   │   └── HistorialDiagnosticosPage.tsx
+│       │   │   │   │   │   └── nuevo/
+│       │   │   │   │   │       └── NuevoDiagnosticoPage.tsx
+│       │   │   │   │   ├── estudios/
+│       │   │   │   │   │   ├── imagen/
+│       │   │   │   │   │   │   └── EstudiosImagenPage.tsx
+│       │   │   │   │   │   ├── laboratorio/
+│       │   │   │   │   │   │   └── ResultadosLaboratorioPage.tsx
+│       │   │   │   │   │   ├── resultados/
+│       │   │   │   │   │   │   └── ResultadosEstudiosPage.tsx
+│       │   │   │   │   │   └── solicitar/
+│       │   │   │   │   │       └── SolicitarEstudioPage.tsx
+│       │   │   │   │   ├── evaluacion/
+│       │   │   │   │   │   ├── anamnesis/
+│       │   │   │   │   │   │   └── AnamnesisPage.tsx
+│       │   │   │   │   │   ├── examen-fisico/
+│       │   │   │   │   │   │   └── ExamenFisicoPage.tsx
+│       │   │   │   │   │   ├── observaciones/
+│       │   │   │   │   │   │   └── ObservacionesClinicasPage.tsx
+│       │   │   │   │   │   └── signos-vitales/
+│       │   │   │   │   │       └── RegistroSignosVitalesPage.tsx
+│       │   │   │   │   ├── expediente/
+│       │   │   │   │   │   ├── antecedentes/
+│       │   │   │   │   │   │   └── AlergiasAntecedentesPacientePage.tsx
+│       │   │   │   │   │   ├── consultas/
+│       │   │   │   │   │   │   └── ConsultasPacientePage.tsx
+│       │   │   │   │   │   ├── diagnosticos/
+│       │   │   │   │   │   │   └── DiagnosticosPacientePage.tsx
+│       │   │   │   │   │   ├── medicamentos/
+│       │   │   │   │   │   │   └── MedicamentosPacientePage.tsx
+│       │   │   │   │   │   ├── signos-vitales/
+│       │   │   │   │   │   │   └── SignosVitalesPacientePage.tsx
+│       │   │   │   │   │   └── vacunas/
+│       │   │   │   │   │       └── VacunasPacientePage.tsx
+│       │   │   │   │   ├── ia/
+│       │   │   │   │   │   ├── alertas/
+│       │   │   │   │   │   │   └── AlertasIAPage.tsx
+│       │   │   │   │   │   ├── analisis/
+│       │   │   │   │   │   │   └── AnalisisIAPage.tsx
+│       │   │   │   │   │   ├── asistente/
+│       │   │   │   │   │   │   └── AsistenteClinicoIAPage.tsx
+│       │   │   │   │   │   └── historial/
+│       │   │   │   │   │       └── HistorialAnalisisIAPage.tsx
+│       │   │   │   │   ├── notificaciones/
+│       │   │   │   │   │   ├── alertas/
+│       │   │   │   │   │   │   └── AlertasPage.tsx
+│       │   │   │   │   │   ├── centro/
+│       │   │   │   │   │   │   └── CentroNotificacionesPage.tsx
+│       │   │   │   │   │   └── mensajes/
+│       │   │   │   │   │       └── MensajesPage.tsx
+│       │   │   │   │   ├── pacientes/
+│       │   │   │   │   │   ├── buscar/
+│       │   │   │   │   │   │   └── BuscarPacientePage.tsx
+│       │   │   │   │   │   ├── detalle/
+│       │   │   │   │   │   │   └── DetallePacientePage.tsx
+│       │   │   │   │   │   ├── listado/
+│       │   │   │   │   │   │   └── PacientesPage.tsx
+│       │   │   │   │   │   └── qr/
+│       │   │   │   │   │       └── LectorQRPage.tsx
+│       │   │   │   │   ├── perfil/
+│       │   │   │   │   │   ├── datos-profesionales/
+│       │   │   │   │   │   │   └── DatosProfesionalesPage.tsx
+│       │   │   │   │   │   ├── especialidad/
+│       │   │   │   │   │   │   └── EspecialidadPage.tsx
+│       │   │   │   │   │   ├── preferencias/
+│       │   │   │   │   │   │   └── PreferenciasMedicoPage.tsx
+│       │   │   │   │   │   └── seguridad/
+│       │   │   │   │   │       └── SeguridadMedicoPage.tsx
+│       │   │   │   │   ├── recetas/
+│       │   │   │   │   │   ├── activas/
+│       │   │   │   │   │   │   └── RecetasActivasPage.tsx
+│       │   │   │   │   │   ├── historial/
+│       │   │   │   │   │   │   └── HistorialRecetasPage.tsx
+│       │   │   │   │   │   └── nueva/
+│       │   │   │   │   │       └── NuevaRecetaPage.tsx
+│       │   │   │   │   ├── reportes/
+│       │   │   │   │   │   ├── brigadas/
+│       │   │   │   │   │   │   └── ReporteBrigadasPage.tsx
+│       │   │   │   │   │   ├── clinicos/
+│       │   │   │   │   │   │   └── ReportesClinicosPage.tsx
+│       │   │   │   │   │   ├── consultas/
+│       │   │   │   │   │   │   └── ReporteConsultasPage.tsx
+│       │   │   │   │   │   └── pacientes/
+│       │   │   │   │   │       └── ReportePacientesPage.tsx
+│       │   │   │   │   ├── salud-materna/
+│       │   │   │   │   │   ├── controles-prenatales/
+│       │   │   │   │   │   │   └── ControlesPrenatalesPage.tsx
+│       │   │   │   │   │   ├── embarazo/
+│       │   │   │   │   │   │   └── ControlEmbarazoPage.tsx
+│       │   │   │   │   │   └── seguimiento/
+│       │   │   │   │   │       └── SeguimientoMaternoPage.tsx
+│       │   │   │   │   └── tratamientos/
+│       │   │   │   │       ├── historial/
+│       │   │   │   │       │   └── HistorialTratamientosPage.tsx
+│       │   │   │   │       ├── medicamentos/
+│       │   │   │   │       │   └── MedicamentosPage.tsx
+│       │   │   │   │       ├── plan/
+│       │   │   │   │       │   └── PlanTratamientoPage.tsx
+│       │   │   │   │       └── seguimiento/
+│       │   │   │   │           └── SeguimientoTratamientoPage.tsx
+│       │   │   │   ├── routes/
+│       │   │   │   │   └── MedicoRoutes.tsx
+│       │   │   │   ├── index.ts
+│       │   │   │   └── MedicoPanel.tsx
+│       │   │   └── paciente/
 │       │   │       ├── layout/
-│       │   │       │   ├── AuthorityHeader.tsx
-│       │   │       │   ├── AuthorityLayout.tsx
-│       │   │       │   ├── AuthoritySidebar.tsx
-│       │   │       │   ├── EstadoSistemaBadge.tsx
-│       │   │       │   └── index.ts
+│       │   │       │   ├── index.ts
+│       │   │       │   ├── PacienteHeader.tsx
+│       │   │       │   ├── PacienteLayout.tsx
+│       │   │       │   └── PacienteSidebar.tsx
 │       │   │       ├── navigation/
-│       │   │       │   └── authority.navigation.ts
+│       │   │       │   └── paciente.navigation.ts
 │       │   │       ├── pages/
-│       │   │       │   ├── brigadas/
-│       │   │       │   │   ├── cobertura/
-│       │   │       │   │   │   └── CoberturaBrigadasPage.tsx
-│       │   │       │   │   ├── historial/
-│       │   │       │   │   │   └── HistorialBrigadasPage.tsx
-│       │   │       │   │   ├── programadas/
-│       │   │       │   │   │   └── BrigadasProgramadasPage.tsx
-│       │   │       │   │   └── resultados/
-│       │   │       │   │       └── ResultadosBrigadasPage.tsx
-│       │   │       │   ├── campanas/
-│       │   │       │   │   ├── activas/
-│       │   │       │   │   │   └── CampanasActivasPage.tsx
-│       │   │       │   │   ├── planificacion/
-│       │   │       │   │   │   └── PlanificacionCampanasPage.tsx
-│       │   │       │   │   ├── resultados/
-│       │   │       │   │   │   └── ResultadosCampanasPage.tsx
-│       │   │       │   │   └── seguimiento/
-│       │   │       │   │       └── SeguimientoCampanasPage.tsx
-│       │   │       │   ├── configuracion/
-│       │   │       │   │   ├── accesos/
-│       │   │       │   │   │   └── AccesosPage.tsx
-│       │   │       │   │   ├── auditoria/
-│       │   │       │   │   │   └── AuditoriaPage.tsx
-│       │   │       │   │   ├── notificaciones/
-│       │   │       │   │   │   └── NotificacionesPage.tsx
-│       │   │       │   │   └── preferencias/
-│       │   │       │   │       └── PreferenciasPage.tsx
+│       │   │       │   ├── citas/
+│       │   │       │   │   ├── agendar/
+│       │   │       │   │   │   └── AgendarCitaPage.tsx
+│       │   │       │   │   ├── mis-citas/
+│       │   │       │   │   │   └── MisCitasPage.tsx
+│       │   │       │   │   └── telemedicina/
+│       │   │       │   │       └── TelemedicinaPage.tsx
 │       │   │       │   ├── dashboard/
-│       │   │       │   │   ├── resumen/
-│       │   │       │   │   │   └── ResumenAutoridadPage.tsx
-│       │   │       │   │   └── salud-sistema/
-│       │   │       │   │       └── SaludSistemaPage.tsx
-│       │   │       │   ├── epidemiologia/
-│       │   │       │   │   ├── alertas/
-│       │   │       │   │   │   └── AlertasEpidemiologicasPage.tsx
-│       │   │       │   │   ├── brotes/
-│       │   │       │   │   │   └── BrotesPage.tsx
-│       │   │       │   │   ├── factores-riesgo/
-│       │   │       │   │   │   └── FactoresRiesgoPage.tsx
-│       │   │       │   │   ├── tendencias/
-│       │   │       │   │   │   └── TendenciasEpidemiologicasPage.tsx
-│       │   │       │   │   └── vigilancia/
-│       │   │       │   │       └── VigilanciaEpidemiologicaPage.tsx
-│       │   │       │   ├── establecimientos/
-│       │   │       │   │   ├── clinicas/
-│       │   │       │   │   │   └── ClinicasPage.tsx
-│       │   │       │   │   ├── hospitales/
-│       │   │       │   │   │   └── HospitalesPage.tsx
-│       │   │       │   │   ├── recursos/
-│       │   │       │   │   │   └── RecursosEstablecimientosPage.tsx
-│       │   │       │   │   └── unidades-salud/
-│       │   │       │   │       └── UnidadesSaludPage.tsx
-│       │   │       │   ├── estadisticas/
-│       │   │       │   │   ├── brigadas/
-│       │   │       │   │   │   └── EstadisticasBrigadasPage.tsx
-│       │   │       │   │   ├── cobertura/
-│       │   │       │   │   │   └── CoberturaPage.tsx
-│       │   │       │   │   ├── comunidades/
-│       │   │       │   │   │   └── EstadisticasComunidadesPage.tsx
-│       │   │       │   │   ├── enfermedades/
-│       │   │       │   │   │   └── EstadisticasEnfermedadesPage.tsx
-│       │   │       │   │   ├── pacientes/
-│       │   │       │   │   │   └── EstadisticasPacientesPage.tsx
-│       │   │       │   │   ├── salud-materno-infantil/
-│       │   │       │   │   │   └── SaludMaternoInfantilPage.tsx
-│       │   │       │   │   └── vacunacion/
-│       │   │       │   │       └── VacunacionPage.tsx
-│       │   │       │   ├── inteligencia-artificial/
+│       │   │       │   │   ├── actividad/
+│       │   │       │   │   │   └── ActividadPacientePage.tsx
+│       │   │       │   │   └── resumen/
+│       │   │       │   │       └── ResumenPacientePage.tsx
+│       │   │       │   ├── documentos/
+│       │   │       │   │   ├── constancias/
+│       │   │       │   │   │   └── ConstanciasMedicasPage.tsx
+│       │   │       │   │   └── descarga-expediente/
+│       │   │       │   │       └── DescargaExpedientePage.tsx
+│       │   │       │   ├── educacion-ia/
+│       │   │       │   │   ├── articulos/
+│       │   │       │   │   │   └── ArticulosEducativosPage.tsx
+│       │   │       │   │   ├── asistente/
+│       │   │       │   │   │   └── AsistenteSaludIAPage.tsx
+│       │   │       │   │   └── consejos-personalizados/
+│       │   │       │   │       └── ConsejosPersonalizadosPage.tsx
+│       │   │       │   ├── estudios/
+│       │   │       │   │   ├── estudios-imagen/
+│       │   │       │   │   │   └── EstudiosImagenPage.tsx
+│       │   │       │   │   └── resultados-laboratorio/
+│       │   │       │   │       └── ResultadosLaboratorioPage.tsx
+│       │   │       │   ├── expediente/
+│       │   │       │   │   ├── alergias-antecedentes/
+│       │   │       │   │   │   └── AlergiasAntecedentesPage.tsx
 │       │   │       │   │   ├── consultas/
-│       │   │       │   │   │   └── ConsultasIAPage.tsx
-│       │   │       │   │   ├── predicciones/
-│       │   │       │   │   │   └── PrediccionesIAPage.tsx
-│       │   │       │   │   ├── recomendaciones/
-│       │   │       │   │   │   └── RecomendacionesIAPage.tsx
-│       │   │       │   │   ├── resumenes/
-│       │   │       │   │   │   └── ResumenesIAPage.tsx
-│       │   │       │   │   └── tendencias/
-│       │   │       │   │       └── TendenciasIAPage.tsx
-│       │   │       │   ├── mapas/
-│       │   │       │   │   ├── brigadas/
-│       │   │       │   │   │   └── MapaBrigadasPage.tsx
-│       │   │       │   │   ├── calor-epidemiologico/
-│       │   │       │   │   │   └── MapaCalorEpidemiologicoPage.tsx
-│       │   │       │   │   ├── cobertura/
-│       │   │       │   │   │   └── MapaCoberturaPage.tsx
-│       │   │       │   │   ├── comunidades/
-│       │   │       │   │   │   └── MapaComunidadesPage.tsx
-│       │   │       │   │   └── zonas-prioritarias/
-│       │   │       │   │       └── ZonasPrioritariasPage.tsx
-│       │   │       │   └── reportes/
-│       │   │       │       ├── brigadas/
-│       │   │       │       │   └── ReportesBrigadasPage.tsx
-│       │   │       │       ├── ejecutivos/
-│       │   │       │       │   └── ReportesEjecutivosPage.tsx
-│       │   │       │       ├── epidemiologicos/
-│       │   │       │       │   └── ReportesEpidemiologicosPage.tsx
-│       │   │       │       ├── exportaciones/
-│       │   │       │       │   └── ExportacionesPage.tsx
-│       │   │       │       └── personalizados/
-│       │   │       │           └── ReportesPersonalizadosPage.tsx
+│       │   │       │   │   │   └── HistorialConsultasPage.tsx
+│       │   │       │   │   ├── diagnosticos/
+│       │   │       │   │   │   └── DiagnosticosPage.tsx
+│       │   │       │   │   └── vacunas/
+│       │   │       │   │       └── VacunasPage.tsx
+│       │   │       │   ├── monitoreo/
+│       │   │       │   │   ├── habitos-estilo-vida/
+│       │   │       │   │   │   └── EstiloVidaPage.tsx
+│       │   │       │   │   └── signos-vitales/
+│       │   │       │   │       └── SignosVitalesPage.tsx
+│       │   │       │   ├── notificaciones/
+│       │   │       │   │   ├── centro/
+│       │   │       │   │   │   └── CentroNotificacionesPage.tsx
+│       │   │       │   │   └── mensajes-medico/
+│       │   │       │   │       └── MensajesMedicoPage.tsx
+│       │   │       │   ├── perfil/
+│       │   │       │   │   ├── contactos-emergencia/
+│       │   │       │   │   │   └── ContactosEmergenciaPage.tsx
+│       │   │       │   │   ├── datos-personales/
+│       │   │       │   │   │   └── DatosPersonalesPage.tsx
+│       │   │       │   │   ├── preferencias/
+│       │   │       │   │   │   └── PreferenciasPacientePage.tsx
+│       │   │       │   │   └── seguridad/
+│       │   │       │   │       └── SeguridadPacientePage.tsx
+│       │   │       │   ├── salud-materna/
+│       │   │       │   │   ├── citas-prenatales/
+│       │   │       │   │   │   └── CitasPrenatalesPage.tsx
+│       │   │       │   │   ├── control-embarazo/
+│       │   │       │   │   │   └── ControlEmbarazoPage.tsx
+│       │   │       │   │   └── diario-sintomas/
+│       │   │       │   │       └── DiarioSintomasPage.tsx
+│       │   │       │   └── tratamientos/
+│       │   │       │       ├── historial-medicamentos/
+│       │   │       │       │   └── HistorialMedicamentosPage.tsx
+│       │   │       │       ├── recetas-activas/
+│       │   │       │       │   └── RecetasActivasPage.tsx
+│       │   │       │       └── recordatorios/
+│       │   │       │           └── RecordatoriosTomasPage.tsx
 │       │   │       ├── routes/
-│       │   │       │   └── AuthorityRoutes.tsx
-│       │   │       └── AuthorityPanel.tsx
+│       │   │       │   └── PacienteRoutes.tsx
+│       │   │       └── PacientePanel.tsx
 │       │   ├── services/
 │       │   ├── shared/
 │       │   │   ├── components/
@@ -529,6 +848,8 @@ MedicOS/
 ├── .gitignore
 ├── create-admin-portal.ps1
 ├── create-authority-portal.ps1
+├── create-brigadista-portal.sh
+├── create-medico-portal.sh
 ├── docker-compose.yml
 ├── install_all.sh
 ├── LICENSE

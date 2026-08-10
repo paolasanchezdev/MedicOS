@@ -1,11 +1,30 @@
-```bash
-#!/usr/bin/env bash
 
-set -Eeuo pipefail
+#!/usr/bin/env bash
 
 # ============================================================
 # MedicOS - Instalador completo
 # ============================================================
+# Compatible con Ubuntu 24.04+
+#
+# Hace:
+#   1. Dependencias básicas
+#   2. Node.js 22
+#   3. Docker
+#   4. PostgreSQL mediante Docker
+#   5. Usuario y BD PostgreSQL
+#   6. apps/api/.env
+#   7. npm install
+#   8. Prisma generate + db push
+#   9. Levanta MedicOS
+#
+# NO crea usuarios administrativos de MedicOS.
+# ============================================================
+
+set -u
+
+# ------------------------------------------------------------
+# Colores
+# ------------------------------------------------------------
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -13,12 +32,13 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REAL_USER="${SUDO_USER:-$USER}"
-
 # ------------------------------------------------------------
 # Funciones
 # ------------------------------------------------------------
+
+log() {
+    echo -e "${CYAN}$1${NC}"
+}
 
 success() {
     echo -e "${GREEN}✔ $1${NC}"
@@ -30,73 +50,55 @@ warning() {
 
 error() {
     echo -e "${RED}✖ $1${NC}"
-}
-
-info() {
-    echo -e "${CYAN}➜ $1${NC}"
-}
-
-fail() {
-    error "$1"
     exit 1
 }
 
 # ------------------------------------------------------------
-# Verificar sudo
+# Verificar Bash
 # ------------------------------------------------------------
 
-if [[ "$EUID" -ne 0 ]]; then
-    error "Este instalador debe ejecutarse como administrador."
-    echo
+if [ -z "${BASH_VERSION:-}" ]; then
+    echo "Este instalador debe ejecutarse con Bash."
     echo "Ejecuta:"
-    echo
-    echo "    sudo ./install_all.sh"
-    echo
+    echo "  chmod +x install_all.sh"
+    echo "  sudo bash ./install_all.sh"
     exit 1
 fi
 
-cd "$PROJECT_DIR"
+# ------------------------------------------------------------
+# Directorio raíz del proyecto
+# ------------------------------------------------------------
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+cd "$PROJECT_DIR" || exit 1
 
 echo
 echo "============================================================"
-echo -e "${CYAN}        MedicOS - Instalador v1.0${NC}"
+echo "                 MedicOS Installer v2.0"
 echo "============================================================"
+echo
+echo "Directorio del proyecto:"
+echo "$PROJECT_DIR"
 echo
 
 # ------------------------------------------------------------
-# 1. Verificar estructura
+# Verificar estructura
 # ------------------------------------------------------------
 
-echo -e "${YELLOW}[1/9] Verificando proyecto...${NC}"
-
-REQUIRED_FILES=(
-    "package.json"
-    "package-lock.json"
-    "turbo.json"
-    "docker-compose.yml"
-    "apps/api/package.json"
-    "apps/api/prisma/schema.prisma"
-    "apps/api/prisma.config.ts"
-    "apps/api/src/scripts/create-admin.ts"
-    "apps/web/package.json"
-)
-
-for file in "${REQUIRED_FILES[@]}"; do
-    if [[ ! -f "$PROJECT_DIR/$file" ]]; then
-        fail "No se encontró el archivo: $file"
-    fi
-done
+[ -d "$PROJECT_DIR/apps/api" ] || error "No existe apps/api."
+[ -d "$PROJECT_DIR/apps/web" ] || error "No existe apps/web."
+[ -f "$PROJECT_DIR/package.json" ] || error "No existe package.json en la raíz."
 
 success "Estructura de MedicOS detectada."
 
 # ------------------------------------------------------------
-# 2. Dependencias del sistema
+# 1. Dependencias básicas
 # ------------------------------------------------------------
 
-echo
-echo -e "${YELLOW}[2/9] Instalando dependencias del sistema...${NC}"
+log "[1/9] Instalando dependencias básicas..."
 
-apt-get update -y
+apt-get update
 
 apt-get install -y \
     curl \
@@ -106,316 +108,336 @@ apt-get install -y \
     lsb-release \
     build-essential \
     lsof \
-    openssl
+    openssl \
+    postgresql-client
 
-success "Dependencias del sistema instaladas."
+success "Dependencias básicas listas."
 
 # ------------------------------------------------------------
-# 3. Node.js
+# 2. Node.js 22
 # ------------------------------------------------------------
 
-echo
-echo -e "${YELLOW}[3/9] Verificando Node.js...${NC}"
+log "[2/9] Verificando Node.js..."
 
-NODE_MAJOR=""
+NODE_MAJOR=0
 
 if command -v node >/dev/null 2>&1; then
-    NODE_MAJOR="$(node -v | sed 's/^v//' | cut -d'.' -f1)"
+    NODE_VERSION="$(node -v | sed 's/^v//')"
+    NODE_MAJOR="$(echo "$NODE_VERSION" | cut -d. -f1)"
+else
+    NODE_VERSION="0"
 fi
 
-if [[ "$NODE_MAJOR" != "20" ]]; then
+if [ "$NODE_MAJOR" -lt 22 ]; then
 
-    info "Instalando Node.js 20 LTS..."
+    warning "Node.js 22 o superior es requerido. Instalando Node.js 22..."
 
-    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 
-    curl -fsSL \
-        https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
-        | gpg --dearmor --yes \
-        -o /etc/apt/keyrings/nodesource.gpg
-
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" \
-        > /etc/apt/sources.list.d/nodesource.list
-
-    apt-get update -y
     apt-get install -y nodejs
+
 fi
 
-success "Node.js $(node -v) detectado."
-success "npm $(npm -v) detectado."
+NODE_VERSION="$(node -v)"
+NPM_VERSION="$(npm -v)"
+
+success "Node.js $NODE_VERSION"
+success "npm $NPM_VERSION"
 
 # ------------------------------------------------------------
-# 4. Docker
+# 3. Docker
 # ------------------------------------------------------------
 
-echo
-echo -e "${YELLOW}[4/9] Verificando Docker...${NC}"
+log "[3/9] Verificando Docker..."
 
 if ! command -v docker >/dev/null 2>&1; then
-    info "Docker no está instalado. Instalándolo..."
 
-    curl -fsSL https://get.docker.com | sh
+    warning "Docker no está instalado. Instalando..."
+
+    apt-get update
+
+    apt-get install -y \
+        docker.io \
+        docker-compose-plugin
+
+else
+    success "Docker ya está instalado."
 fi
 
-systemctl enable docker
-systemctl start docker
+systemctl enable docker >/dev/null 2>&1 || true
+systemctl start docker >/dev/null 2>&1 || true
 
-if ! docker compose version >/dev/null 2>&1; then
-    fail "Docker Compose no está disponible."
+if ! docker info >/dev/null 2>&1; then
+    error "Docker no está funcionando correctamente."
 fi
 
-success "Docker instalado."
-success "Docker Compose disponible."
-
-usermod -aG docker "$REAL_USER" || true
+success "Docker disponible."
 
 # ------------------------------------------------------------
-# 5. Variables de entorno
+# Variables PostgreSQL
 # ------------------------------------------------------------
 
-echo
-echo -e "${YELLOW}[5/9] Configurando variables de entorno...${NC}"
+DB_CONTAINER="medicos_db"
+DB_NAME="medicos_db"
+DB_USER="medicos_app"
+DB_PASSWORD="MedicosDB_2026_Secure"
+DB_PORT="5432"
+
+API_PORT="3000"
+WEB_PORT="5173"
+
+# ------------------------------------------------------------
+# 4. Crear docker-compose.yml
+# ------------------------------------------------------------
+
+log "[4/9] Configurando PostgreSQL..."
+
+cat > "$PROJECT_DIR/docker-compose.yml" <<EOF
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: ${DB_CONTAINER}
+
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+
+    ports:
+      - "${DB_PORT}:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USER} -d ${DB_NAME}"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  postgres_data:
+EOF
+
+success "docker-compose.yml configurado."
+
+# ------------------------------------------------------------
+# 5. Crear apps/api/.env
+# ------------------------------------------------------------
+
+log "[5/9] Configurando variables de entorno..."
+
+JWT_SECRET="$(openssl rand -hex 64)"
 
 API_ENV="$PROJECT_DIR/apps/api/.env"
 
-if [[ ! -f "$API_ENV" ]]; then
+cat > "$API_ENV" <<EOF
+PORT=${API_PORT}
 
-    if [[ -f "$PROJECT_DIR/apps/api/.env.example" ]]; then
-        cp "$PROJECT_DIR/apps/api/.env.example" "$API_ENV"
-        info "apps/api/.env creado desde .env.example."
-    else
-        info "Creando apps/api/.env..."
+DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}?schema=public"
 
-        cat > "$API_ENV" <<'EOF'
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/medicos_db?schema=public"
-JWT_SECRET="medicos-local-secret-change-this"
-PORT=3000
-NODE_ENV="development"
+JWT_SECRET=${JWT_SECRET}
+
+TURNSTILE_SECRET_KEY=0x4AAAAAAD8UiHj9T22_Ygg0IC7wlQayK8Y
 EOF
-    fi
 
-else
-    success "apps/api/.env ya existe."
-fi
+chmod 600 "$API_ENV"
 
-# Asegurar DATABASE_URL si el archivo está vacío o no contiene la variable
-if ! grep -q '^DATABASE_URL=' "$API_ENV"; then
-    echo 'DATABASE_URL="postgresql://postgres:postgres@localhost:5432/medicos_db?schema=public"' >> "$API_ENV"
-fi
+success "apps/api/.env creado automáticamente."
+
+echo
+echo "Configuración:"
+echo "  Usuario DB : ${DB_USER}"
+echo "  Base datos : ${DB_NAME}"
+echo "  Puerto DB  : ${DB_PORT}"
+echo "  Puerto API : ${API_PORT}"
+echo "  Puerto Web : ${WEB_PORT}"
+echo
 
 # ------------------------------------------------------------
-# 6. Dependencias Node
+# 6. PostgreSQL
+# ------------------------------------------------------------
+
+log "[6/9] Preparando PostgreSQL..."
+
+# Detener instalación anterior.
+docker compose down --remove-orphans >/dev/null 2>&1 || true
+
+# Eliminar volumen anterior SOLO para garantizar una instalación
+# limpia y que las credenciales definidas arriba sean aplicadas.
+docker compose down -v --remove-orphans >/dev/null 2>&1 || true
+
+success "Instalación PostgreSQL anterior limpiada."
+
+echo
+echo "Iniciando PostgreSQL..."
+
+docker compose up -d
+
+if [ $? -ne 0 ]; then
+    error "No se pudo iniciar PostgreSQL."
+fi
+
+echo
+echo "Esperando a PostgreSQL..."
+
+READY=0
+
+for i in $(seq 1 60); do
+
+    if docker exec "$DB_CONTAINER" \
+        pg_isready \
+        -U "$DB_USER" \
+        -d "$DB_NAME" >/dev/null 2>&1; then
+
+        READY=1
+        break
+    fi
+
+    printf "."
+    sleep 1
+
+done
+
+echo
+
+if [ "$READY" -ne 1 ]; then
+
+    echo
+    echo "Estado del contenedor:"
+    docker compose ps
+
+    echo
+    echo "Últimos logs:"
+    docker logs "$DB_CONTAINER" --tail 50
+
+    error "PostgreSQL no estuvo disponible."
+fi
+
+success "PostgreSQL funcionando."
+
+# ------------------------------------------------------------
+# Verificar autenticación real
 # ------------------------------------------------------------
 
 echo
-echo -e "${YELLOW}[6/9] Instalando dependencias de MedicOS...${NC}"
+echo "Verificando credenciales PostgreSQL..."
 
-chown -R "$REAL_USER:$REAL_USER" "$PROJECT_DIR"
+PGPASSWORD="$DB_PASSWORD" \
+psql \
+    -h 127.0.0.1 \
+    -p "$DB_PORT" \
+    -U "$DB_USER" \
+    -d "$DB_NAME" \
+    -c "SELECT 1;" >/dev/null 2>&1
 
-cd "$PROJECT_DIR"
+if [ $? -ne 0 ]; then
 
-if [[ -f "package-lock.json" ]]; then
-    sudo -u "$REAL_USER" npm ci
+    echo
+    docker compose ps
+
+    echo
+    docker logs "$DB_CONTAINER" --tail 50
+
+    error "Las credenciales PostgreSQL no coinciden."
+fi
+
+success "Credenciales PostgreSQL correctas."
+
+# ------------------------------------------------------------
+# 7. Dependencias Node
+# ------------------------------------------------------------
+
+log "[7/9] Instalando dependencias del proyecto..."
+
+cd "$PROJECT_DIR" || exit 1
+
+if [ -f package-lock.json ]; then
+    npm ci
 else
-    sudo -u "$REAL_USER" npm install
+    npm install
+fi
+
+if [ $? -ne 0 ]; then
+    error "npm no pudo instalar las dependencias."
 fi
 
 success "Dependencias instaladas."
 
 # ------------------------------------------------------------
-# 7. PostgreSQL
+# 8. Prisma
 # ------------------------------------------------------------
 
-echo
-echo -e "${YELLOW}[7/9] Levantando PostgreSQL...${NC}"
+log "[8/9] Configurando Prisma..."
 
-docker compose up -d db
+cd "$PROJECT_DIR/apps/api" || exit 1
 
-success "Contenedor PostgreSQL iniciado."
+npx prisma generate
 
-echo
-info "Esperando a PostgreSQL..."
-
-MAX_RETRIES=30
-RETRY=0
-
-until docker compose exec -T db \
-    pg_isready \
-    -U postgres \
-    -d medicos_db \
-    >/dev/null 2>&1
-do
-
-    RETRY=$((RETRY + 1))
-
-    if [[ "$RETRY" -ge "$MAX_RETRIES" ]]; then
-        echo
-        docker compose logs db
-        fail "PostgreSQL no respondió correctamente."
-    fi
-
-    echo -n "."
-    sleep 1
-done
-
-echo
-success "PostgreSQL está listo."
-
-# ------------------------------------------------------------
-# 8. Prisma + base de datos
-# ------------------------------------------------------------
-
-echo
-echo -e "${YELLOW}[8/9] Preparando base de datos...${NC}"
-
-cd "$PROJECT_DIR/apps/api"
-
-sudo -u "$REAL_USER" npx prisma generate
+if [ $? -ne 0 ]; then
+    error "Prisma generate falló."
+fi
 
 success "Prisma Client generado."
 
-sudo -u "$REAL_USER" npx prisma migrate deploy
+npx prisma db push
 
-success "Migraciones aplicadas."
-
-cd "$PROJECT_DIR"
-
-# ------------------------------------------------------------
-# Backup opcional
-# ------------------------------------------------------------
-
-if [[ -f "$PROJECT_DIR/medicos_backup.sql" ]]; then
-
-    echo
-    echo "============================================================"
-    echo -e "${CYAN}Se encontró medicos_backup.sql${NC}"
-    echo "============================================================"
-    echo
-    echo "El respaldo es OPCIONAL."
-    echo
-
-    read -r -p "¿Deseas importar los datos del respaldo? [s/N]: " IMPORT_BACKUP
-
-    if [[ "$IMPORT_BACKUP" =~ ^[sS]$ ]]; then
-
-        info "Importando respaldo..."
-
-        docker compose exec -T db \
-            psql \
-            -U postgres \
-            -d medicos_db \
-            < "$PROJECT_DIR/medicos_backup.sql" \
-            || warning "El respaldo terminó con algunos mensajes de PostgreSQL."
-
-        success "Proceso de respaldo finalizado."
-
-    else
-        info "Respaldo omitido. Se utilizará una base de datos limpia."
-    fi
-
-else
-    info "No se encontró respaldo. Se utilizará una base de datos limpia."
+if [ $? -ne 0 ]; then
+    error "Prisma db push falló."
 fi
 
+success "Base de datos sincronizada con Prisma."
+
 # ------------------------------------------------------------
-# Crear administrador
+# 9. Finalizar
 # ------------------------------------------------------------
+
+log "[9/9] MedicOS listo."
+
+cd "$PROJECT_DIR" || exit 1
 
 echo
 echo "============================================================"
-echo -e "${CYAN}        CONFIGURACIÓN DEL ADMINISTRADOR${NC}"
+echo "                 INSTALACIÓN COMPLETADA"
 echo "============================================================"
 echo
-echo "Ingresa las credenciales que utilizarás para entrar a MedicOS."
+echo "PostgreSQL:"
+echo "  Host     : localhost"
+echo "  Puerto   : ${DB_PORT}"
+echo "  Usuario  : ${DB_USER}"
+echo "  Base     : ${DB_NAME}"
 echo
-
-while true; do
-
-    read -r -p "Nombre completo: " ADMIN_NAME
-
-    if [[ -z "$ADMIN_NAME" ]]; then
-        warning "El nombre no puede estar vacío."
-        continue
-    fi
-
-    if [[ ${#ADMIN_NAME} -lt 3 ]]; then
-        warning "El nombre debe tener al menos 3 caracteres."
-        continue
-    fi
-
-    break
-done
-
-while true; do
-
-    read -r -s -p "Contraseña: " ADMIN_PASSWORD
-    echo
-
-    if [[ -z "$ADMIN_PASSWORD" ]]; then
-        warning "La contraseña no puede estar vacía."
-        continue
-    fi
-
-    if [[ ${#ADMIN_PASSWORD} -lt 8 ]]; then
-        warning "La contraseña debe tener al menos 8 caracteres."
-        continue
-    fi
-
-    read -r -s -p "Confirmar contraseña: " ADMIN_PASSWORD_CONFIRM
-    echo
-
-    if [[ "$ADMIN_PASSWORD" != "$ADMIN_PASSWORD_CONFIRM" ]]; then
-        warning "Las contraseñas no coinciden."
-        continue
-    fi
-
-    break
-done
-
-info "Creando administrador..."
-
-cd "$PROJECT_DIR/apps/api"
-
-sudo -u "$REAL_USER" \
-    env \
-    MEDICOS_BOOTSTRAP_NAME="$ADMIN_NAME" \
-    MEDICOS_BOOTSTRAP_PASSWORD="$ADMIN_PASSWORD" \
-    npx tsx src/scripts/create-admin.ts
-
-success "Administrador creado correctamente."
-
-cd "$PROJECT_DIR"
-
-# ------------------------------------------------------------
-# Permisos finales
-# ------------------------------------------------------------
-
-chown "$REAL_USER:$REAL_USER" "$API_ENV"
-
-# ------------------------------------------------------------
-# Final
-# ------------------------------------------------------------
-
+echo "API:"
+echo "  Puerto   : ${API_PORT}"
 echo
-echo "============================================================"
-echo -e "${GREEN}        🎉 MEDICOS ESTÁ INSTALADO${NC}"
-echo "============================================================"
+echo "Web:"
+echo "  Puerto   : ${WEB_PORT}"
 echo
-echo -e "${GREEN}Base de datos:${NC} PostgreSQL"
-echo -e "${GREEN}Contenedor:${NC}    medicos_db"
-echo -e "${GREEN}Administrador:${NC} $ADMIN_NAME"
+echo "Archivo generado:"
+echo "  apps/api/.env"
 echo
-echo "Para iniciar MedicOS:"
-echo
-echo "    ./run.sh"
-echo
-echo "O:"
-echo
-echo "    npm run medicos"
+echo "No se creó ningún administrador de MedicOS."
 echo
 echo "============================================================"
 echo
-echo -e "${YELLOW}Nota:${NC} si acabas de agregar tu usuario al grupo docker,"
-echo "puede ser necesario cerrar sesión y volver a entrar."
+
+# ------------------------------------------------------------
+# Iniciar MedicOS
+# ------------------------------------------------------------
+
+echo "Iniciando MedicOS..."
 echo
-```
+echo "Cuando Vite/Node muestre las URLs, abre la correspondiente."
+echo
+echo "Para detener MedicOS:"
+echo "  Ctrl + C"
+echo
+
+npm run dev

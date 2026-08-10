@@ -11,11 +11,11 @@ import { AppRoutes } from './app/router/routes';
 
 export function App(): React.JSX.Element {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
         <AppRoutes />
-      </BrowserRouter>
-    </AuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 

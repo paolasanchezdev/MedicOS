@@ -12,12 +12,11 @@ import LandingPage from '../../modules/landing/LandingPage';
 import Login from '../../modules/auth/pages/Login';
 import { Register } from '../../modules/auth/pages/Register';
 
-// Componentes de Portales
+// Componentes de Portales (Rutas corregidas en español)
 import { AdminPanel } from '../../portals/admin/AdminPanel';
-import { PatientPanel } from '../../portals/patient/PatientPanel';
-import { DoctorPanel } from '../../portals/doctor/DoctorPanel';
+import { PacientePanel } from '../../portals/paciente/PacientePanel';
+import { MedicoPanel } from '../../portals/medico/MedicoPanel';
 import { AuthorityPanel } from '../../portals/authority/AuthorityPanel';
-// import { BrigadistPanel } from '../../portals/brigadist/BrigadistPanel';
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -42,7 +41,7 @@ export const AppRoutes: React.FC = () => {
         path="/paciente/*"
         element={
           <ProtectedRoute allowedRoles={['PATIENT', 'PACIENTE']}>
-            <PatientPanel />
+            <PacientePanel />
           </ProtectedRoute>
         }
       />
@@ -52,7 +51,6 @@ export const AppRoutes: React.FC = () => {
         path="/brigadista/*"
         element={
           <ProtectedRoute allowedRoles={['BRIGADIST', 'BRIGADISTA']}>
-            {/* Reemplazar por <BrigadistPanel /> al integrar su modulo */}
             <Navigate to="/paciente/dashboard/resumen" replace />
           </ProtectedRoute>
         }
@@ -63,7 +61,7 @@ export const AppRoutes: React.FC = () => {
         path="/doctor/*"
         element={
           <ProtectedRoute allowedRoles={['DOCTOR']}>
-            <DoctorPanel />
+            <MedicoPanel />
           </ProtectedRoute>
         }
       />
