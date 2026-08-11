@@ -9,6 +9,7 @@ const router = Router();
 router.use(checkAuth);
 
 router.get('/', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'AUTHORITY'), patientsController.getPatients);
+router.get('/resumen', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), patientsController.getPatientSummary);
 router.get('/:id', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), validate(patientIdParamSchema), patientsController.getPatientById);
 
 export const patientRoutes = router;

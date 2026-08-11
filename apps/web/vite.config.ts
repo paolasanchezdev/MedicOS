@@ -10,6 +10,16 @@ export default defineConfig({
     },
     dedupe: ['react', 'react-dom', 'react-router-dom'],
   },
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
   css: {
     postcss: './postcss.config.js',
   },

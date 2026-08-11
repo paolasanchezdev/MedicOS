@@ -24,10 +24,12 @@ export const apiClient = async <T = unknown>(
 
   const response = await fetch(`${BASE_URL}${endpoint}`, config);
 
-  // Manejar auto-logout si la sesión expira en el servidor
-  if (response.status === 401) {
+  // 🛑 Manejar auto-logout SOLO si la sesión expira en peticiones protegidas.
+  // NO redirigir si el 401 proviene del intento de login.
+  if (response.status === 401 && !endpoint.includes('/auth/login')) {
     sessionManager.clearSession();
     window.location.href = '/login';
+    throw new Error('Sesión expirada.');
   }
 
   if (!response.ok) {

@@ -25,6 +25,16 @@ export class PatientsController {
     }
   }
 
+  async getPatientSummary(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const summary = await patientsService.getPatientSummary(userId);
+      res.json({ success: true, ...summary });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async createPatient(req: Request, res: Response, next: NextFunction) {
     try {
       const newPatient = await patientsService.createPatient(req.body);

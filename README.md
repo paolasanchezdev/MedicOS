@@ -58,6 +58,8 @@ MedicOS/
 │   │   │   ├── scripts/
 │   │   │   │   ├── create-admin.ts
 │   │   │   │   ├── create-authority-user.ts
+│   │   │   │   ├── create-brigadist.ts
+│   │   │   │   ├── create-medic.ts
 │   │   │   │   └── test-db.ts
 │   │   │   ├── services/
 │   │   │   │   └── base.service.ts
@@ -162,7 +164,14 @@ MedicOS/
 │       │   │   │   │   ├── sections/
 │       │   │   │   │   │   ├── AiSupportSection/
 │       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── AiCapabilities.tsx
+│       │   │   │   │   │   │   │   ├── AiDataFlowPipeline.tsx
+│       │   │   │   │   │   │   │   ├── AiHeader.tsx
+│       │   │   │   │   │   │   │   ├── AiHumanControl.tsx
+│       │   │   │   │   │   │   │   ├── CapabilitySelector.tsx
+│       │   │   │   │   │   │   │   └── ClinicalSimulator.tsx
 │       │   │   │   │   │   │   ├── data/
+│       │   │   │   │   │   │   │   └── aiSectionData.ts
 │       │   │   │   │   │   │   ├── AiSupportSection.styles.ts
 │       │   │   │   │   │   │   ├── AiSupportSection.tsx
 │       │   │   │   │   │   │   └── index.ts
@@ -172,6 +181,10 @@ MedicOS/
 │       │   │   │   │   │   │   └── index.ts
 │       │   │   │   │   │   ├── Hero/
 │       │   │   │   │   │   │   ├── panels/
+│       │   │   │   │   │   │   │   ├── AuthorityPanel.tsx
+│       │   │   │   │   │   │   │   ├── BrigadistaPanel.tsx
+│       │   │   │   │   │   │   │   ├── DoctorPanel.tsx
+│       │   │   │   │   │   │   │   └── PatientPanel.tsx
 │       │   │   │   │   │   │   ├── Hero.styles.ts
 │       │   │   │   │   │   │   ├── Hero.tsx
 │       │   │   │   │   │   │   ├── HeroBackground.tsx
@@ -184,12 +197,19 @@ MedicOS/
 │       │   │   │   │   │   │   └── HowItWorks.tsx
 │       │   │   │   │   │   ├── ImpactSection/
 │       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── ImpactGrid.tsx
+│       │   │   │   │   │   │   │   └── ImpactHeader.tsx
 │       │   │   │   │   │   │   ├── ImpactSection.styles.ts
 │       │   │   │   │   │   │   ├── ImpactSection.tsx
 │       │   │   │   │   │   │   └── index.ts
 │       │   │   │   │   │   ├── MainModules/
 │       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── FutureScopeNote.tsx
+│       │   │   │   │   │   │   │   ├── ModuleContent.tsx
+│       │   │   │   │   │   │   │   ├── ModuleSelector.tsx
+│       │   │   │   │   │   │   │   └── ModuleShowcase.tsx
 │       │   │   │   │   │   │   ├── data/
+│       │   │   │   │   │   │   │   └── modulesData.ts
 │       │   │   │   │   │   │   ├── MainModules.styles.ts
 │       │   │   │   │   │   │   └── MainModules.tsx
 │       │   │   │   │   │   ├── ProblemSection/
@@ -707,11 +727,12 @@ MedicOS/
 │       │   │   │   ├── index.ts
 │       │   │   │   └── MedicoPanel.tsx
 │       │   │   └── paciente/
+│       │   │       ├── components/
+│       │   │       │   ├── PacienteHeader.tsx
+│       │   │       │   └── PacienteSidebar.tsx
 │       │   │       ├── layout/
 │       │   │       │   ├── index.ts
-│       │   │       │   ├── PacienteHeader.tsx
-│       │   │       │   ├── PacienteLayout.tsx
-│       │   │       │   └── PacienteSidebar.tsx
+│       │   │       │   └── PacienteLayout.tsx
 │       │   │       ├── navigation/
 │       │   │       │   └── paciente.navigation.ts
 │       │   │       ├── pages/
@@ -724,9 +745,20 @@ MedicOS/
 │       │   │       │   │       └── TelemedicinaPage.tsx
 │       │   │       │   ├── dashboard/
 │       │   │       │   │   ├── actividad/
+│       │   │       │   │   │   ├── components/
 │       │   │       │   │   │   └── ActividadPacientePage.tsx
-│       │   │       │   │   └── resumen/
-│       │   │       │   │       └── ResumenPacientePage.tsx
+│       │   │       │   │   ├── resumen/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── AccionesRapidas.tsx
+│       │   │       │   │   │   │   ├── LineaTiempoSalud.tsx
+│       │   │       │   │   │   │   ├── TarjetaAccionesPendientes.tsx
+│       │   │       │   │   │   │   ├── TarjetaBienvenidaPaciente.tsx
+│       │   │       │   │   │   │   ├── TarjetaEstadoSalud.tsx
+│       │   │       │   │   │   │   ├── TarjetaProximaCita.tsx
+│       │   │       │   │   │   │   ├── TarjetaResumenExpediente.tsx
+│       │   │       │   │   │   │   └── TarjetaTratamientosActivos.tsx
+│       │   │       │   │   │   └── ResumenPacientePage.tsx
+│       │   │       │   │   └── DashboardLayout.tsx
 │       │   │       │   ├── documentos/
 │       │   │       │   │   ├── constancias/
 │       │   │       │   │   │   └── ConstanciasMedicasPage.tsx

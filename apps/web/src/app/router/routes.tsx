@@ -31,7 +31,7 @@ export const AppRoutes: React.FC = () => {
         }
       />
 
-      {/* Portal Paciente */}
+      {/* Portal Paciente - FORMA CORRECTA CON COMODÍN LIMPIO */}
       <Route
         path="/paciente/*"
         element={

@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/context/useAuth';
 import { authService } from '../services/auth.service';
+import type { LoginFormData } from '../components/LoginForm';
 
 const ROLE_REDIRECT_MAP: Record<string, string> = {
   ADMIN: '/admin/dashboard/resumen',
@@ -20,9 +21,6 @@ const ROLE_REDIRECT_MAP: Record<string, string> = {
 };
 
 export const useLoginForm = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
@@ -30,13 +28,13 @@ export const useLoginForm = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (formData: LoginFormData) => {
     setError('');
     setLoading(true);
 
     try {
-      const data = await authService.login(email, password);
+      // Pasa email, contraseña y el token de Turnstile al servicio de autenticación
+      const data = await authService.login(formData.email, formData.password, formData.turnstileToken);
 
       // Guarda la sesión en el contexto global y sessionManager
       login(data.token, data.user);
@@ -69,15 +67,7 @@ export const useLoginForm = () => {
     }
   };
 
-  const toggleShowPassword = () => setShowPassword((prev) => !prev);
-
   return {
-    email,
-    setEmail,
-    password,
-    setPassword,
-    showPassword,
-    toggleShowPassword,
     loading,
     googleLoading,
     error,
