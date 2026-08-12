@@ -746,6 +746,12 @@ MedicOS/
 │       │   │       │   ├── dashboard/
 │       │   │       │   │   ├── actividad/
 │       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── ActividadItem.tsx
+│       │   │       │   │   │   │   ├── ActividadReciente.tsx
+│       │   │       │   │   │   │   ├── DetalleActividad.tsx
+│       │   │       │   │   │   │   ├── EncabezadoActividad.tsx
+│       │   │       │   │   │   │   ├── EstadoActividad.tsx
+│       │   │       │   │   │   │   └── FiltrosActividad.tsx
 │       │   │       │   │   │   └── ActividadPacientePage.tsx
 │       │   │       │   │   ├── resumen/
 │       │   │       │   │   │   ├── components/
@@ -824,6 +830,10 @@ MedicOS/
 │       │   ├── services/
 │       │   ├── shared/
 │       │   │   ├── components/
+│       │   │   │   ├── header/
+│       │   │   │   │   ├── BuscadorHeader.tsx
+│       │   │   │   │   ├── NotificacionesMenu.tsx
+│       │   │   │   │   └── PerfilUsuarioHeader.tsx
 │       │   │   │   └── UnderConstruction.tsx
 │       │   │   ├── constants/
 │       │   │   ├── hooks/

@@ -1,5 +1,5 @@
 // =========================================================================
-// ARCHIVO: apps/web/src/services/api/apiClient.ts
+// ARCHIVO: apps/web/src/shared/lib/apiClient.ts
 // DESCRIPCIÓN: Cliente centralizado de MedicOS impulsado por Cookies HttpOnly.
 // =========================================================================
 
@@ -22,6 +22,12 @@ export const apiClient = async <T = unknown>(
     credentials: 'include', // 🔒 Envía la cookie HttpOnly automáticamente
   };
 
+  // 🔍 Depuración: Ver exactamente qué se envía al servidor
+  console.log(`🌐 [apiClient] ${options.method || 'GET'} -> ${BASE_URL}${endpoint}`, {
+    headers,
+    body: options.body ? JSON.parse(options.body as string) : undefined,
+  });
+
   const response = await fetch(`${BASE_URL}${endpoint}`, config);
 
   // 🛑 Manejar auto-logout SOLO si la sesión expira en peticiones protegidas.
@@ -34,6 +40,7 @@ export const apiClient = async <T = unknown>(
 
   if (!response.ok) {
     const errorData = (await response.json().catch(() => ({}))) as { message?: string };
+    console.error(`❌ [apiClient] Error ${response.status} en ${endpoint}:`, errorData);
     throw new Error(errorData.message || `Error en la petición (${response.status})`);
   }
 

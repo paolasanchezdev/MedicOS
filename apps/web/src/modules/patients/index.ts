@@ -4,6 +4,6 @@
 // =========================================================================
 
 export * from './types/patient.types';
-// export * from './services/patient.service';
+export * from './services/patient.service';
 // export * from './hooks/usePatients';
 // export * from './components/AppointmentCard';

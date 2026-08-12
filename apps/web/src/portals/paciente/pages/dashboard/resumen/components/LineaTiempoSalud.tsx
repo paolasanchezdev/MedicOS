@@ -50,22 +50,25 @@ export const LineaTiempoSalud: React.FC<Props> = ({ eventos }) => {
 
             return (
               <div key={ev.id} className="relative space-y-0.5">
-                <div className="absolute -left-6 top-0.5 w-5 h-5 rounded-full bg-medicos-surface border border-medicos-soft-border flex items-center justify-center shadow-2xs">
+                <div className="absolute -left-6 top-0.5 w-5 h-5 rounded-full bg-medicos-light-bg border border-medicos-soft-border flex items-center justify-center shadow-2xs">
                   {obtenerIcono(ev.tipo)}
                 </div>
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center justify-between text-xs gap-2">
                   <span className="font-bold text-medicos-dark-blue">{ev.titulo}</span>
-                  <span className="text-[10px] font-medium text-medicos-muted">{fechaFormateada}</span>
+                  <span className="text-[10px] font-medium text-medicos-muted shrink-0">{fechaFormateada}</span>
                 </div>
-                <p className="text-[11px] text-medicos-muted leading-snug">{ev.descripcion}</p>
+                <p className="text-[11px] text-medicos-muted leading-snug font-medium">{ev.descripcion}</p>
               </div>
             );
           })}
         </div>
       ) : (
         <div className="py-6 text-center space-y-1.5">
-          <p className="text-xs font-semibold text-medicos-dark-blue">Sin historial cronológico registrado</p>
-          <p className="text-[11px] text-medicos-muted max-w-xs mx-auto">
+          <div className="w-10 h-10 rounded-full bg-medicos-light-bg text-medicos-teal flex items-center justify-center mx-auto border border-medicos-soft-border mb-2">
+            <Activity className="w-5 h-5" />
+          </div>
+          <p className="text-xs font-bold text-medicos-dark-blue">Sin historial cronológico registrado</p>
+          <p className="text-[11px] text-medicos-muted max-w-xs mx-auto font-medium">
             A medida que asistas a consultas y registres constantes vitales, se mostrará el historial cronológico.
           </p>
         </div>

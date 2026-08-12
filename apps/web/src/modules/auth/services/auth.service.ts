@@ -28,14 +28,20 @@ export const authService = {
   ): Promise<AuthResponse> => {
     return apiClient<AuthResponse>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password, turnstileToken }),
+      body: JSON.stringify({
+        email,
+        correo: email,
+        correoElectronico: email,
+        password,
+        turnstileToken,
+      }),
     });
   },
 
   /**
    * Registra un nuevo usuario en la base de datos de MedicOS.
    */
-  registerPatient: async (data: Record<string, string>): Promise<RegisterResponse> => {
+  registerPatient: async (data: Record<string, unknown>): Promise<RegisterResponse> => {
     return apiClient<RegisterResponse>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),

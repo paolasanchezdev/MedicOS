@@ -11,22 +11,20 @@ export const PacienteLayout: React.FC<PacienteLayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-100 flex font-sans antialiased text-slate-800">
+    <div className="min-h-screen bg-slate-50/90 flex font-sans antialiased text-slate-800">
       
-      {/* Sidebar fijo / deslizante */}
+      {/* Sidebar lateral */}
       <PacienteSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Contenedor principal */}
+      {/* Área principal */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         
         {/* Header superior */}
         <PacienteHeader onOpenSidebar={() => setSidebarOpen(true)} />
 
-        {/* Contenido dinámico */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">
-            {children || <Outlet />}
-          </div>
+        {/* Lienzo dinámico limpio */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 w-full">
+          {children || <Outlet />}
         </main>
       </div>
     </div>

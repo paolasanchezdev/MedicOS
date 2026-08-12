@@ -34,20 +34,21 @@ export const TarjetaResumenExpediente: React.FC<Props> = ({ resumen }) => {
           </span>
         </div>
         <div className="py-6 text-center space-y-2">
-          <div className="w-10 h-10 rounded-full bg-medicos-light-bg text-medicos-teal flex items-center justify-center mx-auto">
+          <div className="w-10 h-10 rounded-full bg-medicos-light-bg text-medicos-teal flex items-center justify-center mx-auto border border-medicos-soft-border">
             <FileText className="w-5 h-5" />
           </div>
           <p className="text-xs font-bold text-medicos-dark-blue">Expediente Clínico Nuevo</p>
-          <p className="text-[11px] text-medicos-muted max-w-xs mx-auto">
+          <p className="text-[11px] text-medicos-muted max-w-xs mx-auto font-medium">
             Aún no se registran consultas ni toma de signos vitales en tu historial.
           </p>
         </div>
         <div className="pt-2 border-t border-medicos-soft-border flex items-center justify-end">
           <Link
             to="/paciente/expediente"
-            className="px-3 py-1.5 rounded-lg border border-medicos-soft-border text-medicos-teal text-xs font-medium hover:bg-medicos-light-bg transition-colors flex items-center gap-1"
+            className="px-3 py-1.5 rounded-lg border border-medicos-soft-border text-medicos-teal text-xs font-semibold hover:bg-medicos-light-bg transition-all duration-150 flex items-center gap-1"
           >
-            Ir a expediente <ChevronRight className="w-3.5 h-3.5" />
+            <span>Ir a expediente</span>
+            <ChevronRight className="w-3.5 h-3.5" />
           </Link>
         </div>
       </div>
@@ -69,7 +70,7 @@ export const TarjetaResumenExpediente: React.FC<Props> = ({ resumen }) => {
           <FileText className="w-4 h-4 text-medicos-teal" /> Resumen Clínico
         </span>
         {tieneSangreValida ? (
-          <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-medicos-light-bg text-medicos-teal border border-medicos-soft-border flex items-center gap-1">
+          <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-medicos-light-bg text-medicos-teal border border-medicos-soft-border flex items-center gap-1">
             <Droplet className="w-3 h-3 text-medicos-teal" />
             {resumen.tipoSangre?.replace('_POSITIVE', '+').replace('_NEGATIVE', '-')}
           </span>
@@ -79,14 +80,16 @@ export const TarjetaResumenExpediente: React.FC<Props> = ({ resumen }) => {
       </div>
 
       <div className="space-y-3">
-        <div className="bg-medicos-light-bg p-3 rounded-xl border border-medicos-soft-border">
+        <div className="bg-medicos-light-bg p-3.5 rounded-xl border border-medicos-soft-border space-y-1">
           <p className="text-[11px] font-bold text-medicos-muted uppercase tracking-wider">Último Diagnóstico Clínico</p>
-          <p className="text-xs font-bold text-medicos-dark-blue flex items-start gap-1.5 mt-1">
+          <p className="text-xs font-bold text-medicos-dark-blue flex items-start gap-1.5 pt-0.5">
             <Stethoscope className="w-3.5 h-3.5 text-medicos-teal shrink-0 mt-0.5" />
             <span>{resumen.ultimoDiagnostico || 'Sin diagnósticos registrados'}</span>
           </p>
           {fechaFormateada && (
-            <p className="text-[10px] font-medium text-medicos-muted pl-5 mt-0.5">Atención realizada el {fechaFormateada}</p>
+            <p className="text-[10px] font-medium text-medicos-muted pl-5 pt-0.5">
+              Atención realizada el {fechaFormateada}
+            </p>
           )}
         </div>
 
@@ -96,36 +99,36 @@ export const TarjetaResumenExpediente: React.FC<Props> = ({ resumen }) => {
               <Activity className="w-3.5 h-3.5 text-medicos-teal" /> Últimas Mediciones Vitales
             </p>
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              <div className="bg-medicos-light-bg p-2 rounded-lg border border-medicos-soft-border">
-                <span className="text-[10px] text-medicos-muted flex items-center justify-center gap-1">
+              <div className="bg-medicos-light-bg p-2 rounded-xl border border-medicos-soft-border">
+                <span className="text-[10px] text-medicos-muted flex items-center justify-center gap-1 font-medium">
                   <HeartPulse className="w-3 h-3 text-medicos-teal" /> Presión
                 </span>
-                <span className="font-bold text-medicos-dark-blue text-xs mt-0.5">
+                <span className="font-bold text-medicos-dark-blue text-xs mt-0.5 block">
                   {signos.systolic}/{signos.diastolic}
                 </span>
               </div>
 
-              <div className="bg-medicos-light-bg p-2 rounded-lg border border-medicos-soft-border">
-                <span className="text-[10px] text-medicos-muted flex items-center justify-center gap-1">
+              <div className="bg-medicos-light-bg p-2 rounded-xl border border-medicos-soft-border">
+                <span className="text-[10px] text-medicos-muted flex items-center justify-center gap-1 font-medium">
                   <Activity className="w-3 h-3 text-medicos-teal" /> Pulso
                 </span>
-                <span className="font-bold text-medicos-dark-blue text-xs mt-0.5">
+                <span className="font-bold text-medicos-dark-blue text-xs mt-0.5 block">
                   {signos.heartRate} bpm
                 </span>
               </div>
 
-              <div className="bg-medicos-light-bg p-2 rounded-lg border border-medicos-soft-border">
-                <span className="text-[10px] text-medicos-muted flex items-center justify-center gap-1">
+              <div className="bg-medicos-light-bg p-2 rounded-xl border border-medicos-soft-border">
+                <span className="text-[10px] text-medicos-muted flex items-center justify-center gap-1 font-medium">
                   <Thermometer className="w-3 h-3 text-medicos-teal" /> Temp.
                 </span>
-                <span className="font-bold text-medicos-dark-blue text-xs mt-0.5">
+                <span className="font-bold text-medicos-dark-blue text-xs mt-0.5 block">
                   {signos.temperature}°C
                 </span>
               </div>
             </div>
           </div>
         ) : (
-          <p className="text-xs text-medicos-muted italic bg-medicos-light-bg p-2.5 rounded-lg border border-medicos-soft-border text-center">
+          <p className="text-xs text-medicos-muted italic bg-medicos-light-bg p-2.5 rounded-xl border border-medicos-soft-border text-center font-medium">
             No hay toma de signos vitales reciente.
           </p>
         )}
@@ -134,9 +137,10 @@ export const TarjetaResumenExpediente: React.FC<Props> = ({ resumen }) => {
       <div className="pt-2 border-t border-medicos-soft-border flex items-center justify-end">
         <Link
           to="/paciente/expediente"
-          className="px-3 py-1.5 rounded-lg border border-medicos-soft-border text-medicos-teal text-xs font-semibold hover:bg-medicos-light-bg transition-colors flex items-center gap-1"
+          className="px-3 py-1.5 rounded-lg text-medicos-teal text-xs font-semibold hover:bg-medicos-light-bg transition-all duration-150 flex items-center gap-1"
         >
-          Historial clínico <ChevronRight className="w-3.5 h-3.5" />
+          <span>Historial clínico</span>
+          <ChevronRight className="w-3.5 h-3.5" />
         </Link>
       </div>
     </div>

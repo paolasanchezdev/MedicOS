@@ -1,18 +1,32 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
 
-export const AdminLayout: React.FC = () => {
+interface AdminLayoutProps {
+  children?: React.ReactNode;
+}
+
+export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
-    <div className="flex min-h-screen bg-medicos-canvas text-medicos-dark-blue">
-      <AdminSidebar />
-      <div className="flex-1 flex flex-col min-w-0">
-        <AdminHeader />
-        <main className="flex-1 p-6 overflow-y-auto">
-          <Outlet />
+    <div className="min-h-screen bg-slate-50/90 flex font-sans antialiased text-slate-800">
+      {/* Sidebar global configurado para Administrador */}
+      <AdminSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      {/* Área principal */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Header global configurado para Administrador */}
+        <AdminHeader onOpenSidebar={() => setSidebarOpen(true)} />
+
+        {/* Lienzo dinámico de contenido */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 w-full">
+          {children || <Outlet />}
         </main>
       </div>
     </div>
   );
 };
+
+export default AdminLayout;

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { patientsService } from './patients.service.js';
 
 export class PatientsController {
-  async getPatients(_req: Request, res: Response, next: NextFunction) {
+  async getPatients(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const patients = await patientsService.getAllPatients();
       res.json({ success: true, data: patients });
@@ -11,7 +11,7 @@ export class PatientsController {
     }
   }
 
-  async getPatientById(req: Request, res: Response, next: NextFunction) {
+  async getPatientById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = req.params.id as string;
       const patient = await patientsService.getPatientById(id);
@@ -25,17 +25,31 @@ export class PatientsController {
     }
   }
 
-  async getPatientSummary(req: Request, res: Response, next: NextFunction) {
+  async getPatientHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = req.user?.id;
-      const summary = await patientsService.getPatientSummary(userId);
-      res.json({ success: true, ...summary });
+      const id = req.params.id as string;
+      const history = await patientsService.getPatientHistory(id);
+      if (!history) {
+        res.status(404).json({ success: false, message: 'Paciente no encontrado' });
+        return;
+      }
+      res.json({ success: true, data: history });
     } catch (error) {
       next(error);
     }
   }
 
-  async createPatient(req: Request, res: Response, next: NextFunction) {
+  async getPatientSummary(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      const summary = await patientsService.getPatientSummary(userId);
+      res.json({ success: true, data: summary });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createPatient(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const newPatient = await patientsService.createPatient(req.body);
       res.status(201).json({ success: true, data: newPatient });

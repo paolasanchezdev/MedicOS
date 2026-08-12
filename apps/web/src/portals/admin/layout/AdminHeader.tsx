@@ -1,33 +1,62 @@
-import React from 'react';
-import { Bell, User, LogOut } from 'lucide-react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { HeaderGlobal, type UserProfileData } from '../../../shared/components/header/HeaderGlobal';
+import { useAuth } from '../../../core/context/useAuth';
 
-export const AdminHeader: React.FC = () => {
+interface AdminHeaderProps {
+  onOpenSidebar: () => void;
+}
+
+export const AdminHeader: React.FC<AdminHeaderProps> = ({ onOpenSidebar }) => {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const firstName = user?.firstName?.trim() || '';
+  const lastName = user?.lastName?.trim() || '';
+  const fullName = firstName || lastName ? `${firstName} ${lastName}`.trim() : 'Administrador';
+  const email = user?.email || '';
+  const initials = firstName || lastName
+    ? `${firstName[0] || ''}${lastName[0] || ''}`.toUpperCase()
+    : 'AD';
+
+  const adminUserProfile: UserProfileData = {
+    fullName,
+    email,
+    initials,
+    roleName: user?.role || 'Administrador General',
+    showBadge: true,
+    badgeText: 'Sistema Operativo',
+  };
+
+  const handleSearchSubmit = (query: string) => {
+    if (query.trim()) {
+      navigate(`/admin/dashboard?q=${encodeURIComponent(query)}`);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (logout) {
+      await logout();
+    }
+    navigate('/login');
+  };
+
   return (
-    <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between">
-      <div className="flex items-center space-x-3">
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-          Sistema Operativo
-        </span>
-      </div>
-
-      <div className="flex items-center space-x-4">
-        <button className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors">
-          <Bell className="w-5 h-5" />
-        </button>
-
-        <div className="flex items-center space-x-3 border-l border-slate-200 pl-4">
-          <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-semibold text-sm">
-            <User className="w-4 h-4" />
-          </div>
-          <div className="text-sm">
-            <p className="font-semibold text-slate-800 leading-none">Administrador</p>
-            <p className="text-xs text-slate-500 mt-0.5">admin@medicos.gob.sv</p>
-          </div>
-          <button title="Cerrar sesión" className="p-2 text-slate-400 hover:text-rose-600 rounded-lg transition-colors ml-2">
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    </header>
+    <HeaderGlobal
+      onOpenSidebar={onOpenSidebar}
+      searchPlaceholder="Buscar en el portal administrador..."
+      searchValue={searchQuery}
+      onSearchChange={setSearchQuery}
+      onSearchSubmit={handleSearchSubmit}
+      notificationsRoute="/admin/notificaciones"
+      userProfile={adminUserProfile}
+      onNavigateToProfile={() => navigate('/admin/configuracion')}
+      onNavigateToSettings={() => navigate('/admin/configuracion')}
+      onNavigateToSupport={() => navigate('/admin/sistema/actividad')}
+      onLogout={handleLogout}
+    />
   );
 };
+
+export default AdminHeader;
