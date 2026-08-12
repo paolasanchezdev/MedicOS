@@ -3,7 +3,7 @@
 # ============================================================
 # MedicOS - Instalador completo y automatizado
 # ============================================================
-# Compatible con Ubuntu 24.04+ (Sistemas limpios)
+# Compatible con Ubuntu 22.04 / 24.04 LTS (Sistemas limpios)
 # ============================================================
 
 set -u
@@ -63,7 +63,7 @@ cd "$PROJECT_DIR" || exit 1
 
 echo
 echo "============================================================"
-echo "                 MedicOS Installer v2.1"
+echo "                  MedicOS Installer v2.2"
 echo "============================================================"
 echo "Usuario objetivo: $REAL_USER"
 echo "Directorio      : $PROJECT_DIR"
@@ -199,7 +199,14 @@ success "docker-compose.yml preparado."
 
 log "[5/9] Generando archivos de entorno (.env)..."
 
-JWT_SECRET="$(openssl rand -hex 64)"
+# Mantener JWT_SECRET previa si existe, o generar una nueva
+JWT_SECRET=""
+if [ -f "$PROJECT_DIR/apps/api/.env" ]; then
+    JWT_SECRET="$(grep '^JWT_SECRET=' "$PROJECT_DIR/apps/api/.env" | cut -d'=' -f2-)"
+fi
+if [ -z "$JWT_SECRET" ]; then
+    JWT_SECRET="$(openssl rand -hex 64)"
+fi
 
 # API .env
 API_ENV="$PROJECT_DIR/apps/api/.env"
@@ -258,13 +265,6 @@ if [ -n "${SUDO_USER:-}" ]; then
     chown -R "$REAL_USER:$REAL_USER" "$PROJECT_DIR"
 fi
 
-# ------------------------------------------------------------
-# 7. Instalación de dependencias npm
-# ------------------------------------------------------------
-
-log "[7/9] Instalando paquetes de Node.js..."
-
-# Ejecutar npm install con la identidad del usuario no-root
 run_as_user() {
     if [ -n "${SUDO_USER:-}" ]; then
         sudo -u "$REAL_USER" "$@"
@@ -273,24 +273,40 @@ run_as_user() {
     fi
 }
 
+# ------------------------------------------------------------
+# 7. Instalación de dependencias npm
+# ------------------------------------------------------------
+
+log "[7/9] Instalando paquetes de Node.js..."
+
 run_as_user npm install
 
 success "Dependencias de Node.js instaladas."
 
 # ------------------------------------------------------------
-# 8. Generación e integración con Prisma
+# 8. Generación, Esquema y Poblamiento de Base de Datos
 # ------------------------------------------------------------
 
-log "[8/9] Ejecutando Prisma (Generate & DB Push)..."
+log "[8/9] Ejecutando Prisma (Generate, DB Push y Seed)..."
 
 cd "$PROJECT_DIR/apps/api" || exit 1
 
 run_as_user npx prisma generate || error "Fallo en npx prisma generate"
 run_as_user npx prisma db push || error "Fallo en npx prisma db push"
 
+if [ -f "$PROJECT_DIR/dump.sql" ]; then
+    log "Restaurando datos iniciales desde dump.sql..."
+    docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" < "$PROJECT_DIR/dump.sql" >/dev/null 2>&1 || warning "Aviso al procesar dump.sql, continuando..."
+    success "Respaldo dump.sql restaurado exitosamente."
+else
+    log "Ejecutando sembrado de datos iniciales con Prisma Seed..."
+    run_as_user npx prisma db seed || error "Fallo en npx prisma db seed"
+    success "Sembrado de datos iniciales completado."
+fi
+
 cd "$PROJECT_DIR" || exit 1
 
-success "Esquema de base de datos sincronizado con éxito."
+success "Esquema y datos iniciales sincronizados con éxito."
 
 # ------------------------------------------------------------
 # 9. Finalización y Lanzamiento
@@ -303,7 +319,7 @@ fi
 
 echo
 echo "============================================================"
-echo "           INSTALACIÓN COMPLETADA EXITOSAMENTE"
+echo "          INSTALACIÓN COMPLETADA EXITOSAMENTE"
 echo "============================================================"
 echo "Servicios configurados:"
 echo "  • Base de Datos : postgresql://${DB_USER}:****@localhost:${DB_PORT}/${DB_NAME}"
