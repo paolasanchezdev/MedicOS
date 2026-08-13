@@ -8,10 +8,21 @@ const router = Router();
 
 router.use(checkAuth);
 
-router.get('/', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'AUTHORITY'), patientsController.getPatients);
+// 1. Listado general y creación
+router.get('/', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'AUTHORITY'), patientsController.getAllPatients);
 router.post('/', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA'), validate(createPatientSchema), patientsController.createPatient);
+
+// 2. Rutas estáticas del panel de paciente (deben ir antes de /:id)
 router.get('/resumen', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), patientsController.getPatientSummary);
-router.get('/:id', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), validate(patientIdParamSchema), patientsController.getPatientById);
+router.get('/dashboard/resumen', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), patientsController.getPatientSummary);
+
+router.get('/actividad', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), patientsController.getPatientActivity);
+router.get('/activity', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), patientsController.getPatientActivity);
+router.get('/dashboard/activity', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), patientsController.getPatientActivity);
+
+// 3. Rutas con parámetros
+router.get('/:id/actividad', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), validate(patientIdParamSchema), patientsController.getPatientActivity);
 router.get('/:id/historial', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), validate(patientIdParamSchema), patientsController.getPatientHistory);
+router.get('/:id', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), validate(patientIdParamSchema), patientsController.getPatientById);
 
 export const patientRoutes = router;

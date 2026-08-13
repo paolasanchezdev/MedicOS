@@ -11,13 +11,16 @@
   },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.5.3",
+    "@medicos/design-system": "*",
+    "@medicos/shared-types": "*",
+    "@types/leaflet": "^1.9.22",
     "framer-motion": "^12.42.2",
+    "leaflet": "^1.9.4",
     "lucide-react": "^1.24.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-router-dom": "^7.18.1",
-    "@medicos/design-system": "*",
-    "@medicos/shared-types": "*"
+    "react-leaflet": "^5.0.0",
+    "react-router-dom": "^7.18.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -58,14 +58,16 @@ app.use(cookieParser());
 // RUTAS Y RATE LIMITERS
 // ==========================================
 
-// Límite estricto solo para /api/auth
+// Límite estricto para /api/auth y /auth
 app.use("/api/auth", authLimiter);
+app.use("/auth", authLimiter);
 
 // Límite general para toda la /api
 app.use("/api", generalLimiter);
 
-// Rutas principales
+// Rutas principales (montadas en /api y en la raíz para compatibilidad total)
 app.use("/api", routes);
+app.use("/", routes);
 
 // Ruta de prueba de error operacional
 app.get("/api/test-error", (_req, _res, next) => {

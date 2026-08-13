@@ -1,5 +1,3 @@
-
-
 ## Project Structure
 
 ```text
@@ -17,7 +15,8 @@ MedicOS/
 │   │   │   │   ├── 20260716153349_add_patient_role/
 │   │   │   │   │   └── migration.sql
 │   │   │   │   └── migration_lock.toml
-│   │   │   └── schema.prisma
+│   │   │   ├── schema.prisma
+│   │   │   └── seed.ts
 │   │   ├── src/
 │   │   │   ├── config/
 │   │   │   │   └── prisma.ts
@@ -38,6 +37,7 @@ MedicOS/
 │   │   │   │   │   ├── brigades.schema.ts
 │   │   │   │   │   └── brigades.service.ts
 │   │   │   │   ├── patients/
+│   │   │   │   │   ├── patient-dashboard.service.ts
 │   │   │   │   │   ├── patients.controller.ts
 │   │   │   │   │   ├── patients.routes.ts
 │   │   │   │   │   ├── patients.schema.ts
@@ -126,6 +126,11 @@ MedicOS/
 │       │   │   └── DashboardLayout/
 │       │   │       └── DashboardLayout.tsx
 │       │   ├── modules/
+│       │   │   ├── admin/
+│       │   │   │   ├── services/
+│       │   │   │   │   └── admin-dashboard.service.ts
+│       │   │   │   └── types/
+│       │   │   │       └── admin-dashboard.types.ts
 │       │   │   ├── auth/
 │       │   │   │   ├── components/
 │       │   │   │   │   ├── LoginBanner.tsx
@@ -303,8 +308,26 @@ MedicOS/
 │       │   │   │   │   │       └── ConfiguracionSeguridadPage.tsx
 │       │   │   │   │   ├── dashboard/
 │       │   │   │   │   │   ├── actividad/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── ActividadItem.tsx
+│       │   │   │   │   │   │   │   ├── DetalleActividad.tsx
+│       │   │   │   │   │   │   │   ├── EncabezadoActividad.tsx
+│       │   │   │   │   │   │   │   ├── EstadoActividad.tsx
+│       │   │   │   │   │   │   │   ├── FiltrosActividad.tsx
+│       │   │   │   │   │   │   │   ├── PaginacionActividad.tsx
+│       │   │   │   │   │   │   │   └── ResumenActividad.tsx
 │       │   │   │   │   │   │   └── ActividadSistemaPage.tsx
 │       │   │   │   │   │   └── resumen/
+│       │   │   │   │   │       ├── components/
+│       │   │   │   │   │       │   ├── AccionesRapidas.tsx
+│       │   │   │   │   │       │   ├── ActividadReciente.tsx
+│       │   │   │   │   │       │   ├── TarjetaActividadSistema.tsx
+│       │   │   │   │   │       │   ├── TarjetaBienvenidaAdmin.tsx
+│       │   │   │   │   │       │   ├── TarjetaBrigadas.tsx
+│       │   │   │   │   │       │   ├── TarjetaEstadoSistema.tsx
+│       │   │   │   │   │       │   ├── TarjetaPacientes.tsx
+│       │   │   │   │   │       │   ├── TarjetaSincronizacion.tsx
+│       │   │   │   │   │       │   └── TarjetaUsuarios.tsx
 │       │   │   │   │   │       └── ResumenAdminPage.tsx
 │       │   │   │   │   ├── datos/
 │       │   │   │   │   │   ├── exportacion/
@@ -832,8 +855,11 @@ MedicOS/
 │       │   │   ├── components/
 │       │   │   │   ├── header/
 │       │   │   │   │   ├── BuscadorHeader.tsx
+│       │   │   │   │   ├── HeaderGlobal.tsx
 │       │   │   │   │   ├── NotificacionesMenu.tsx
 │       │   │   │   │   └── PerfilUsuarioHeader.tsx
+│       │   │   │   ├── sidebar/
+│       │   │   │   │   └── SidebarGlobal.tsx
 │       │   │   │   └── UnderConstruction.tsx
 │       │   │   ├── constants/
 │       │   │   ├── hooks/
@@ -874,6 +900,7 @@ MedicOS/
 ├── create-authority-portal.ps1
 ├── create-brigadista-portal.sh
 ├── create-medico-portal.sh
+├── dump.sql
 ├── install_all.sh
 ├── LICENSE
 ├── medicos_backup.sql

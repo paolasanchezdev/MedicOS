@@ -1,60 +1,91 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { patientsService } from './patients.service.js';
+import { patientDashboardService } from './patient-dashboard.service.js';
 
 export class PatientsController {
-  async getPatients(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getAllPatients(req: Request, res: Response) {
     try {
       const patients = await patientsService.getAllPatients();
-      res.json({ success: true, data: patients });
-    } catch (error) {
-      next(error);
+      return res.json({ success: true, data: patients });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
     }
   }
 
-  async getPatientById(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getPatientById(req: Request, res: Response) {
     try {
-      const id = req.params.id as string;
+      const id = req.params.id || (req as any).user?.id;
+      if (!id) {
+        return res.status(400).json({ success: false, error: 'Identificador de paciente no proporcionado' });
+      }
+
       const patient = await patientsService.getPatientById(id);
       if (!patient) {
-        res.status(404).json({ success: false, message: 'Paciente no encontrado' });
-        return;
+        return res.status(404).json({ success: false, error: 'Paciente no encontrado' });
       }
-      res.json({ success: true, data: patient });
-    } catch (error) {
-      next(error);
+      return res.json({ success: true, data: patient });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
     }
   }
 
-  async getPatientHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getPatientHistory(req: Request, res: Response) {
     try {
-      const id = req.params.id as string;
+      const id = req.params.id || (req as any).user?.id;
+      if (!id) {
+        return res.status(400).json({ success: false, error: 'Identificador de paciente no proporcionado' });
+      }
+
       const history = await patientsService.getPatientHistory(id);
       if (!history) {
-        res.status(404).json({ success: false, message: 'Paciente no encontrado' });
-        return;
+        return res.status(404).json({ success: false, error: 'Historial del paciente no encontrado' });
       }
-      res.json({ success: true, data: history });
-    } catch (error) {
-      next(error);
+      return res.json({ success: true, data: history });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
     }
   }
 
-  async getPatientSummary(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getPatientSummary(req: Request, res: Response) {
     try {
-      const userId = req.user?.id;
-      const summary = await patientsService.getPatientSummary(userId);
-      res.json({ success: true, data: summary });
-    } catch (error) {
-      next(error);
+      const userId = (req as any).user?.id || req.params.id || (req.query.userId as string);
+
+      const summary = await patientDashboardService.getPatientSummary(userId);
+      return res.json({ success: true, data: summary });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
     }
   }
 
-  async createPatient(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getPatientActivity(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id || req.params.id || (req.query.userId as string);
+      const { category, search, startDate, endDate } = req.query;
+
+      const activityData = await patientDashboardService.getPatientActivity(userId, {
+        category: category as string,
+        search: search as string,
+        startDate: startDate as string,
+        endDate: endDate as string,
+      });
+
+      return res.json({
+        success: true,
+        data: activityData,
+        total: activityData.total,
+        items: activityData.items,
+      });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  async createPatient(req: Request, res: Response) {
     try {
       const newPatient = await patientsService.createPatient(req.body);
-      res.status(201).json({ success: true, data: newPatient });
-    } catch (error) {
-      next(error);
+      return res.status(201).json({ success: true, data: newPatient });
+    } catch (error: any) {
+      return res.status(400).json({ success: false, error: error.message });
     }
   }
 }

@@ -1,20 +1,21 @@
 services:
-
-  db:
-    image: postgres:15-alpine
+  postgres:
+    image: postgres:16-alpine
     container_name: medicos_db
-    restart: always
-
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: medicos_app
-      POSTGRES_PASSWORD: M3d1c0S_DB#2026!Secure
       POSTGRES_DB: medicos_db
-
+      POSTGRES_USER: medicos_app
+      POSTGRES_PASSWORD: MedicosDB_2026_Secure
     ports:
       - "5432:5432"
-
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medicos_app -d medicos_db"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
 
 volumes:
   postgres_data:

@@ -12,6 +12,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ======================================================
@@ -106,7 +107,7 @@ model Device {
   name            String
   serialNumber    String       @unique
   operatingSystem String
-  appVersion      String
+  appVersion     String
   publicKey       String?
   location        String?
   lastSyncAt      DateTime?
@@ -173,6 +174,7 @@ model User {
   brigadesAssigned BrigadeMember[]
   consultations    Consultation[]  @relation("DoctorConsultations")
   auditLogs        AuditLog[]
+  patient          Patient?        // <-- Añade esta línea para completar la relación bidireccional
 
   @@index([role])
   @@index([status])
@@ -235,40 +237,34 @@ model BrigadeMember {
 // ======================================================
 
 model Patient {
-  id                String   @id @default(uuid())
-  firstName         String
-  lastName          String
-  dateOfBirth       DateTime
-  dui               String?  @unique
-  sex               Sex      @default(OTHER)
-  phone             String?
-  address           String
-  emergencyName     String?
-  emergencyPhone    String?
-  emergencyRelation String?
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  // Relaciones clínicas
-  clinicalRecord ClinicalRecord?
-  consultations  Consultation[]
-  vitalSigns     VitalSigns[]
-
-  // Metadatos Obligatorios Offline First
-  syncStatus             SyncStatus @default(PENDING)
-  version                Int        @default(1)
-  originDeviceId         String
+  id                    String         @id @default(uuid())
+  userId                String?        @unique // Relación directa con la cuenta de usuario del portal
+  user                  User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  firstName             String
+  lastName              String
+  dateOfBirth           DateTime
+  dui                   String?        @unique
+  sex                   Sex            @default(OTHER)
+  phone                 String?
+  address               String
+  emergencyName         String?
+  emergencyPhone        String?
+  emergencyRelation     String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  deletedAt             DateTime?
+  syncStatus            SyncStatus     @default(SYNCED)
+  version               Int            @default(1)
+  originDeviceId        String
   lastModifiedByDeviceId String
-  lastModified           DateTime   @default(now()) @updatedAt
+  lastModified          DateTime       @default(now())
 
-  @@index([lastName, firstName])
+  clinicalRecord        ClinicalRecord?
+  consultations         Consultation[]
+  vitalSigns            VitalSigns[]
+
   @@index([dui])
-  @@index([syncStatus])
-  @@index([lastModified])
-  @@index([originDeviceId])
-  @@index([lastModifiedByDeviceId])
+  @@index([userId])
 }
 
 model ClinicalRecord {

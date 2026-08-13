@@ -27,6 +27,13 @@ export interface PacienteResumenResponse {
   eventosSalud?: EventoSaludItem[] | null;
 }
 
+interface ApiEnvelope<T> {
+  success?: boolean;
+  data?: T;
+}
+
+type ApiResponse = ApiEnvelope<PacienteResumenResponse> | PacienteResumenResponse;
+
 export const ResumenPacientePage: React.FC = () => {
   const { user } = useAuth();
   const [data, setData] = useState<PacienteResumenResponse | null>(null);
@@ -36,10 +43,11 @@ export const ResumenPacientePage: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
 
-    apiClient<PacienteResumenResponse>('/patients/resumen')
+    apiClient<ApiResponse>('/patients/resumen')
       .then((res) => {
         if (isMounted) {
-          setData(res);
+          const summaryData = (res as ApiEnvelope<PacienteResumenResponse>).data ?? (res as PacienteResumenResponse);
+          setData(summaryData);
           setLoading(false);
         }
       })
@@ -60,9 +68,10 @@ export const ResumenPacientePage: React.FC = () => {
     setLoading(true);
     setError(null);
 
-    apiClient<PacienteResumenResponse>('/patients/resumen')
+    apiClient<ApiResponse>('/patients/resumen')
       .then((res) => {
-        setData(res);
+        const summaryData = (res as ApiEnvelope<PacienteResumenResponse>).data ?? (res as PacienteResumenResponse);
+        setData(summaryData);
       })
       .catch((err: unknown) => {
         console.error('Error al reintentar resumen:', err);
@@ -74,8 +83,8 @@ export const ResumenPacientePage: React.FC = () => {
   };
 
   if (loading) {
-      return (
-        <div className="flex flex-col items-center justify-center min-h-90 space-y-3 py-16 w-full">
+    return (
+      <div className="flex flex-col items-center justify-center min-h-90 space-y-3 py-16 w-full">
         <div className="w-9 h-9 rounded-full border-2 border-[#2a726d] border-t-transparent animate-spin" />
         <p className="text-xs font-semibold text-slate-500 tracking-wide">
           Sincronizando expediente clínico...
