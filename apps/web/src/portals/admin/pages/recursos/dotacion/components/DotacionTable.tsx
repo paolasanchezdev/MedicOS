@@ -20,11 +20,10 @@ interface DotacionTableProps {
 }
 
 const STATUS_BADGES: Record<DotationStatus, { label: string; bg: string; text: string }> = {
-  PREPARING: { label: 'Preparación', bg: 'bg-slate-100', text: 'text-slate-700' },
-  DISPATCHED: { label: 'Despachada', bg: 'bg-blue-50', text: 'text-blue-700' },
-  IN_FIELD: { label: 'En Campo', bg: 'bg-teal-50', text: 'text-teal-700' },
-  PENDING_RETURN: { label: 'Pendiente Retorno', bg: 'bg-amber-50', text: 'text-amber-700' },
-  CLOSED: { label: 'Liquidada', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  PLANNED: { label: 'Planificada', bg: 'bg-slate-100', text: 'text-slate-700' },
+  ACTIVE: { label: 'En Campo / Activa', bg: 'bg-teal-50', text: 'text-teal-700' },
+  COMPLETED: { label: 'Liquidada', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  CANCELLED: { label: 'Cancelada', bg: 'bg-rose-50', text: 'text-rose-700' },
 };
 
 export const DotacionTable: React.FC<DotacionTableProps> = ({
@@ -73,7 +72,7 @@ export const DotacionTable: React.FC<DotacionTableProps> = ({
           </thead>
           <tbody className="divide-y divide-slate-200 text-sm">
             {dotations.map((item) => {
-              const statusBadge = STATUS_BADGES[item.status] || STATUS_BADGES.PREPARING;
+              const statusBadge = STATUS_BADGES[item.status] || STATUS_BADGES.PLANNED;
 
               return (
                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
@@ -151,7 +150,7 @@ export const DotacionTable: React.FC<DotacionTableProps> = ({
                         <span>Checklist</span>
                       </button>
 
-                      {item.status !== 'CLOSED' && (
+                      {item.status !== 'COMPLETED' && (
                         <button
                           type="button"
                           onClick={() => onLiquidate(item)}

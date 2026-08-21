@@ -31,29 +31,15 @@ export const DispositivosFilters: React.FC<DispositivosFiltersProps> = ({
       {/* Filtros Dropdown */}
       <div className="flex flex-wrap items-center gap-3">
         <select
-          value={filters.type ?? 'ALL'}
-          onChange={(e) => onFilterChange({ type: e.target.value as DeviceFilters['type'] })}
-          className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-600 text-slate-700 bg-white"
-        >
-          <option value="ALL">Todos los Tipos</option>
-          <option value="RASPBERRY_PI">Estación Raspberry Pi (Offline Server)</option>
-          <option value="LAPTOP">Laptop Clínica</option>
-          <option value="TABLET">Tablet de Triaje</option>
-          <option value="QR_SCANNER">Lector QR Físico</option>
-          <option value="OTHER">Otro Dispositivo</option>
-        </select>
-
-        <select
           value={filters.status ?? 'ALL'}
           onChange={(e) => onFilterChange({ status: e.target.value as DeviceFilters['status'] })}
           className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-600 text-slate-700 bg-white"
         >
           <option value="ALL">Todos los Estados</option>
-          <option value="ONLINE">En Línea</option>
+          <option value="ACTIVE">Activo / En Línea</option>
           <option value="OFFLINE">Offline (En campo)</option>
-          <option value="SYNCING">Sincronizando</option>
-          <option value="MAINTENANCE">En Mantenimiento</option>
-          <option value="LOCKED">Bloqueado / Revocado</option>
+          <option value="BLOCKED">Bloqueado</option>
+          <option value="RETIRED">Retirado / Baja</option>
         </select>
 
         <button

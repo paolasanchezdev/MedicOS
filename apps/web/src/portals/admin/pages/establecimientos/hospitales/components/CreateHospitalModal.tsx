@@ -38,11 +38,12 @@ export const CreateHospitalModal: React.FC<CreateHospitalModalProps> = ({
     department: 'San Salvador',
     municipality: 'San Salvador Centro',
     address: '',
+    phone: '',
+    emergencyPhone: '',
+    hasEmergency: true,
     totalBeds: 0,
     availableBeds: 0,
     status: 'OPERATIONAL',
-    phone: '',
-    emergencyPhone: '',
     latitude: null,
     longitude: null,
     createdAt: new Date().toISOString(),
@@ -61,10 +62,18 @@ export const CreateHospitalModal: React.FC<CreateHospitalModalProps> = ({
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === 'number' ? Number(value) : value,
-    }));
+    if (type === 'checkbox') {
+      const { checked } = e.target as HTMLInputElement;
+      setFormData((prev) => ({
+        ...prev,
+        [name]: checked,
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: type === 'number' ? Number(value) : value,
+      }));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -162,7 +171,6 @@ export const CreateHospitalModal: React.FC<CreateHospitalModalProps> = ({
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
               >
                 <option value="OPERATIONAL">Operativo</option>
-                <option value="FULL_CAPACITY">Capacidad Total</option>
                 <option value="MAINTENANCE">Mantenimiento</option>
                 <option value="INACTIVE">Inactivo</option>
               </select>
@@ -272,6 +280,20 @@ export const CreateHospitalModal: React.FC<CreateHospitalModalProps> = ({
                 onChange={handleChange}
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
+            </div>
+
+            <div className="sm:col-span-2 flex items-center gap-2 pt-2">
+              <input
+                type="checkbox"
+                id="hasEmergency"
+                name="hasEmergency"
+                checked={formData.hasEmergency}
+                onChange={handleChange}
+                className="w-4 h-4 text-teal-600 border-slate-300 rounded-sm focus:ring-teal-500"
+              />
+              <label htmlFor="hasEmergency" className="text-xs font-medium text-slate-700 cursor-pointer">
+                Cuenta con servicio de Emergencias 24/7
+              </label>
             </div>
           </div>
 

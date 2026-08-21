@@ -11,6 +11,21 @@ export const UserRole = {
 
 export type UserRoleType = (typeof UserRole)[keyof typeof UserRole];
 
+/** Tipos oficiales de permisos en la aplicación */
+export type AppPermissionType =
+  | 'Gestión de Usuarios y Roles'
+  | 'Monitoreo Sincronización Outbox'
+  | 'Auditoría Técnica (AuditLogs)'
+  | 'Atención SOAP y Diagnósticos'
+  | 'Toma de Signos Vitales'
+  | 'Consulta Expediente Único'
+  | 'Apertura de Jornada (WorkSession)'
+  | 'Pre-registro de Pacientes'
+  | 'Dashboard Epidemiológico'
+  | 'Exportación de Reportes Regionales'
+  | 'Historial Personal de Atenciones'
+  | string;
+
 /** Diccionario con descripciones legibles */
 export const ROLE_LABELS: Record<UserRoleType, string> = {
   [UserRole.ADMIN]: 'Administrador Técnico del Sistema',
@@ -23,7 +38,7 @@ export const ROLE_LABELS: Record<UserRoleType, string> = {
 export interface RoleCapability {
   category: string;
   permissions: {
-    name: string;
+    name: AppPermissionType;
     description: string;
     roles: UserRoleType[];
   }[];
@@ -71,7 +86,7 @@ export const ROLE_MATRIX: RoleCapability[] = [
 
 /** Gestor centralizado de permisos RBAC */
 export const permissionManager = {
-  hasPermission: (role: UserRoleType, permissionName: string): boolean => {
+  hasPermission: (role: UserRoleType, permissionName: AppPermissionType): boolean => {
     if (!role || !permissionName) return false;
     for (const group of ROLE_MATRIX) {
       const match = group.permissions.find((p) => p.name === permissionName);
