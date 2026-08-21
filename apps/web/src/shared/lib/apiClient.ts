@@ -7,22 +7,28 @@ import { sessionManager } from '../../core/auth/session';
 
 const RAW_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:3000';
 
-// Normaliza la URL base para garantizar protocolo válido y sin barras redundantes
+// Normaliza la URL base limpiando Markdown, corchetes, comillas y protocolos duplicados
 const normalizeBaseUrl = (url: string): string => {
-  let normalized = url.trim().replace(/^["']|["']$/g, '');
+  let normalized = url.trim();
 
-  // Corrige si viene con una sola barra (ej: https:/ o http:/)
-  normalized = normalized.replace(/^(https?:\/)(?!\/)/i, '$1/');
-
-  // Agrega protocolo si no fue especificado
-  if (!/^https?:\/\//i.test(normalized)) {
-    normalized = normalized.includes('localhost')
-      ? `http://${normalized}`
-      : `https://${normalized}`;
+  // Elimina formato de enlace Markdown accidental: [url](url) o [texto](url)
+  const markdownMatch = normalized.match(/\[.*?\]\((https?:\/\/[^\s)]+)\)/i);
+  if (markdownMatch && markdownMatch[1]) {
+    normalized = markdownMatch[1];
+  } else {
+    // Limpia corchetes, paréntesis y comillas residuales
+    normalized = normalized.replace(/[[\]()"'`]/g, '').trim();
   }
 
-  // Elimina cualquier barra al final
-  return normalized.replace(/\/+$/, '');
+  // Elimina protocolos repetidos accidentales (ej: https://https:// o http://https://)
+  normalized = normalized.replace(/^(?:https?:\/\/)+/i, '');
+
+  // Limpia barras iniciales o finales
+  normalized = normalized.replace(/^\/+|\/+$/g, '');
+
+  // Determina protocolo correcto
+  const isLocalhost = normalized.includes('localhost') || normalized.includes('127.0.0.1');
+  return isLocalhost ? `http://${normalized}` : `https://${normalized}`;
 };
 
 const BASE_URL = normalizeBaseUrl(RAW_BASE_URL);
