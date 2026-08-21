@@ -7,16 +7,15 @@ export const validateTurnstile = async (
   next: NextFunction
 ) => {
   try {
-    // 1. Extraemos el token que enviará el frontend en el body
+    // 1. Bypass automático e incondicional en entornos de desarrollo y pruebas
+    if (process.env.NODE_ENV !== "production") {
+      return next();
+    }
+
+    // 2. Extraemos el token que enviará el frontend en el body (Solo Producción)
     const { turnstileToken } = req.body;
 
-    // Si no viene el token en producción, se bloquea la petición
     if (!turnstileToken) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("⚠️ [DEV] Token de Turnstile ausente. Omitiendo validación en entorno local.");
-        return next();
-      }
-
       return res.status(400).json({
         ok: false,
         message: "Error de seguridad: Falta la verificación Anti-Bot (Turnstile).",
@@ -25,7 +24,7 @@ export const validateTurnstile = async (
 
     const secretKey = process.env.TURNSTILE_SECRET_KEY;
 
-    // 2. Preparamos la petición a Cloudflare
+    // 3. Preparamos la petición de validación a Cloudflare
     const formData = new URLSearchParams();
     if (secretKey) {
       formData.append("secret", secretKey);
@@ -35,7 +34,7 @@ export const validateTurnstile = async (
 
     const cloudflareUrl = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
-    // Timeout de 5 segundos para prevenir peticiones colgadas (ETIMEDOUT)
+    // Timeout de 5 segundos para prevenir peticiones colgadas
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
@@ -53,7 +52,7 @@ export const validateTurnstile = async (
         "error-codes"?: string[];
       };
 
-      // 3. Si Cloudflare indica token inválido o sospecha de bot
+      // 4. Si Cloudflare indica token inválido o sospecha de bot
       if (!outcome.success) {
         return res.status(403).json({
           ok: false,
@@ -67,13 +66,7 @@ export const validateTurnstile = async (
 
     } catch (fetchError) {
       clearTimeout(timeoutId);
-      console.error("⚠️ Fallo de conexión o tiempo agotado (ETIMEDOUT) con Cloudflare Turnstile:", fetchError);
-
-      // En entorno de desarrollo permite el paso si falla la red externa
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("🛠️ [DEV] Conexión a Cloudflare no disponible. Permitiendo acceso local.");
-        return next();
-      }
+      console.error("⚠️ Fallo de conexión o tiempo agotado con Cloudflare Turnstile:", fetchError);
 
       return res.status(503).json({
         ok: false,
@@ -84,4 +77,4 @@ export const validateTurnstile = async (
   } catch (error) {
     next(error);
   }
-};
+};  

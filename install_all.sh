@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # ============================================================
-# MedicOS - Instalador completo y automatizado (v2.4)
+# MedicOS - Instalador y Sincronizador Maestro (v2.5)
 # ============================================================
-# Compatible con Ubuntu 22.04 / 24.04 LTS y derivados Debian
+# Compatible con Ubuntu 22.04 / 24.04 LTS y derivadas
 # ============================================================
 
 set -u
@@ -23,18 +23,14 @@ warning() { echo -e "${YELLOW}⚠ $1${NC}"; }
 error() { echo -e "${RED}✖ $1${NC}"; exit 1; }
 
 # ------------------------------------------------------------
-# Verificar ejecutor y sudo
+# Verificar permisos de administrador
 # ------------------------------------------------------------
 if [ "$EUID" -ne 0 ]; then
-    error "Este instalador requiere permisos de administrador.\nEjecuta: sudo bash ./install_all.sh"
+    error "Este script requiere permisos de administrador.\nEjecuta: sudo bash ./install_all.sh"
 fi
 
 REAL_USER="${SUDO_USER:-$USER}"
 REAL_HOME="$(eval echo "~$REAL_USER")"
-
-if [ "$REAL_USER" = "root" ]; then
-    warning "Advertencia: Estás ejecutando el instalador directamente como root."
-fi
 
 run_as_user() {
     if [ -n "${SUDO_USER:-}" ] && [ "$REAL_USER" != "root" ]; then
@@ -52,7 +48,7 @@ cd "$PROJECT_DIR" || exit 1
 
 echo
 echo "============================================================"
-echo "                  MedicOS Installer v2.4"
+echo "                  MedicOS Installer v2.5"
 echo "============================================================"
 echo "Usuario objetivo: $REAL_USER"
 echo "Directorio      : $PROJECT_DIR"
@@ -60,18 +56,9 @@ echo "============================================================"
 echo
 
 # ------------------------------------------------------------
-# Verificar estructura del Monorepo
+# 1. Dependencias base del sistema
 # ------------------------------------------------------------
-[ -d "$PROJECT_DIR/apps/api" ] || error "No existe la carpeta apps/api."
-[ -d "$PROJECT_DIR/apps/web" ] || error "No existe la carpeta apps/web."
-[ -f "$PROJECT_DIR/package.json" ] || error "No existe package.json en la raíz."
-
-success "Estructura del proyecto MedicOS validada."
-
-# ------------------------------------------------------------
-# 1. Dependencias del sistema
-# ------------------------------------------------------------
-log "[1/8] Instalando paquetes base del sistema..."
+log "[1/7] Verificando dependencias del sistema..."
 
 apt-get update -y
 apt-get install -y \
@@ -85,12 +72,12 @@ apt-get install -y \
     openssl \
     postgresql-client
 
-success "Dependencias básicas instaladas."
+success "Dependencias del sistema verificadas."
 
 # ------------------------------------------------------------
 # 2. Node.js (v20 o v22 LTS)
 # ------------------------------------------------------------
-log "[2/8] Verificando entorno Node.js..."
+log "[2/7] Verificando entorno Node.js..."
 
 NODE_MAJOR=0
 if command -v node >/dev/null 2>&1; then
@@ -108,12 +95,12 @@ export PATH="$PATH:/usr/bin:/usr/local/bin"
 success "Node.js $(node -v) / npm $(npm -v)"
 
 # ------------------------------------------------------------
-# 3. Docker Engine y Plugin de Compose
+# 3. Docker Engine y Compose
 # ------------------------------------------------------------
-log "[3/8] Verificando entorno Docker..."
+log "[3/7] Verificando entorno Docker..."
 
 if ! command -v docker >/dev/null 2>&1; then
-    warning "Docker no detectado. Instalando Docker y Compose plugin..."
+    warning "Instalando Docker Engine y Compose..."
     apt-get update -y
     apt-get install -y docker.io docker-compose-plugin
 fi
@@ -134,10 +121,10 @@ else
     error "No se encontró Docker Compose."
 fi
 
-success "Docker ($DOCKER_COMPOSE) configurado correctamente."
+success "Docker ($DOCKER_COMPOSE) listo."
 
 # ------------------------------------------------------------
-# 4. Configurar PostgreSQL en Docker
+# 4. Configurar y Desplegar PostgreSQL en Docker (Sin conflictos)
 # ------------------------------------------------------------
 DB_CONTAINER="medicos_db"
 DB_NAME="medicos_db"
@@ -148,12 +135,16 @@ DB_PORT="5432"
 API_PORT="4000"
 WEB_PORT="5173"
 
+# Detener PostgreSQL local del host si estuviese activo
 if systemctl is-active --quiet postgresql 2>/dev/null; then
-    warning "Deteniendo servicio local de PostgreSQL en el host para evitar conflictos en el puerto ${DB_PORT}..."
+    warning "Deteniendo servicio PostgreSQL en el host para liberar puerto ${DB_PORT}..."
     systemctl stop postgresql || true
 fi
 
-log "[4/8] Generando docker-compose.yml y levantando contenedor de base de datos..."
+log "[4/7] Limpiando contenedores previos y levantando PostgreSQL..."
+
+# Eliminar cualquier contenedor huérfano para evitar 'Conflict container name'
+docker rm -f "$DB_CONTAINER" >/dev/null 2>&1 || true
 
 cat > "$PROJECT_DIR/docker-compose.yml" <<EOF
 services:
@@ -171,7 +162,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
-      interval: 3s
+      interval: 2s
       timeout: 5s
       retries: 20
 
@@ -179,10 +170,9 @@ volumes:
   postgres_data:
 EOF
 
-$DOCKER_COMPOSE down -v --remove-orphans >/dev/null 2>&1 || true
 $DOCKER_COMPOSE up -d
 
-log "Esperando conexión a PostgreSQL..."
+log "Esperando que PostgreSQL acepte conexiones..."
 READY=0
 for i in $(seq 1 30); do
     if docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1; then
@@ -195,15 +185,15 @@ done
 echo
 
 if [ "$READY" -ne 1 ]; then
-    error "La base de datos PostgreSQL no respondió a tiempo."
+    error "PostgreSQL no respondió a tiempo."
 fi
 
 success "PostgreSQL activo en el puerto ${DB_PORT}."
 
 # ------------------------------------------------------------
-# 5. Generar archivos de entorno (.env)
+# 5. Generar Variables de Entorno (.env) Estandarizadas
 # ------------------------------------------------------------
-log "[5/8] Configurando variables de entorno (.env)..."
+log "[5/7] Configurando variables de entorno estándar..."
 
 API_ENV="$PROJECT_DIR/apps/api/.env"
 cat > "$API_ENV" <<EOF
@@ -211,6 +201,7 @@ PORT=${API_PORT}
 NODE_ENV=development
 DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}?schema=public"
 JWT_SECRET="medicos_jwt_secret_super_seguro_2026"
+TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA"
 EOF
 
 WEB_ENV="$PROJECT_DIR/apps/web/.env"
@@ -219,46 +210,49 @@ VITE_API_URL="http://localhost:${API_PORT}"
 EOF
 
 chmod 644 "$API_ENV" "$WEB_ENV"
-success "Archivos apps/api/.env y apps/web/.env configurados."
+success "Archivos de entorno configurados con puerto ${API_PORT}."
 
 # ------------------------------------------------------------
-# 6. Instalación de dependencias
+# 6. Dependencias de Node.js y Sincronización Total de Prisma
 # ------------------------------------------------------------
-log "[6/8] Instalando dependencias de npm en el monorepo..."
+log "[6/7] Instalando paquetes y sincronizando esquema de base de datos..."
 
 if [ -n "${SUDO_USER:-}" ] && [ "$REAL_USER" != "root" ]; then
     chown -R "$REAL_USER:$REAL_USER" "$PROJECT_DIR"
 fi
 
 run_as_user npm install || error "Fallo al ejecutar npm install"
-success "Dependencias instaladas."
-
-# ------------------------------------------------------------
-# 7. Prisma ORM: Generar cliente, migraciones y seeders
-# ------------------------------------------------------------
-log "[7/8] Sincronizando esquema y sembrando base de datos con Prisma..."
 
 cd "$PROJECT_DIR/apps/api" || exit 1
 
-run_as_user npx prisma generate || error "Fallo en npx prisma generate"
-run_as_user npx prisma db push || error "Fallo en npx prisma db push"
-run_as_user npx prisma db seed || warning "No se pudo ejecutar db seed automáticamente, puedes ejecutarlo manualmente luego."
+# Generar cliente
+run_as_user npx prisma generate || error "Fallo en prisma generate"
+
+# Forzar sincronización de todas las columnas (evita error 500 por tablas desactualizadas)
+run_as_user npx prisma db push --accept-data-loss || error "Fallo en prisma db push"
+
+# Sembrar todos los datos iniciales
+log "Sembrando base de datos con usuarios, roles y catálogo de establecimientos..."
+run_as_user npx prisma db seed || warning "Advertencia en prisma seed, continuando..."
 
 cd "$PROJECT_DIR" || exit 1
-success "Base de datos local sincronizada."
+
+success "Base de datos y modelos de Prisma 100% sincronizados."
 
 # ------------------------------------------------------------
-# 8. Ajuste de permisos finales
+# 7. Ajuste de Permisos y Arranque
 # ------------------------------------------------------------
+log "[7/7] Ajustando permisos de usuario..."
+
 if [ -n "${SUDO_USER:-}" ] && [ "$REAL_USER" != "root" ]; then
     chown -R "$REAL_USER:$REAL_USER" "$PROJECT_DIR"
 fi
 
 echo
 echo "============================================================"
-echo "          INSTALACIÓN COMPLETADA EXITOSAMENTE"
+echo "          TODO CONFIGURADO Y LISTO PARA PROGRAMAR"
 echo "============================================================"
-echo "Servicios locales listos:"
+echo "Servicios locales:"
 echo "  • Base de Datos : postgresql://${DB_USER}:****@localhost:${DB_PORT}/${DB_NAME}"
 echo "  • API Backend   : http://localhost:${API_PORT}"
 echo "  • Web Frontend  : http://localhost:${WEB_PORT}"

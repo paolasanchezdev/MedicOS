@@ -77,6 +77,14 @@ MedicOS/
 │   │   │   │   │   ├── reports.routes.ts
 │   │   │   │   │   ├── reports.schema.ts
 │   │   │   │   │   └── reports.service.ts
+│   │   │   │   ├── resources/
+│   │   │   │   │   ├── services/
+│   │   │   │   │   │   ├── devices.service.ts
+│   │   │   │   │   │   ├── dotation.service.ts
+│   │   │   │   │   │   ├── equipment.service.ts
+│   │   │   │   │   │   └── resources.service.ts
+│   │   │   │   │   ├── resources.controller.ts
+│   │   │   │   │   └── resources.routes.ts
 │   │   │   │   └── users/
 │   │   │   │       ├── users.controller.ts
 │   │   │   │       ├── users.routes.ts
@@ -168,6 +176,10 @@ MedicOS/
 │       │   │   │       └── auth.service.ts
 │       │   │   ├── brigades/
 │       │   │   │   ├── components/
+│       │   │   │   │   ├── AssignLeaderModal.tsx
+│       │   │   │   │   ├── BrigadeStatusModal.tsx
+│       │   │   │   │   ├── CreateBrigadeModal.tsx
+│       │   │   │   │   └── DeleteBrigadeModal.tsx
 │       │   │   │   ├── constants/
 │       │   │   │   ├── context/
 │       │   │   │   │   ├── BrigadeContext.tsx
@@ -175,9 +187,11 @@ MedicOS/
 │       │   │   │   ├── data/
 │       │   │   │   │   └── mock-brigade.ts
 │       │   │   │   ├── hooks/
+│       │   │   │   │   ├── useAdminBrigades.ts
 │       │   │   │   │   └── useBrigade.ts
 │       │   │   │   ├── schemas/
 │       │   │   │   ├── services/
+│       │   │   │   │   └── brigades.service.ts
 │       │   │   │   ├── types/
 │       │   │   │   │   └── brigade.types.ts
 │       │   │   │   ├── utils/
@@ -298,6 +312,34 @@ MedicOS/
 │       │   │   │   ├── types/
 │       │   │   │   │   └── reports.types.ts
 │       │   │   │   └── utils/
+│       │   │   ├── resources/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── CreateDeviceModal.tsx
+│       │   │   │   │   ├── CreateDotationModal.tsx
+│       │   │   │   │   ├── CreateEquipmentModal.tsx
+│       │   │   │   │   ├── CreateResourceModal.tsx
+│       │   │   │   │   ├── CreateStockModal.tsx
+│       │   │   │   │   ├── DeleteDeviceModal.tsx
+│       │   │   │   │   ├── DeleteEquipmentModal.tsx
+│       │   │   │   │   ├── DeleteResourceModal.tsx
+│       │   │   │   │   ├── DeviceStatusModal.tsx
+│       │   │   │   │   ├── DotationDetailsModal.tsx
+│       │   │   │   │   ├── EquipmentMaintenanceModal.tsx
+│       │   │   │   │   ├── LiquidateDotationModal.tsx
+│       │   │   │   │   └── ResourceLotsModal.tsx
+│       │   │   │   ├── hooks/
+│       │   │   │   │   ├── useDevices.ts
+│       │   │   │   │   ├── useDotacion.ts
+│       │   │   │   │   ├── useMedicalEquipment.ts
+│       │   │   │   │   └── useResources.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   ├── devices.service.ts
+│       │   │   │   │   ├── dotation.service.ts
+│       │   │   │   │   ├── equipment.service.ts
+│       │   │   │   │   └── resources.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── resource.types.ts
+│       │   │   │   └── index.ts
 │       │   │   └── users/
 │       │   │       ├── components/
 │       │   │       │   ├── CreateUserModal.tsx
@@ -336,6 +378,11 @@ MedicOS/
 │       │   │   │   │   │   ├── responsables/
 │       │   │   │   │   │   │   └── ResponsablesBrigadasPage.tsx
 │       │   │   │   │   │   └── todas/
+│       │   │   │   │   │       ├── components/
+│       │   │   │   │   │       │   ├── BrigadasFilters.tsx
+│       │   │   │   │   │       │   ├── BrigadasHeader.tsx
+│       │   │   │   │   │       │   ├── BrigadasMetrics.tsx
+│       │   │   │   │   │       │   └── BrigadasTable.tsx
 │       │   │   │   │   │       └── BrigadasPage.tsx
 │       │   │   │   │   ├── configuracion/
 │       │   │   │   │   │   ├── general/
@@ -423,12 +470,32 @@ MedicOS/
 │       │   │   │   │   │       └── PacientesPage.tsx
 │       │   │   │   │   ├── recursos/
 │       │   │   │   │   │   ├── dotacion/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── DotacionFilters.tsx
+│       │   │   │   │   │   │   │   ├── DotacionHeader.tsx
+│       │   │   │   │   │   │   │   ├── DotacionMetrics.tsx
+│       │   │   │   │   │   │   │   └── DotacionTable.tsx
 │       │   │   │   │   │   │   └── DotacionBrigadasPage.tsx
 │       │   │   │   │   │   ├── equipos/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── EquiposFilters.tsx
+│       │   │   │   │   │   │   │   ├── EquiposHeader.tsx
+│       │   │   │   │   │   │   │   ├── EquiposMetrics.tsx
+│       │   │   │   │   │   │   │   └── EquiposTable.tsx
 │       │   │   │   │   │   │   └── EquiposMedicosPage.tsx
 │       │   │   │   │   │   ├── medicamentos/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── MedicamentosFilters.tsx
+│       │   │   │   │   │   │   │   ├── MedicamentosHeader.tsx
+│       │   │   │   │   │   │   │   ├── MedicamentosMetrics.tsx
+│       │   │   │   │   │   │   │   └── MedicamentosTable.tsx
 │       │   │   │   │   │   │   └── MedicamentosPage.tsx
 │       │   │   │   │   │   └── tecnologia/
+│       │   │   │   │   │       ├── components/
+│       │   │   │   │   │       │   ├── DispositivosFilters.tsx
+│       │   │   │   │   │       │   ├── DispositivosHeader.tsx
+│       │   │   │   │   │       │   ├── DispositivosMetrics.tsx
+│       │   │   │   │   │       │   └── DispositivosTable.tsx
 │       │   │   │   │   │       └── DispositivosTecnologicosPage.tsx
 │       │   │   │   │   ├── reportes/
 │       │   │   │   │   │   ├── actividad/
