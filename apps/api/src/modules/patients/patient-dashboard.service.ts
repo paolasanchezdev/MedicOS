@@ -1,3 +1,8 @@
+// =========================================================================
+// ARCHIVO: apps/api/src/modules/patients/patient-dashboard.service.ts
+// DESCRIPCIÓN: Servicio de Dashboard y Expediente de Paciente para MedicOS.
+// =========================================================================
+
 import { prisma } from '../../config/prisma.js';
 
 export interface ActivityFilterOptions {
@@ -35,77 +40,74 @@ export class PatientDashboardService {
     });
     if (patientByUserId) return patientByUserId.id;
 
-    // 3. Obtener todos los pacientes activos
-    const allPatients = await prisma.patient.findMany({
-      where: { deletedAt: null },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    const fallbackPatientId = allPatients.length > 0 && allPatients[0] ? allPatients[0].id : null;
-
-    // 4. Obtener el usuario autenticado para buscar coincidencia
+    // 3. Obtener el usuario autenticado para buscar coincidencia en pacientes existentes
     const user = await prisma.user.findFirst({
       where: { id: identifier, deletedAt: null },
     });
 
     if (!user) {
-      return fallbackPatientId;
+      return null;
     }
 
-    // Limpieza de teléfono (solo números)
-    const cleanUserPhone = user.phone ? user.phone.replace(/\D/g, '') : null;
+    // 4. Intentar vincular por número telefónico
+    if (user.phone) {
+      const cleanUserPhone = user.phone.replace(/\D/g, '');
+      if (cleanUserPhone.length >= 8) {
+        const patientByPhone = await prisma.patient.findFirst({
+          where: {
+            phone: { contains: cleanUserPhone },
+            deletedAt: null,
+          },
+        });
 
-    // Normalización de nombres para ignorar tildes y caracteres especiales
+        if (patientByPhone) {
+          // Asociar el userId al paciente encontrado
+          await prisma.patient.update({
+            where: { id: patientByPhone.id },
+            data: { userId: user.id },
+          });
+          return patientByPhone.id;
+        }
+      }
+    }
+
+    // 5. Intentar vincular por nombre y apellido
     const uFirstName = user.firstName || '';
     const uLastName = user.lastName || '';
 
     const userFirstNameClean = uFirstName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
     const userLastNameClean = uLastName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-    const firstWordFirstName = userFirstNameClean.split(' ')[0] || '';
-    const firstWordLastName = userLastNameClean.split(' ')[0] || '';
+
+    const allPatients = await prisma.patient.findMany({
+      where: { deletedAt: null, userId: null },
+    });
 
     for (const p of allPatients) {
-      // Coincidencia por teléfono
-      if (cleanUserPhone && p.phone) {
-        const cleanPatientPhone = p.phone.replace(/\D/g, '');
-        if (cleanPatientPhone && cleanPatientPhone === cleanUserPhone) {
-          return p.id;
-        }
-      }
+      const pFirstNameClean = (p.firstName || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+      const pLastNameClean = (p.lastName || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
-      const pFirstName = p.firstName || '';
-      const pLastName = p.lastName || '';
-
-      const pFirstNameClean = pFirstName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-      const pLastNameClean = pLastName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-
-      // Coincidencia exacta sin tildes
       if (pFirstNameClean === userFirstNameClean && pLastNameClean === userLastNameClean) {
-        return p.id;
-      }
-
-      // Coincidencia por tokens (primer nombre y primer apellido)
-      const pFirstWordFirstName = pFirstNameClean.split(' ')[0] || '';
-      const pFirstWordLastName = pLastNameClean.split(' ')[0] || '';
-
-      if (
-        firstWordFirstName &&
-        firstWordLastName &&
-        pFirstWordFirstName &&
-        pFirstWordLastName &&
-        (pFirstNameClean.includes(firstWordFirstName) || userFirstNameClean.includes(pFirstWordFirstName)) &&
-        (pLastNameClean.includes(firstWordLastName) || userLastNameClean.includes(pFirstWordLastName))
-      ) {
+        await prisma.patient.update({
+          where: { id: p.id },
+          data: { userId: user.id },
+        });
         return p.id;
       }
     }
 
-    // Fallback de seguridad: retornar el primer paciente activo en la base de datos
-    return fallbackPatientId;
+    // Si es un usuario nuevo sin historial médico previo, retorna null de forma segura
+    return null;
   }
 
   async getPatientSummary(userId?: string) {
     const targetPatientId = await this.resolvePatientId(userId);
+
+    // Obtener datos del usuario base
+    const user = userId
+      ? await prisma.user.findFirst({
+          where: { id: userId, deletedAt: null },
+        })
+      : null;
 
     const patientRecord = targetPatientId
       ? await prisma.patient.findFirst({
@@ -113,15 +115,20 @@ export class PatientDashboardService {
         })
       : null;
 
-    const pacienteInfo = patientRecord
-      ? {
-          id: patientRecord.id,
-          nombreCompleto: `${patientRecord.firstName} ${patientRecord.lastName}`,
-          dui: patientRecord.dui,
-          fechaNacimiento: patientRecord.dateOfBirth?.toISOString(),
-        }
-      : null;
+    const nombreCompleto = patientRecord
+      ? `${patientRecord.firstName} ${patientRecord.lastName}`.trim()
+      : user
+      ? `${user.firstName} ${user.lastName}`.trim()
+      : 'Paciente';
 
+    const pacienteInfo = {
+      id: patientRecord?.id || user?.id || 'paciente-nuevo',
+      nombreCompleto,
+      dui: patientRecord?.dui || null,
+      fechaNacimiento: patientRecord?.dateOfBirth ? patientRecord.dateOfBirth.toISOString() : null,
+    };
+
+    // Caso: Usuario nuevo sin consultas clínicas registradas
     if (!targetPatientId) {
       return {
         paciente: pacienteInfo,
@@ -130,14 +137,23 @@ export class PatientDashboardService {
         estadoSalud: {
           alDia: true,
           controlesPendientes: 0,
-          mensajeEvaluacion: 'No se registran datos o antecedentes clínicos suficientes.',
+          mensajeEvaluacion: 'Expediente digital activo. Aún no registras consultas clínicas o brigadas comunitarias en el sistema.',
         },
         tratamientoActual: null,
-        accionesPendientes: [],
+        accionesPendientes: [
+          {
+            id: `welcome-${user?.id || 'init'}`,
+            titulo: 'Bienvenido a MedicOS',
+            descripcion: 'Tu expediente clínico unificado está listo para registrar atenciones en brigadas médicas.',
+            estado: 'PENDIENTE',
+            tipo: 'PERFIL',
+          },
+        ],
         eventosSalud: [],
       };
     }
 
+    // Caso: Paciente con historial clínico en base de datos
     const hoyInicio = new Date();
     hoyInicio.setHours(0, 0, 0, 0);
 
@@ -354,7 +370,6 @@ export class PatientDashboardService {
       const doctorNombre = `Dr(a). ${c.doctor.firstName || ''} ${c.doctor.lastName || ''}`.trim();
       const establecimiento = c.brigade?.name || 'Sede Central MedicOS';
 
-      // Evento de Consulta
       items.push({
         id: `consultation-${c.id}`,
         fecha: c.consultationDate.toISOString(),
@@ -373,7 +388,6 @@ export class PatientDashboardService {
         },
       });
 
-      // Evento de Cita de Seguimiento
       if (c.followUpDate) {
         items.push({
           id: `followup-${c.id}`,
@@ -416,7 +430,6 @@ export class PatientDashboardService {
     // 3. Aplicar Filtros
     let filteredItems = items;
 
-    // Filtro por categoría
     if (options.category && options.category.toLowerCase() !== 'todas' && options.category.toLowerCase() !== 'all') {
       const catLower = options.category.toLowerCase();
       filteredItems = filteredItems.filter((item) => {
@@ -427,7 +440,6 @@ export class PatientDashboardService {
       });
     }
 
-    // Búsqueda por texto
     if (options.search && options.search.trim() !== '') {
       const q = options.search.toLowerCase().trim();
       filteredItems = filteredItems.filter(
@@ -439,7 +451,6 @@ export class PatientDashboardService {
       );
     }
 
-    // Filtro por rango de fechas
     if (options.startDate) {
       const start = new Date(options.startDate).getTime();
       filteredItems = filteredItems.filter((item) => new Date(item.fecha).getTime() >= start);
@@ -452,7 +463,6 @@ export class PatientDashboardService {
       filteredItems = filteredItems.filter((item) => new Date(item.fecha).getTime() <= endTime);
     }
 
-    // 4. Ordenar descendente por fecha
     filteredItems.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
 
     return {
