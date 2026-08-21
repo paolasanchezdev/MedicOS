@@ -1,33 +1,40 @@
-// apps/api/src/modules/auth.controller.ts
+// =========================================================================
+// ARCHIVO: apps/api/src/modules/auth/auth.controller.ts
+// DESCRIPCIÓN: Controlador de autenticación con soporte para cookies cross-site.
+// =========================================================================
+
 import { Request, Response, NextFunction } from "express";
-import { AuthService } from "./auth.service.js"; // Clave: usar .js
+import { AuthService } from "./auth.service.js";
 
 const authService = new AuthService();
 
-// Configuración reutilizable para la Cookie HttpOnly
-const cookieOptions = {
-  httpOnly: true, // 🔒 Impide que JavaScript (XSS) pueda acceder al token
-  secure: process.env.NODE_ENV === "production", // true si estamos en HTTPS (Producción)
-  sameSite: "lax" as const, // Protege contra ataques CSRF
-  maxAge: 24 * 60 * 60 * 1000, // Expiración: 24 horas (en milisegundos)
-};
+const isProduction = process.env.NODE_ENV === "production";
+
+// Configuración de cookie HttpOnly compatible con Vercel (Cross-Origin) y Localhost
+const getCookieOptions = () => ({
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
+  maxAge: 24 * 60 * 60 * 1000, // 24 horas
+  path: "/",
+});
 
 // ==========================================
 // CONTROLADOR: Registro
 // ==========================================
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const nuevoUsuario = await authService.registrarUsuario(req.body);
+    const resultado = await authService.registrarUsuario(req.body);
     
-    // Si registrarUsuario ya devuelve un token de autologin:
-    if ((nuevoUsuario as any)?.token) {
-      res.cookie("token", (nuevoUsuario as any).token, cookieOptions);
+    if (resultado?.token) {
+      res.cookie("token", resultado.token, getCookieOptions());
     }
 
     res.status(201).json({
       ok: true,
       message: "Usuario registrado con éxito en MedicOS",
-      user: nuevoUsuario,
+      user: resultado.user,
+      token: resultado.token,
     });
   } catch (error) {
     next(error);
@@ -43,7 +50,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     
     // 🔒 Adjuntar la cookie 'token' a la respuesta HTTP
     if (resultado?.token) {
-      res.cookie("token", resultado.token, cookieOptions);
+      res.cookie("token", resultado.token, getCookieOptions());
     }
     
     res.status(200).json({
@@ -57,15 +64,16 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 };
 
 // ==========================================
-// CONTROLADOR: Logout (NUEVO 🆕)
+// CONTROLADOR: Logout
 // ==========================================
 export const logout = async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    // Destruimos la cookie 'token' en el navegador
+    // Destruimos la cookie 'token' en el navegador con las mismas directivas
     res.clearCookie("token", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: isProduction,
+      sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
+      path: "/",
     });
 
     res.status(200).json({

@@ -77,7 +77,25 @@ export class AuthService extends BaseService {
       },
     });
 
-    return nuevoUsuario;
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new AppError("Error interno del servidor: Llave secreta no configurada.", 500);
+    }
+
+    const token = jwt.sign(
+      {
+        id: nuevoUsuario.id,
+        email: nuevoUsuario.email,
+        role: nuevoUsuario.role,
+      },
+      secret,
+      { expiresIn: "8h" }
+    );
+
+    return {
+      user: nuevoUsuario,
+      token,
+    };
   }
 
   async iniciarSesion(credenciales: any) {
