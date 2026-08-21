@@ -1,3 +1,4 @@
+//apps/web/src/portals/admin/AdminPanel.tsx
 import React from 'react';
 import { AdminRoutes } from './routes/AdminRoutes';
 

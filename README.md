@@ -1,3 +1,5 @@
+
+
 ## Project Structure
 
 ```text
@@ -9,13 +11,28 @@ MedicOS/
 ├── apps/
 │   ├── api/
 │   │   ├── prisma/
+│   │   │   ├── data/
+│   │   │   │   └── establecimientos.geojson
 │   │   │   ├── migrations/
 │   │   │   │   ├── 20260714200750_init_medicos_mvp_core/
 │   │   │   │   │   └── migration.sql
 │   │   │   │   ├── 20260716153349_add_patient_role/
 │   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260814001330_sync_patient_and_schema_changes/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260818025235_add_work_session_model/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260819141205_add_establishment_model/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260819154147_add_establishment_geojson_fields/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260820204413_add_resources_and_equipment_module/
+│   │   │   │   │   └── migration.sql
 │   │   │   │   └── migration_lock.toml
 │   │   │   ├── schema.prisma
+│   │   │   ├── seed-clinics.ts
+│   │   │   ├── seed-health-units.ts
+│   │   │   ├── seed-hospitals.ts
 │   │   │   └── seed.ts
 │   │   ├── src/
 │   │   │   ├── config/
@@ -26,16 +43,29 @@ MedicOS/
 │   │   │   │   ├── turnstile.middleware.ts
 │   │   │   │   └── validate.middleware.ts
 │   │   │   ├── modules/
+│   │   │   │   ├── admin/
+│   │   │   │   │   ├── admin-dashboard.service.ts
+│   │   │   │   │   ├── admin.controller.ts
+│   │   │   │   │   ├── admin.routes.ts
+│   │   │   │   │   └── admin.service.ts
 │   │   │   │   ├── auth/
 │   │   │   │   │   ├── auth.controller.ts
 │   │   │   │   │   ├── auth.routes.ts
 │   │   │   │   │   ├── auth.schema.ts
 │   │   │   │   │   └── auth.service.ts
-│   │   │   │   ├── brigades/
+│   │   │   │   ├── authority/
+│   │   │   │   │   └── authority.types.ts
+│   │   │   │   ├── brigadas/
 │   │   │   │   │   ├── brigades.controller.ts
 │   │   │   │   │   ├── brigades.routes.ts
 │   │   │   │   │   ├── brigades.schema.ts
-│   │   │   │   │   └── brigades.service.ts
+│   │   │   │   │   ├── brigades.service.ts
+│   │   │   │   │   └── brigadista-dashboard.service.ts
+│   │   │   │   ├── medico/
+│   │   │   │   │   ├── medico-dashboard.service.ts
+│   │   │   │   │   ├── medico.controller.ts
+│   │   │   │   │   ├── medico.routes.ts
+│   │   │   │   │   └── medico.service.ts
 │   │   │   │   ├── patients/
 │   │   │   │   │   ├── patient-dashboard.service.ts
 │   │   │   │   │   ├── patients.controller.ts
@@ -66,6 +96,8 @@ MedicOS/
 │   │   │   ├── app.ts
 │   │   │   └── server.ts
 │   │   ├── .gitignore
+│   │   ├── elsalvador-health.json
+│   │   ├── elsalvador-public-raw.json
 │   │   ├── package.json
 │   │   ├── prisma.config.ts
 │   │   └── tsconfig.json
@@ -103,16 +135,7 @@ MedicOS/
 │       │   │   │   ├── session.ts
 │       │   │   │   └── token.ts
 │       │   │   ├── config/
-│       │   │   │   ├── navigation/
-│       │   │   │   │   ├── roles/
-│       │   │   │   │   │   ├── admin.navigation.ts
-│       │   │   │   │   │   ├── authority.navigation.ts
-│       │   │   │   │   │   ├── brigadista.navigation.ts
-│       │   │   │   │   │   ├── doctor.navigation.ts
-│       │   │   │   │   │   └── patient.navigation.ts
-│       │   │   │   │   └── types.ts
-│       │   │   │   ├── environment.ts
-│       │   │   │   └── navigation.config.ts
+│       │   │   │   └── environment.ts
 │       │   │   ├── context/
 │       │   │   │   ├── AuthContext.tsx
 │       │   │   │   ├── AuthContextInstance.ts
@@ -127,8 +150,6 @@ MedicOS/
 │       │   │       └── DashboardLayout.tsx
 │       │   ├── modules/
 │       │   │   ├── admin/
-│       │   │   │   ├── services/
-│       │   │   │   │   └── admin-dashboard.service.ts
 │       │   │   │   └── types/
 │       │   │   │       └── admin-dashboard.types.ts
 │       │   │   ├── auth/
@@ -160,6 +181,20 @@ MedicOS/
 │       │   │   │   ├── types/
 │       │   │   │   │   └── brigade.types.ts
 │       │   │   │   ├── utils/
+│       │   │   │   └── index.ts
+│       │   │   ├── establishments/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── CreateEstablishmentModal.tsx
+│       │   │   │   │   ├── DeleteEstablishmentModal.tsx
+│       │   │   │   │   ├── EditEstablishmentModal.tsx
+│       │   │   │   │   ├── EstablishmentDetailModal.tsx
+│       │   │   │   │   └── UpdateEstablishmentResourceModal.tsx
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── useHospitals.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── establishments.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── establishment.types.ts
 │       │   │   │   └── index.ts
 │       │   │   ├── landing/
 │       │   │   │   ├── components/
@@ -265,11 +300,17 @@ MedicOS/
 │       │   │   │   └── utils/
 │       │   │   └── users/
 │       │   │       ├── components/
-│       │   │       │   └── UserRoleModal.tsx
+│       │   │       │   ├── CreateUserModal.tsx
+│       │   │       │   ├── DeleteUserModal.tsx
+│       │   │       │   ├── EditCredentialsModal.tsx
+│       │   │       │   ├── UserPermissionOverrideModal.tsx
+│       │   │       │   ├── UserRoleModal.tsx
+│       │   │       │   └── UserStatusModal.tsx
 │       │   │       ├── constants/
 │       │   │       │   └── user.constants.ts
 │       │   │       ├── context/
 │       │   │       ├── hooks/
+│       │   │       │   └── useUsers.ts
 │       │   │       ├── schemas/
 │       │   │       │   └── user.schemas.ts
 │       │   │       ├── services/
@@ -283,7 +324,6 @@ MedicOS/
 │       │   │   │   │   ├── AdminHeader.tsx
 │       │   │   │   │   ├── AdminLayout.tsx
 │       │   │   │   │   ├── AdminSidebar.tsx
-│       │   │   │   │   ├── EstadoSistemaBadge.tsx
 │       │   │   │   │   └── index.ts
 │       │   │   │   ├── navigation/
 │       │   │   │   │   └── admin.navigation.ts
@@ -340,12 +380,32 @@ MedicOS/
 │       │   │   │   │   │       └── SincronizacionPage.tsx
 │       │   │   │   │   ├── establecimientos/
 │       │   │   │   │   │   ├── clinicas/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── ClinicFilters.tsx
+│       │   │   │   │   │   │   │   ├── ClinicMap.tsx
+│       │   │   │   │   │   │   │   ├── ClinicMetrics.tsx
+│       │   │   │   │   │   │   │   └── ClinicTable.tsx
 │       │   │   │   │   │   │   └── ClinicasPage.tsx
 │       │   │   │   │   │   ├── hospitales/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── CreateHospitalModal.tsx
+│       │   │   │   │   │   │   │   ├── HospitalFilters.tsx
+│       │   │   │   │   │   │   │   ├── HospitalMap.tsx
+│       │   │   │   │   │   │   │   ├── HospitalMetrics.tsx
+│       │   │   │   │   │   │   │   └── HospitalTable.tsx
 │       │   │   │   │   │   │   └── HospitalesPage.tsx
 │       │   │   │   │   │   ├── recursos/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── RecursosFilters.tsx
+│       │   │   │   │   │   │   │   ├── RecursosMetrics.tsx
+│       │   │   │   │   │   │   │   └── RecursosTable.tsx
 │       │   │   │   │   │   │   └── RecursosEstablecimientosPage.tsx
 │       │   │   │   │   │   └── unidades-salud/
+│       │   │   │   │   │       ├── components/
+│       │   │   │   │   │       │   ├── HealthUnitFilters.tsx
+│       │   │   │   │   │       │   ├── HealthUnitMap.tsx
+│       │   │   │   │   │       │   ├── HealthUnitMetrics.tsx
+│       │   │   │   │   │       │   └── HealthUnitTable.tsx
 │       │   │   │   │   │       └── UnidadesSaludPage.tsx
 │       │   │   │   │   ├── notificaciones/
 │       │   │   │   │   │   ├── centro/
@@ -361,6 +421,15 @@ MedicOS/
 │       │   │   │   │   │   │   └── IdentificacionPacientesPage.tsx
 │       │   │   │   │   │   └── todos/
 │       │   │   │   │   │       └── PacientesPage.tsx
+│       │   │   │   │   ├── recursos/
+│       │   │   │   │   │   ├── dotacion/
+│       │   │   │   │   │   │   └── DotacionBrigadasPage.tsx
+│       │   │   │   │   │   ├── equipos/
+│       │   │   │   │   │   │   └── EquiposMedicosPage.tsx
+│       │   │   │   │   │   ├── medicamentos/
+│       │   │   │   │   │   │   └── MedicamentosPage.tsx
+│       │   │   │   │   │   └── tecnologia/
+│       │   │   │   │   │       └── DispositivosTecnologicosPage.tsx
 │       │   │   │   │   ├── reportes/
 │       │   │   │   │   │   ├── actividad/
 │       │   │   │   │   │   │   └── ReportesActividadPage.tsx
@@ -390,12 +459,28 @@ MedicOS/
 │       │   │   │   │   │       └── EstadoSincronizacionPage.tsx
 │       │   │   │   │   └── usuarios/
 │       │   │   │   │       ├── estado/
+│       │   │   │   │       │   ├── components/
+│       │   │   │   │       │   │   ├── UserStatusBadge.tsx
+│       │   │   │   │       │   │   ├── UserStatusFilters.tsx
+│       │   │   │   │       │   │   ├── UserStatusMetrics.tsx
+│       │   │   │   │       │   │   └── UserStatusTable.tsx
 │       │   │   │   │       │   └── EstadoUsuariosPage.tsx
 │       │   │   │   │       ├── permisos/
+│       │   │   │   │       │   ├── components/
+│       │   │   │   │       │   │   └── PermisosCard.tsx
 │       │   │   │   │       │   └── PermisosPage.tsx
 │       │   │   │   │       ├── roles/
+│       │   │   │   │       │   ├── components/
+│       │   │   │   │       │   │   ├── ConfirmRoleModal.tsx
+│       │   │   │   │       │   │   ├── RoleAssignmentTable.tsx
+│       │   │   │   │       │   │   ├── RoleMatrixTable.tsx
+│       │   │   │   │       │   │   └── RoleStatsCards.tsx
 │       │   │   │   │       │   └── RolesPage.tsx
 │       │   │   │   │       └── todos/
+│       │   │   │   │           ├── components/
+│       │   │   │   │           │   ├── UserFilterBar.tsx
+│       │   │   │   │           │   ├── UserHeaderSection.tsx
+│       │   │   │   │           │   └── UserTable.tsx
 │       │   │   │   │           └── UsuariosPage.tsx
 │       │   │   │   ├── routes/
 │       │   │   │   │   └── AdminRoutes.tsx
@@ -405,7 +490,6 @@ MedicOS/
 │       │   │   │   │   ├── AuthorityHeader.tsx
 │       │   │   │   │   ├── AuthorityLayout.tsx
 │       │   │   │   │   ├── AuthoritySidebar.tsx
-│       │   │   │   │   ├── EstadoSistemaBadge.tsx
 │       │   │   │   │   └── index.ts
 │       │   │   │   ├── navigation/
 │       │   │   │   │   └── authority.navigation.ts
@@ -512,14 +596,14 @@ MedicOS/
 │       │   │   │   │           └── ReportesPersonalizadosPage.tsx
 │       │   │   │   ├── routes/
 │       │   │   │   │   └── AuthorityRoutes.tsx
+│       │   │   │   ├── types/
+│       │   │   │   │   └── authority.types.ts
 │       │   │   │   └── AuthorityPanel.tsx
 │       │   │   ├── brigadista/
 │       │   │   │   ├── layout/
-│       │   │   │   │   ├── BrigadistaBottomNav.tsx
 │       │   │   │   │   ├── BrigadistaHeader.tsx
 │       │   │   │   │   ├── BrigadistaLayout.tsx
 │       │   │   │   │   ├── BrigadistaSidebar.tsx
-│       │   │   │   │   ├── BrigadistaStatusBadge.tsx
 │       │   │   │   │   └── index.ts
 │       │   │   │   ├── navigation/
 │       │   │   │   │   └── brigadista.navigation.ts
@@ -542,6 +626,18 @@ MedicOS/
 │       │   │   │   │   │   ├── actividad/
 │       │   │   │   │   │   │   └── ActividadBrigadistaPage.tsx
 │       │   │   │   │   │   └── resumen/
+│       │   │   │   │   │       ├── components/
+│       │   │   │   │   │       │   ├── AccionesRapidas.tsx
+│       │   │   │   │   │       │   ├── AlertasClinicasCard.tsx
+│       │   │   │   │   │       │   ├── ConsultasHoyCard.tsx
+│       │   │   │   │   │       │   ├── EstadoJornadaCard.tsx
+│       │   │   │   │   │       │   ├── PacientesAtendidosCard.tsx
+│       │   │   │   │   │       │   ├── PacientesPendientesCard.tsx
+│       │   │   │   │   │       │   ├── ProximaAccionCard.tsx
+│       │   │   │   │   │       │   ├── ResumenJornadaCard.tsx
+│       │   │   │   │   │       │   ├── SincronizacionCard.tsx
+│       │   │   │   │   │       │   ├── TarjetaBienvenidaBrigadista.tsx
+│       │   │   │   │   │       │   └── UltimoPacienteCard.tsx
 │       │   │   │   │   │       └── ResumenBrigadistaPage.tsx
 │       │   │   │   │   ├── evaluacion/
 │       │   │   │   │   │   ├── antecedentes/
@@ -615,11 +711,9 @@ MedicOS/
 │       │   │   ├── medico/
 │       │   │   │   ├── layout/
 │       │   │   │   │   ├── index.ts
-│       │   │   │   │   ├── MedicoBottomNav.tsx
 │       │   │   │   │   ├── MedicoHeader.tsx
 │       │   │   │   │   ├── MedicoLayout.tsx
-│       │   │   │   │   ├── MedicoSidebar.tsx
-│       │   │   │   │   └── MedicoStatusBadge.tsx
+│       │   │   │   │   └── MedicoSidebar.tsx
 │       │   │   │   ├── navigation/
 │       │   │   │   │   └── medico.navigation.ts
 │       │   │   │   ├── pages/
@@ -634,12 +728,25 @@ MedicOS/
 │       │   │   │   │   │       └── SeguimientoConsultasPage.tsx
 │       │   │   │   │   ├── dashboard/
 │       │   │   │   │   │   ├── actividad/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── ActividadItem.tsx
+│       │   │   │   │   │   │   │   ├── DetalleActividad.tsx
+│       │   │   │   │   │   │   │   ├── EncabezadoActividad.tsx
+│       │   │   │   │   │   │   │   ├── EstadoActividad.tsx
+│       │   │   │   │   │   │   │   ├── FiltrosActividad.tsx
+│       │   │   │   │   │   │   │   ├── PaginacionActividad.tsx
+│       │   │   │   │   │   │   │   └── ResumenActividad.tsx
 │       │   │   │   │   │   │   └── ActividadMedicoPage.tsx
-│       │   │   │   │   │   ├── agenda/
-│       │   │   │   │   │   │   └── AgendaMedicoPage.tsx
-│       │   │   │   │   │   ├── alertas/
-│       │   │   │   │   │   │   └── AlertasClinicasPage.tsx
 │       │   │   │   │   │   └── resumen/
+│       │   │   │   │   │       ├── components/
+│       │   │   │   │   │       │   ├── AccionesRapidas.tsx
+│       │   │   │   │   │       │   ├── AgendaProximaCard.tsx
+│       │   │   │   │   │       │   ├── AlertasClinicasCard.tsx
+│       │   │   │   │   │       │   ├── ConsultasRecientesCard.tsx
+│       │   │   │   │   │       │   ├── PacientesPendientesCard.tsx
+│       │   │   │   │   │       │   ├── ResumenConsultasCard.tsx
+│       │   │   │   │   │       │   ├── SeguimientosPendientesCard.tsx
+│       │   │   │   │   │       │   └── TarjetaBienvenidaMedico.tsx
 │       │   │   │   │   │       └── ResumenMedicoPage.tsx
 │       │   │   │   │   ├── diagnosticos/
 │       │   │   │   │   │   ├── catalogo/
@@ -890,6 +997,8 @@ MedicOS/
 │   │   └── tsconfig.json
 │   └── shared-types/
 │       ├── src/
+│       │   ├── authority/
+│       │   │   └── authority.types.ts
 │       │   └── index.ts
 │       ├── package.json
 │       └── tsconfig.json

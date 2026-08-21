@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/modules/auth/hooks/useLoginForm.ts
-// DESCRIPCIÓN: Hook para la gestión y flujo de inicio de sesión de MedicOS.
+// DESCRIPCIÓN: Hook de autenticación con redirección a /resumen para brigadista.
 // =========================================================================
 
 import { useState } from 'react';
@@ -11,11 +11,10 @@ import type { LoginFormData } from '../components/LoginForm';
 
 const ROLE_REDIRECT_MAP: Record<string, string> = {
   ADMIN: '/admin/dashboard/resumen',
-  BRIGADIST: '/brigadista/dashboard',
-  BRIGADISTA: '/brigadista/dashboard',
-  DOCTOR: '/doctor/dashboard',
-  AUTHORITY: '/autoridad/dashboard',
-  AUTORIDAD: '/autoridad/dashboard',
+  BRIGADISTA: '/brigadista/dashboard/resumen',
+  DOCTOR: '/medico/dashboard/resumen',
+  AUTORIDAD: '/autoridad/dashboard/resumen',
+  AUTHORITY: '/autoridad/dashboard/resumen',
   PATIENT: '/paciente/dashboard/resumen',
   PACIENTE: '/paciente/dashboard/resumen',
 };
@@ -33,13 +32,9 @@ export const useLoginForm = () => {
     setLoading(true);
 
     try {
-      // Pasa email, contraseña y el token de Turnstile al servicio de autenticación
       const data = await authService.login(formData.email, formData.password, formData.turnstileToken);
-
-      // Guarda la sesión en el contexto global y sessionManager
       login(data.token, data.user);
 
-      // Redirección centralizada basada en el rol
       const userRole = data.user?.role?.toUpperCase() || '';
       const targetPath = ROLE_REDIRECT_MAP[userRole] || '/paciente/dashboard/resumen';
 

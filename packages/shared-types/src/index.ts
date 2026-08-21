@@ -1,3 +1,4 @@
+//packages/shared-types/src/index.ts
 export interface User {
   id: string;
   email: string;
@@ -18,3 +19,6 @@ export interface Brigade {
   location: string;
   status: 'ACTIVE' | 'COMPLETED' | 'PLANNED';
 }
+
+// Exportación de tipos del módulo de Autoridad (Extensión .js requerida por NodeNext)
+export * from './authority/authority.types.js';

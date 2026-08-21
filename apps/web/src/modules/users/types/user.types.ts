@@ -1,17 +1,17 @@
-export interface Role {
-  id: string;
-  name: string;
-  isActive: boolean;
-  departmentId: string | null;
-}
+//apps/web/src/modules/users/types/user.types.ts
+export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+
+export type UserRole = 'ADMIN' | 'AUTHORITY' | 'DOCTOR' | 'BRIGADISTA' | 'PATIENT';
 
 export interface User {
   id: string;
-  name: string;
   email: string;
-  role: string;
-  roles?: Role[];
-  isActive?: boolean;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  phone?: string | null;
+  role: UserRole | string;
+  status?: UserStatus;
   createdAt?: string;
   updatedAt?: string;
 }

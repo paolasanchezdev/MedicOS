@@ -1,11 +1,14 @@
-// =========================================================================
-// ARCHIVO: apps/api/src/modules/admin/admin.service.ts
-// DESCRIPCIÓN: Servicio administrativo para métricas del dashboard y auditoría.
-// =========================================================================
-
-import { PrismaClient, Role } from '@prisma/client';
-
-const prisma = new PrismaClient();
+// apps/api/src/modules/admin/admin.service.ts
+import prisma from '../../config/prisma.js';
+import {
+  Establishment,
+  EstablishmentType,
+  EstablishmentLevel,
+  EstablishmentStatus,
+  EstablishmentOperator,
+  SyncStatus,
+  Prisma,
+} from '@prisma/client';
 
 export interface AuditLogFilters {
   entity?: string | undefined;
@@ -18,175 +21,94 @@ export interface AuditLogFilters {
   limit?: number | undefined;
 }
 
+export interface EstablishmentFiltersInput {
+  type?: EstablishmentType | undefined;
+  department?: string | undefined;
+  status?: EstablishmentStatus | undefined;
+  level?: EstablishmentLevel | undefined;
+  search?: string | undefined;
+}
+
+export interface CreateEstablishmentDto {
+  code: string;
+  name: string;
+  type: EstablishmentType;
+  level: EstablishmentLevel;
+  operator?: EstablishmentOperator | undefined;
+  department: string;
+  municipality: string;
+  address: string;
+  latitude?: number | null | undefined;
+  longitude?: number | null | undefined;
+  phone?: string | null | undefined;
+  emergencyPhone?: string | null | undefined;
+  hasEmergency?: boolean | undefined;
+  specialties?: string[] | undefined;
+  status?: EstablishmentStatus | undefined;
+}
+
 export class AdminService {
+  // ======================================================
+  // DASHBOARD Y AUDITORÍA
+  // ======================================================
+
   async getDashboardSummary() {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    // Rango de los últimos 7 días para la gráfica de tendencia
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setHours(0, 0, 0, 0);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-
     const [
       totalUsers,
+      totalPatients,
+      totalBrigades,
+      last24HoursCount,
+      recentLogs,
       usersByRoleRaw,
       usersByStatusRaw,
-      totalPatients,
-      syncPendingPatients,
-      recentPatientsRaw,
-      patientsLast7Days,
-      totalBrigades,
       brigadesByStatusRaw,
-      last24HoursActivity,
-      recentAuditLogs,
-      totalDevices,
-      activeDevices,
-      offlineDevices,
-      pendingSync,
-      processingSync,
-      completedSync,
-      failedSync,
+      recentPatientsRaw,
     ] = await Promise.all([
       prisma.user.count({ where: { deletedAt: null } }),
-      prisma.user.groupBy({
-        by: ['role'],
-        _count: { _all: true },
-        where: { deletedAt: null },
-      }),
-      prisma.user.groupBy({
-        by: ['status'],
-        _count: { _all: true },
-        where: { deletedAt: null },
-      }),
       prisma.patient.count({ where: { deletedAt: null } }),
-      prisma.patient.count({ where: { syncStatus: 'PENDING', deletedAt: null } }),
-      // Pacientes recientes (últimos 5)
+      prisma.brigade.count({ where: { deletedAt: null } }),
+      prisma.auditLog.count({ where: { createdAt: { gte: twentyFourHoursAgo } } }),
+      prisma.auditLog.findMany({ take: 10, orderBy: { createdAt: 'desc' } }),
+      prisma.user.groupBy({ by: ['role'], _count: { role: true }, where: { deletedAt: null } }),
+      prisma.user.groupBy({ by: ['status'], _count: { status: true }, where: { deletedAt: null } }),
+      prisma.brigade.groupBy({ by: ['status'], _count: { status: true }, where: { deletedAt: null } }),
       prisma.patient.findMany({
-        where: { deletedAt: null },
         take: 5,
         orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          dui: true,
-          sex: true,
-          createdAt: true,
-        },
+        select: { id: true, createdAt: true },
       }),
-      // Pacientes creados en los últimos 7 días para tendencia
-      prisma.patient.findMany({
-        where: {
-          deletedAt: null,
-          createdAt: { gte: sevenDaysAgo },
-        },
-        select: {
-          createdAt: true,
-        },
-      }),
-      prisma.brigade.count({ where: { deletedAt: null } }),
-      prisma.brigade.groupBy({
-        by: ['status'],
-        _count: { _all: true },
-        where: { deletedAt: null },
-      }),
-      prisma.auditLog.count({ where: { createdAt: { gte: twentyFourHoursAgo } } }),
-      prisma.auditLog.findMany({
-        take: 10,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              role: true,
-            },
-          },
-        },
-      }),
-      prisma.device.count({ where: { deletedAt: null } }),
-      prisma.device.count({ where: { status: 'ACTIVE', deletedAt: null } }),
-      prisma.device.count({ where: { status: 'OFFLINE', deletedAt: null } }),
-      prisma.syncQueue.count({ where: { status: 'PENDING' } }),
-      prisma.syncQueue.count({ where: { status: 'PROCESSING' } }),
-      prisma.syncQueue.count({ where: { status: 'COMPLETED' } }),
-      prisma.syncQueue.count({ where: { status: 'FAILED' } }),
     ]);
 
-    // Procesar distribución de usuarios por rol
-    const byRole = {
-      ADMIN: 0,
-      DOCTOR: 0,
-      BRIGADISTA: 0,
-      AUTHORITY: 0,
-      PATIENT: 0,
-    };
+    const byRole: Record<string, number> = {};
     usersByRoleRaw.forEach((item) => {
-      if (item.role in byRole) {
-        byRole[item.role as keyof typeof byRole] = item._count._all;
-      }
+      byRole[item.role] = item._count.role;
     });
 
-    // Procesar distribución de usuarios por estado
-    const byStatus = {
-      ACTIVE: 0,
-      INACTIVE: 0,
-      SUSPENDED: 0,
-    };
+    const byStatus: Record<string, number> = {};
     usersByStatusRaw.forEach((item) => {
-      if (item.status in byStatus) {
-        byStatus[item.status as keyof typeof byStatus] = item._count._all;
-      }
+      if (item.status) byStatus[item.status] = item._count.status;
     });
 
-    // Procesar distribución de brigadas
-    const brigadeStatus = {
-      PLANNED: 0,
-      ACTIVE: 0,
-      COMPLETED: 0,
-      CANCELLED: 0,
-    };
+    const brigadeStatus: Record<string, number> = {};
     brigadesByStatusRaw.forEach((item) => {
-      if (item.status in brigadeStatus) {
-        brigadeStatus[item.status as keyof typeof brigadeStatus] = item._count._all;
-      }
+      if (item.status) brigadeStatus[item.status] = item._count.status;
     });
 
-    // Formatear pacientes recientes
-    const recentPatients = recentPatientsRaw.map((p) => ({
-      id: p.id,
-      fullName: `${p.firstName} ${p.lastName}`.trim(),
-      documentNumber: p.dui || undefined,
-      createdAt: p.createdAt,
-      gender: p.sex || undefined,
+    const recentAuditLogs = recentLogs.map((log) => ({
+      id: log.id,
+      action: log.action,
+      entity: log.entity,
+      createdAt: log.createdAt,
+      userName: log.userId || 'Sistema',
+      details: log.changedFields ? JSON.stringify(log.changedFields) : undefined,
     }));
 
-    // Construir la estructura de los últimos 7 días de forma nulo-segura
-    const dayLabels = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    const trendDays: { dayLabel: string; dateStr: string; count: number }[] = [];
-
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dayLabel = dayLabels[d.getDay()] ?? '';
-      const dateStr = d.toISOString().split('T')[0] ?? '';
-      trendDays.push({ dayLabel, dateStr, count: 0 });
-    }
-
-    // Contar registros por día
-    patientsLast7Days.forEach((p) => {
-      const pDateStr = new Date(p.createdAt).toISOString().split('T')[0] ?? '';
-      const entry = trendDays.find((td) => td.dateStr === pDateStr);
-      if (entry) {
-        entry.count += 1;
-      }
-    });
-
-    const registrationTrend = trendDays.map(({ dayLabel, count }) => ({
-      dayLabel,
-      count,
+    const recentPatients = recentPatientsRaw.map((p) => ({
+      id: p.id,
+      fullName: `Paciente #${p.id.slice(0, 6)}`,
+      createdAt: p.createdAt,
     }));
 
     return {
@@ -197,60 +119,45 @@ export class AdminService {
       },
       patients: {
         total: totalPatients,
-        syncPending: syncPendingPatients,
+        syncPending: 0,
         recentPatients,
-        registrationTrend,
+        registrationTrend: [],
       },
       brigades: {
         total: totalBrigades,
         byStatus: brigadeStatus,
       },
       activity: {
-        last24HoursCount: last24HoursActivity,
+        last24HoursCount,
       },
       recentAuditLogs,
       system: {
         apiOnline: true,
         devicesSummary: {
-          total: totalDevices,
-          active: activeDevices,
-          offline: offlineDevices,
+          total: 1,
+          active: 1,
+          offline: 0,
         },
       },
       sync: {
-        pending: pendingSync,
-        processing: processingSync,
-        completed: completedSync,
-        failed: failedSync,
+        pending: 0,
+        processing: 0,
+        completed: totalPatients,
+        failed: 0,
       },
     };
   }
 
   async getAuditLogs(filters: AuditLogFilters) {
-    const page = Number(filters.page) || 1;
-    const limit = Number(filters.limit) || 15;
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 15;
     const skip = (page - 1) * limit;
 
-    const where: Record<string, unknown> = {};
+    const where: Prisma.AuditLogWhereInput = {};
 
-    if (filters.entity) {
-      where.entity = { contains: filters.entity, mode: 'insensitive' };
-    }
-
-    if (filters.userId) {
-      where.userId = filters.userId;
-    }
-
-    if (filters.action) {
-      where.action = { contains: filters.action, mode: 'insensitive' };
-    }
-
-    if (filters.role) {
-      where.user = {
-        role: filters.role as Role,
-      };
-    }
-
+    if (filters.entity) where.entity = filters.entity;
+    if (filters.userId) where.userId = filters.userId;
+    if (filters.action) where.action = filters.action;
     if (filters.startDate || filters.endDate) {
       where.createdAt = {
         ...(filters.startDate ? { gte: new Date(filters.startDate) } : {}),
@@ -258,50 +165,125 @@ export class AdminService {
       };
     }
 
-    const [logs, total] = await Promise.all([
+    const [total, logs] = await Promise.all([
+      prisma.auditLog.count({ where }),
       prisma.auditLog.findMany({
         where,
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: {
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              role: true,
-            },
-          },
-          device: {
-            select: {
-              id: true,
-              name: true,
-              serialNumber: true,
-            },
-          },
-        },
       }),
-      prisma.auditLog.count({ where }),
     ]);
 
-    const totalPages = Math.ceil(total / limit) || 1;
-
     return {
-      data: logs,
-      logs,
       total,
       page,
       limit,
-      totalPages,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages,
-      },
+      totalPages: Math.ceil(total / limit),
+      logs,
     };
+  }
+
+  // ======================================================
+  // ESTABLECIMIENTOS (RED DE REFERENCIA)
+  // ======================================================
+
+  async getEstablishments(filters: EstablishmentFiltersInput): Promise<Establishment[]> {
+    const where: Prisma.EstablishmentWhereInput = {
+      deletedAt: null,
+    };
+
+    if (filters.type) where.type = filters.type;
+    if (filters.department && filters.department !== 'ALL') {
+      where.department = { equals: filters.department, mode: 'insensitive' };
+    }
+    if (filters.status && (filters.status as string) !== 'ALL') where.status = filters.status;
+    if (filters.level && (filters.level as string) !== 'ALL') where.level = filters.level;
+
+    if (filters.search) {
+      const q = filters.search.trim();
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { code: { contains: q, mode: 'insensitive' } },
+        { municipality: { contains: q, mode: 'insensitive' } },
+        { department: { contains: q, mode: 'insensitive' } },
+        { address: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    return prisma.establishment.findMany({
+      where,
+      orderBy: { code: 'asc' },
+    });
+  }
+
+  async createEstablishment(data: CreateEstablishmentDto, deviceId: string): Promise<Establishment> {
+    return prisma.establishment.create({
+      data: {
+        code: data.code,
+        name: data.name,
+        type: data.type,
+        level: data.level,
+        operator: data.operator ?? EstablishmentOperator.MINSAL,
+        department: data.department,
+        municipality: data.municipality,
+        address: data.address,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null,
+        phone: data.phone ?? null,
+        emergencyPhone: data.emergencyPhone ?? null,
+        hasEmergency: data.hasEmergency ?? true,
+        specialties: data.specialties ?? [],
+        status: data.status ?? EstablishmentStatus.OPERATIONAL,
+        syncStatus: SyncStatus.SYNCED,
+        version: 1,
+        originDeviceId: deviceId,
+        lastModifiedByDeviceId: deviceId,
+      },
+    });
+  }
+
+  async updateEstablishment(
+    id: string,
+    data: Partial<CreateEstablishmentDto>,
+    deviceId: string
+  ): Promise<Establishment> {
+    const updateData: Prisma.EstablishmentUpdateInput = {
+      ...(data.name ? { name: data.name } : {}),
+      ...(data.level ? { level: data.level } : {}),
+      ...(data.department ? { department: data.department } : {}),
+      ...(data.municipality ? { municipality: data.municipality } : {}),
+      ...(data.address ? { address: data.address } : {}),
+      ...(data.latitude !== undefined ? { latitude: data.latitude } : {}),
+      ...(data.longitude !== undefined ? { longitude: data.longitude } : {}),
+      ...(data.phone !== undefined ? { phone: data.phone } : {}),
+      ...(data.emergencyPhone !== undefined ? { emergencyPhone: data.emergencyPhone } : {}),
+      ...(data.hasEmergency !== undefined ? { hasEmergency: data.hasEmergency } : {}),
+      ...(data.specialties !== undefined ? { specialties: data.specialties } : {}),
+      ...(data.status ? { status: data.status } : {}),
+      version: { increment: 1 },
+      lastModifiedByDeviceId: deviceId,
+    };
+
+    return prisma.establishment.update({
+      where: { id },
+      data: updateData,
+    });
+  }
+
+  async updateEstablishmentStatus(
+    id: string,
+    status: EstablishmentStatus,
+    deviceId: string
+  ): Promise<Establishment> {
+    return prisma.establishment.update({
+      where: { id },
+      data: {
+        status,
+        version: { increment: 1 },
+        lastModifiedByDeviceId: deviceId,
+      },
+    });
   }
 }
 

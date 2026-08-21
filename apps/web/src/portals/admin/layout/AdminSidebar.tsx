@@ -1,3 +1,4 @@
+// apps/web/src/portals/admin/layout/AdminSidebar.tsx
 import React from 'react';
 import { SidebarGlobal, type SidebarNavigationGroup } from '../../../shared/components/sidebar/SidebarGlobal';
 import { ADMIN_NAVIGATION } from '../navigation/admin.navigation';
@@ -12,6 +13,10 @@ import {
   Building,
   HeartPulse,
   Boxes,
+  Pill,
+  Stethoscope,
+  Laptop,
+  BriefcaseMedical,
   Siren,
   Contact,
   Award,
@@ -49,80 +54,74 @@ import {
 } from 'lucide-react';
 
 const ITEM_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  // Secciones Principales
+  // Identificadores semánticos (icon key)
+  'dashboard': LayoutDashboard,
+  'resumen': LayoutDashboard,
+  'actividad': Activity,
+  'usuarios': Users,
+  'usuarios-todos': Users,
+  'roles': ShieldCheck,
+  'permisos': Key,
+  'usuarios-estado': UserCog,
+  'establecimientos': Building2,
+  'hospitales': Hospital,
+  'clinicas': Building,
+  'unidades-salud': HeartPulse,
+  'recursos': Boxes,
+  'medicamentos': Pill,
+  'equipos-medicos': Stethoscope,
+  'tecnologia': Laptop,
+  'dotacion': BriefcaseMedical,
+  'brigadas': Siren,
+  'brigadas-todas': Siren,
+  'brigadas-equipos': Contact,
+  'brigadas-responsables': Award,
+  'brigadas-estado': Radio,
+  'pacientes': UserCheck,
+  'pacientes-todos': UserCheck,
+  'pacientes-identificacion': IdCard,
+  'pacientes-estado': ClipboardList,
+  'datos': Database,
+  'datos-exportacion': Download,
+  'datos-importacion': Upload,
+  'datos-integridad': CheckCircle2,
+  'datos-sincronizacion': RefreshCw,
+  'notificaciones': Bell,
+  'notificaciones-centro': Inbox,
+  'notificaciones-historial': History,
+  'notificaciones-plantillas': LayoutTemplate,
+  'reportes': FileText,
+  'reportes-actividad': TrendingUp,
+  'reportes-exportaciones': FileOutput,
+  'reportes-sistema': FileBarChart,
+  'reportes-usuarios': UserSearch,
+  'sistema': Server,
+  'sistema-salud': Cpu,
+  'sistema-db': Database,
+  'sistema-servicios': Server,
+  'sistema-sync': RefreshCw,
+  'seguridad': Shield,
+  'seguridad-accesos': LogIn,
+  'seguridad-auditoria': Eye,
+  'seguridad-eventos': AlertTriangle,
+  'seguridad-sesiones': MonitorCheck,
+  'configuracion': Settings,
+  'configuracion-general': Sliders,
+  'configuracion-notificaciones': BellRing,
+  'configuracion-preferencias': SlidersHorizontal,
+  'configuracion-seguridad': Lock,
+
+  // Mapeo por título de grupo principal
   'Dashboard': LayoutDashboard,
   'Gestión de Usuarios': Users,
   'Establecimientos': Building2,
+  'Recursos e Inventario': Boxes,
   'Brigadas': Siren,
   'Pacientes': UserCheck,
   'Gestión de Datos': Database,
-  'Notificaciones': Bell,
   'Reportes': FileText,
   'Sistema': Server,
-  'Seguridad': Shield,
   'Configuración': Settings,
-
-  // Sub-elementos Dashboard
-  'Resumen': LayoutDashboard,
-  'Actividad del Sistema': Activity,
-
-  // Sub-elementos Gestión de Usuarios
-  'Todos los Usuarios': Users,
-  'Roles': ShieldCheck,
-  'Permisos': Key,
-  'Estado de Usuarios': UserCog,
-
-  // Sub-elementos Establecimientos
-  'Hospitales': Hospital,
-  'Clínicas': Building,
-  'Unidades de Salud': HeartPulse,
-  'Recursos': Boxes,
-
-  // Sub-elementos Brigadas
-  'Todas las Brigadas': Siren,
-  'Equipos': Contact,
-  'Responsables': Award,
-  'Estado de Brigadas': Radio,
-
-  // Sub-elementos Pacientes
-  'Todos los Pacientes': UserCheck,
-  'Identificación': IdCard,
-  'Estado de Registros': ClipboardList,
-
-  // Sub-elementos Gestión de Datos
-  'Exportación de Datos': Download,
-  'Importación de Datos': Upload,
-  'Integridad de Datos': CheckCircle2,
-  'Sincronización': RefreshCw,
-
-  // Sub-elementos Notificaciones
-  'Centro de Notificaciones': Inbox,
-  'Historial': History,
-  'Plantillas': LayoutTemplate,
-
-  // Sub-elementos Reportes
-  'Reportes de Actividad': TrendingUp,
-  'Exportaciones': FileOutput,
-  'Reportes de Sistema': FileBarChart,
-  'Reportes de Usuarios': UserSearch,
-
-  // Sub-elementos Sistema
-  'Salud del Sistema': Cpu,
-  'Base de Datos': Database,
-  'Servicios del Sistema': Server,
-  'Estado de Sincronización': RefreshCw,
-
-  // Sub-elementos Seguridad
-  'Accesos': LogIn,
-  'Auditoría': Eye,
-  'Eventos de Seguridad': AlertTriangle,
-  'Sesiones Activas': MonitorCheck,
-
-  // Sub-elementos Configuración
-  'General': Sliders,
-  'Preferencias': SlidersHorizontal,
-  'Notificaciones ': BellRing,
-  'Seguridad ': Lock,
 };
 
 interface AdminSidebarProps {
@@ -138,13 +137,21 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ isOpen, onClose }) =
         ? navItem.children.map((child) => ({
             label: child.title,
             path: child.path,
-            icon: ITEM_ICON_MAP[child.title] || ITEM_ICON_MAP[navItem.title] || Activity,
+            icon:
+              (child.icon && ITEM_ICON_MAP[child.icon]) ||
+              ITEM_ICON_MAP[child.title] ||
+              (navItem.icon && ITEM_ICON_MAP[navItem.icon]) ||
+              ITEM_ICON_MAP[navItem.title] ||
+              Activity,
           }))
         : [
             {
               label: navItem.title,
               path: navItem.path,
-              icon: ITEM_ICON_MAP[navItem.title] || Activity,
+              icon:
+                (navItem.icon && ITEM_ICON_MAP[navItem.icon]) ||
+                ITEM_ICON_MAP[navItem.title] ||
+                Activity,
             },
           ],
     };

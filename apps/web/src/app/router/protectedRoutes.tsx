@@ -14,9 +14,9 @@ const ROLE_HOME_MAP: Record<string, string> = {
   ADMIN: '/admin/dashboard/resumen',
   PATIENT: '/paciente/dashboard/resumen',
   PACIENTE: '/paciente/dashboard/resumen',
-  BRIGADIST: '/brigadista/dashboard',
-  BRIGADISTA: '/brigadista/dashboard',
-  DOCTOR: '/doctor/dashboard',
+  BRIGADIST: '/brigadista/dashboard/resumen',
+  BRIGADISTA: '/brigadista/dashboard/resumen',
+  DOCTOR: '/medico/dashboard/resumen',
   AUTHORITY: '/autoridad/dashboard',
   AUTORIDAD: '/autoridad/dashboard',
 };
@@ -35,13 +35,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // 2. Validación de roles
   if (allowedRoles && allowedRoles.length > 0) {
+    const userRole = user.role?.toUpperCase() || '';
     const hasRole = allowedRoles.some(
-      (role) => role.toUpperCase() === user.role?.toUpperCase()
+      (role) => role.toUpperCase() === userRole
     );
 
     if (!hasRole) {
-      const userRoleKey = user.role?.toUpperCase();
-      const defaultHome = ROLE_HOME_MAP[userRoleKey] || redirectPath;
+      const defaultHome = ROLE_HOME_MAP[userRole] || redirectPath;
       return <Navigate to={defaultHome} replace />;
     }
   }

@@ -1,3 +1,4 @@
+//apps/web/src/modules/auth/pages/Login.tsx
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
@@ -23,23 +24,22 @@ export const Login: React.FC = () => {
 
     switch (userRole) {
       case 'ADMIN':
-        navigate('/admin/dashboard/resumen');
+        navigate('/admin/dashboard/resumen', { replace: true });
         break;
-      case 'BRIGADIST':
       case 'BRIGADISTA':
-        navigate('/brigadista');
+        navigate('/brigadista/dashboard/resumen', { replace: true });
         break;
       case 'DOCTOR':
-        navigate('/doctor');
+        navigate('/medico/dashboard/resumen', { replace: true });
         break;
-      case 'AUTHORITY':
       case 'AUTORIDAD':
-        navigate('/autoridad');
+      case 'AUTHORITY':
+        navigate('/autoridad/dashboard/resumen', { replace: true });
         break;
       case 'PATIENT':
       case 'PACIENTE':
       default:
-        navigate('/paciente/dashboard/resumen');
+        navigate('/paciente/dashboard/resumen', { replace: true });
         break;
     }
   };

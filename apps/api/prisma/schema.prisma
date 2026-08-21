@@ -1,8 +1,8 @@
 // ======================================================
-// MedicOS MVP - Esquema Oficial y Congelado
+// MedicOS MVP - Esquema Oficial de Base de Datos
 // Prisma ORM 7.x / 8.x Compatible
 // Motor de Base de Datos: PostgreSQL
-// Arquitectura: Offline First (Outbox Pattern)
+// Arquitectura: Offline First (Transactional Outbox Pattern)
 // Entorno: Servidor Central Cloud / Raspberry Pi
 // ======================================================
 
@@ -98,8 +98,121 @@ enum BloodType {
   UNKNOWN
 }
 
+enum SessionStatus {
+  STARTED
+  ENDED
+}
+
 // ======================================================
-// INFRAESTRUCTURA Y DISPOSITIVOS
+// ENUMS DE ESTABLECIMIENTOS (RED DE REFERENCIA)
+// ======================================================
+
+enum EstablishmentType {
+  HOSPITAL
+  CLINIC
+  HEALTH_CENTER
+}
+
+enum EstablishmentLevel {
+  SPECIALIZED
+  REGIONAL
+  DEPARTMENTAL
+  BASIC
+}
+
+enum EstablishmentOperator {
+  MINSAL
+  ISSS
+  FAES
+  PRIVATE
+  OTHER
+}
+
+enum EstablishmentStatus {
+  OPERATIONAL
+  MAINTENANCE
+  INACTIVE
+}
+
+// ======================================================
+// ENUMS DE RECURSOS, INVENTARIO Y DOTACIÓN
+// ======================================================
+
+enum ResourceCategory {
+  MEDICINE
+  CLINICAL_SUPPLY
+  OTHER
+}
+
+enum StockStatus {
+  AVAILABLE
+  QUARANTINE
+  DEPLETED
+  EXPIRED
+}
+
+enum EquipmentStatus {
+  OPERATIONAL
+  IN_MAINTENANCE
+  DAMAGED
+  DECOMMISSIONED
+}
+
+enum ItemCondition {
+  OPTIMAL
+  GOOD
+  DAMAGED
+  UNUSABLE
+}
+
+// ======================================================
+// RED DE REFERENCIA Y DERIVACIÓN (ESTABLECIMIENTOS)
+// ======================================================
+
+model Establishment {
+  id              String                @id @default(uuid())
+  code            String                @unique
+  name            String
+  type            EstablishmentType     @default(HOSPITAL)
+  level           EstablishmentLevel    @default(DEPARTMENTAL)
+  operator        EstablishmentOperator @default(MINSAL)
+  department      String
+  municipality    String
+  address         String
+  latitude        Float?
+  longitude       Float?
+  phone           String?
+  emergencyPhone String?
+  hasEmergency    Boolean               @default(false)
+  specialties     String[]              @default([])
+  totalBeds       Int                   @default(0)
+  availableBeds   Int                   @default(0)
+  status          EstablishmentStatus   @default(OPERATIONAL)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String
+  lastModifiedByDeviceId String
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([type])
+  @@index([operator])
+  @@index([status])
+  @@index([hasEmergency])
+  @@index([department, municipality])
+  @@index([syncStatus])
+  @@index([lastModified])
+  @@index([originDeviceId])
+  @@index([lastModifiedByDeviceId])
+}
+
+// ======================================================
+// HARDWARE Y DISPOSITIVOS TECNOLÓGICOS
 // ======================================================
 
 model Device {
@@ -107,7 +220,7 @@ model Device {
   name            String
   serialNumber    String       @unique
   operatingSystem String
-  appVersion     String
+  appVersion      String
   publicKey       String?
   location        String?
   lastSyncAt      DateTime?
@@ -117,9 +230,10 @@ model Device {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  // Relaciones inversas
-  auditLogs  AuditLog[]
-  syncQueues SyncQueue[]
+  // Relaciones
+  auditLogs           AuditLog[]
+  syncQueues          SyncQueue[]
+  brigadeAssignments BrigadeDevice[]
 
   @@index([status])
   @@index([serialNumber])
@@ -173,8 +287,9 @@ model User {
   brigadesLed      Brigade[]       @relation("BrigadeLeader")
   brigadesAssigned BrigadeMember[]
   consultations    Consultation[]  @relation("DoctorConsultations")
+  workSessions     WorkSession[]   @relation("BrigadistaSessions")
   auditLogs        AuditLog[]
-  patient          Patient?        // <-- Añade esta línea para completar la relación bidireccional
+  patient          Patient?
 
   @@index([role])
   @@index([status])
@@ -200,10 +315,16 @@ model Brigade {
   updatedAt    DateTime      @updatedAt
   deletedAt    DateTime?
 
-  // Relaciones
-  leader        User?           @relation("BrigadeLeader", fields: [leaderId], references: [id], onDelete: SetNull)
+  // Relaciones Operativas
+  leader        User?                  @relation("BrigadeLeader", fields: [leaderId], references: [id], onDelete: SetNull)
   members       BrigadeMember[]
   consultations Consultation[]
+  workSessions  WorkSession[]          @relation("BrigadeSessions")
+
+  // Dotación de Recursos en Campo
+  supplyItems    BrigadeSupplyItem[]
+  equipmentItems BrigadeEquipmentItem[]
+  devices        BrigadeDevice[]
 
   // Metadatos Obligatorios Offline First
   syncStatus             SyncStatus @default(PENDING)
@@ -233,35 +354,241 @@ model BrigadeMember {
 }
 
 // ======================================================
+// RECURSOS: CATÁLOGO MAESTRO (MEDICAMENTOS E INSUMOS)
+// ======================================================
+
+model Resource {
+  id           String           @id @default(uuid())
+  code         String           @unique
+  name         String
+  genericName  String?
+  category     ResourceCategory @default(MEDICINE)
+  unit         String
+  isConsumable Boolean          @default(true)
+  minThreshold Int              @default(10)
+  isActive     Boolean          @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones
+  stocks ResourceStock[]
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String
+  lastModifiedByDeviceId String
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([category])
+  @@index([isActive])
+  @@index([isConsumable])
+  @@index([syncStatus])
+  @@index([lastModified])
+}
+
+// ======================================================
+// RECURSOS: STOCK FÍSICO Y LOTES (BODEGA CENTRAL)
+// ======================================================
+
+model ResourceStock {
+  id                String      @id @default(uuid())
+  resourceId        String
+  lotNumber         String
+  expirationDate    DateTime
+  quantityAvailable Int
+  quantityReserved  Int         @default(0)
+  status            StockStatus @default(AVAILABLE)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones
+  resource        Resource            @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+  brigadeSupplies BrigadeSupplyItem[]
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String
+  lastModifiedByDeviceId String
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@unique([resourceId, lotNumber])
+  @@index([resourceId])
+  @@index([expirationDate])
+  @@index([status])
+  @@index([syncStatus])
+  @@index([lastModified])
+}
+
+// ======================================================
+// RECURSOS: EQUIPAMIENTO E INSTRUMENTAL MÉDICO
+// ======================================================
+
+model MedicalEquipment {
+  id           String          @id @default(uuid())
+  code         String          @unique
+  name         String
+  model        String?
+  serialNumber String?         @unique
+  status       EquipmentStatus @default(OPERATIONAL)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones
+  brigadeAssignments BrigadeEquipmentItem[]
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String
+  lastModifiedByDeviceId String
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([status])
+  @@index([syncStatus])
+  @@index([lastModified])
+}
+
+// ======================================================
+// DOTACIÓN: ASIGNACIÓN DE CONSUMIBLES POR LOTE A BRIGADA
+// ======================================================
+
+model BrigadeSupplyItem {
+  id                String  @id @default(uuid())
+  brigadeId         String
+  stockId           String
+  quantitySupplied  Int
+  quantityDispensed Int     @default(0)
+  quantityReturned  Int     @default(0)
+  quantityWasted    Int     @default(0)
+  notes             String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones
+  brigade Brigade       @relation(fields: [brigadeId], references: [id], onDelete: Cascade)
+  stock   ResourceStock @relation(fields: [stockId], references: [id], onDelete: Restrict)
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String
+  lastModifiedByDeviceId String
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([brigadeId])
+  @@index([stockId])
+  @@index([syncStatus])
+  @@index([lastModified])
+}
+
+// ======================================================
+// DOTACIÓN: ASIGNACIÓN DE INSTRUMENTAL MÉDICO A BRIGADA
+// ======================================================
+
+model BrigadeEquipmentItem {
+  id           String         @id @default(uuid())
+  brigadeId    String
+  equipmentId  String
+  conditionOut ItemCondition  @default(OPTIMAL)
+  conditionIn  ItemCondition?
+  dispatchedAt DateTime       @default(now())
+  returnedAt   DateTime?
+  notes        String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones
+  brigade   Brigade          @relation(fields: [brigadeId], references: [id], onDelete: Cascade)
+  equipment MedicalEquipment @relation(fields: [equipmentId], references: [id], onDelete: Restrict)
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String
+  lastModifiedByDeviceId String
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([brigadeId])
+  @@index([equipmentId])
+  @@index([syncStatus])
+  @@index([lastModified])
+}
+
+// ======================================================
+// DOTACIÓN: ASIGNACIÓN DE DISPOSITIVOS HARDWARE A BRIGADA
+// ======================================================
+
+model BrigadeDevice {
+  id            String    @id @default(uuid())
+  brigadeId     String
+  deviceId      String
+  assignedAt    DateTime  @default(now())
+  returnedAt    DateTime?
+  roleInBrigade String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones
+  brigade Brigade @relation(fields: [brigadeId], references: [id], onDelete: Cascade)
+  device  Device  @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String
+  lastModifiedByDeviceId String
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([brigadeId])
+  @@index([deviceId])
+  @@index([syncStatus])
+  @@index([lastModified])
+}
+
+// ======================================================
 // CORE CLÍNICO: PACIENTES Y EXPEDIENTES
 // ======================================================
 
 model Patient {
-  id                    String         @id @default(uuid())
-  userId                String?        @unique // Relación directa con la cuenta de usuario del portal
-  user                  User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  firstName             String
-  lastName              String
-  dateOfBirth           DateTime
-  dui                   String?        @unique
-  sex                   Sex            @default(OTHER)
-  phone                 String?
-  address               String
-  emergencyName         String?
-  emergencyPhone        String?
-  emergencyRelation     String?
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
-  deletedAt             DateTime?
-  syncStatus            SyncStatus     @default(SYNCED)
-  version               Int            @default(1)
-  originDeviceId        String
+  id                     String     @id @default(uuid())
+  userId                 String?    @unique
+  user                   User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  firstName              String
+  lastName               String
+  dateOfBirth            DateTime
+  dui                    String?    @unique
+  sex                    Sex        @default(OTHER)
+  phone                  String?
+  address                String
+  emergencyName          String?
+  emergencyPhone         String?
+  emergencyRelation      String?
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
+  deletedAt              DateTime?
+  syncStatus             SyncStatus @default(SYNCED)
+  version                Int        @default(1)
+  originDeviceId         String
   lastModifiedByDeviceId String
-  lastModified          DateTime       @default(now())
+  lastModified           DateTime   @default(now())
 
-  clinicalRecord        ClinicalRecord?
-  consultations         Consultation[]
-  vitalSigns            VitalSigns[]
+  clinicalRecord ClinicalRecord?
+  consultations  Consultation[]
+  vitalSigns     VitalSigns[]
 
   @@index([dui])
   @@index([userId])
@@ -307,7 +634,7 @@ model Consultation {
   brigadeId        String
   status           ConsultationStatus @default(DRAFT)
 
-  // Metodología SOAP (Campos Obligatorios de Entrada Manual)
+  // Metodología SOAP
   chiefComplaint String
   physicalExam   String
   diagnosisCode  String?
@@ -328,6 +655,8 @@ model Consultation {
   doctor         User           @relation("DoctorConsultations", fields: [doctorId], references: [id])
   clinicalRecord ClinicalRecord @relation(fields: [clinicalRecordId], references: [id])
   brigade        Brigade        @relation(fields: [brigadeId], references: [id])
+  workSessionId  String?
+  workSession    WorkSession?   @relation(fields: [workSessionId], references: [id])
   vitalSigns     VitalSigns[]
 
   // Metadatos Obligatorios Offline First
@@ -340,6 +669,7 @@ model Consultation {
   @@index([patientId])
   @@index([doctorId])
   @@index([brigadeId])
+  @@index([workSessionId])
   @@index([status])
   @@index([syncStatus])
   @@index([lastModified])
@@ -348,7 +678,7 @@ model Consultation {
 }
 
 model VitalSigns {
-  id             String    @id @default(uuid())
+  id             String        @id @default(uuid())
   patientId      String
   consultationId String?
   temperature    Float
@@ -358,8 +688,8 @@ model VitalSigns {
   diastolic      Int
   weight         Float?
   height         Float?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
   deletedAt      DateTime?
 
   // Relaciones
@@ -379,6 +709,35 @@ model VitalSigns {
   @@index([createdAt])
   @@index([originDeviceId])
   @@index([lastModifiedByDeviceId])
+}
+
+// ======================================================
+// JORNADAS DE TRABAJO - BRIGADISTAS (WORKSESSION)
+// ======================================================
+
+model WorkSession {
+  id           String        @id @default(uuid())
+  brigadistaId String
+  brigadeId    String
+  status       SessionStatus @default(STARTED)
+  startedAt    DateTime      @default(now())
+  endedAt      DateTime?
+
+  // Relaciones
+  brigadista    User          @relation("BrigadistaSessions", fields: [brigadistaId], references: [id])
+  brigade       Brigade       @relation("BrigadeSessions", fields: [brigadeId], references: [id])
+  consultations Consultation[]
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String
+  lastModifiedByDeviceId String
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([brigadistaId, status])
+  @@index([brigadeId])
+  @@index([syncStatus])
 }
 
 // ======================================================

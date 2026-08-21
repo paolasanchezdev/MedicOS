@@ -1,0 +1,526 @@
+// apps/api/prisma/seed-health-units.ts
+import {
+  PrismaClient,
+  EstablishmentType,
+  EstablishmentLevel,
+  EstablishmentOperator,
+  EstablishmentStatus,
+  SyncStatus,
+} from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+const SYSTEM_DEVICE_ID = 'SYSTEM_OFFICIAL_ISSS_2026';
+const ISSS_UNIT_PREFIX = 'ISSS-UM-';
+
+interface VerifiedHealthUnitRecord {
+  code: string;
+  name: string;
+  type: EstablishmentType;
+  level: EstablishmentLevel;
+  operator: EstablishmentOperator;
+  department: string;
+  municipality: string;
+  address: string;
+  phone: string | null;
+  emergencyPhone: string | null;
+  hasEmergency: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  specialties: string[];
+}
+
+const verifiedISSSHealthUnits: VerifiedHealthUnitRecord[] = [
+  // SAN SALVADOR
+  {
+    code: 'ISSS-UM-001',
+    name: 'Unidad Médica 15 de Septiembre (Santa Anita)',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.DEPARTMENTAL,
+    operator: EstablishmentOperator.ISSS,
+    department: 'San Salvador',
+    municipality: 'San Salvador',
+    address: 'Calle Francisco Menéndez, entre 19ª y 21ª Avenida Sur, Barrio Santa Anita, frente a la Escuela República del Ecuador.',
+    phone: '2593-0015; 2593-0016; 2593-0017; 2593-0025',
+    emergencyPhone: null,
+    hasEmergency: true,
+    latitude: 13.6885,
+    longitude: -89.1950,
+    specialties: [],
+  },
+  {
+    code: 'ISSS-UM-002',
+    name: 'Unidad Médica Aguilares',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.BASIC,
+    operator: EstablishmentOperator.ISSS,
+    department: 'San Salvador',
+    municipality: 'Aguilares',
+    address: 'Carretera Troncal del Norte Km. 33, 2ª Calle Oriente, Casa #2, Aguilares. ½ cuadra antes de la gasolinera Shell.',
+    phone: '2990-2002',
+    emergencyPhone: null,
+    hasEmergency: false,
+    latitude: 13.9575,
+    longitude: -89.1892,
+    specialties: [],
+  },
+  {
+    code: 'ISSS-UM-003',
+    name: 'Unidad Médica Apopa',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.DEPARTMENTAL,
+    operator: EstablishmentOperator.ISSS,
+    department: 'San Salvador',
+    municipality: 'Apopa',
+    address: 'Km. 13 1/2 Carretera Antigua a Quezaltepeque, final Calle La Ronda y Cuarta Avenida Sur, contiguo al Mercado Municipal.',
+    phone: '2591-4300',
+    emergencyPhone: null,
+    hasEmergency: true,
+    latitude: 13.8062,
+    longitude: -89.1795,
+    specialties: [],
+  },
+  {
+    code: 'ISSS-UM-004',
+    name: 'Unidad Médica Atlacatl',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.BASIC,
+    operator: EstablishmentOperator.ISSS,
+    department: 'San Salvador',
+    municipality: 'San Salvador',
+    address: '29ª Calle Poniente, Pasaje Cipactly, Colonia Atlacatl. A la par del INFRAMEN.',
+    phone: '2591-6505',
+    emergencyPhone: null,
+    hasEmergency: true,
+    latitude: 13.7125,
+    longitude: -89.1850,
+    specialties: [],
+  },
+  {
+    code: 'ISSS-UM-005',
+    name: 'Unidad Médica Ilopango',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.DEPARTMENTAL,
+    operator: EstablishmentOperator.ISSS,
+    department: 'San Salvador',
+    municipality: 'Ilopango',
+    address: 'Km. 8½ Boulevard del Ejército Nacional, 200 m al poniente de Cárcel de Mujeres y frente a Cartonera Centroamericana, Ilopango.',
+    phone: '2591-6000',
+    emergencyPhone: null,
+    hasEmergency: true,
+    latitude: 13.6980,
+    longitude: -89.1150,
+    specialties: [],
+  },
+  {
+    code: 'ISSS-UM-006',
+    name: 'Unidad Médica Medicina Física y Rehabilitación',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.SPECIALIZED,
+    operator: EstablishmentOperator.ISSS,
+    department: 'San Salvador',
+    municipality: 'San Salvador',
+    address: 'Alameda Juan Pablo II y final Calle Guadalupe, esquina opuesta a la USAM, frente a Puerto Bus.',
+    phone: '2593-0036 / 2593-0037 / 2593-0038 / 2593-0039',
+    emergencyPhone: null,
+    hasEmergency: false,
+    latitude: 13.7035,
+    longitude: -89.2010,
+    specialties: ['Medicina Física', 'Rehabilitación', 'Terapia Física', 'Terapia Ocupacional'],
+  },
+  {
+    code: 'ISSS-UM-007',
+    name: 'Unidad Médica San Jacinto',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.DEPARTMENTAL,
+    operator: EstablishmentOperator.ISSS,
+    department: 'San Salvador',
+    municipality: 'San Salvador',
+    address: 'Avenida Barberena #1236, Barrio San Jacinto, San Salvador. A un costado del Hogar del Niño.',
+    phone: '2593-0026; 2593-0027; 2593-0028; 2593-0033',
+    emergencyPhone: null,
+    hasEmergency: true,
+    latitude: 13.6840,
+    longitude: -89.1840,
+    specialties: [],
+  },
+  {
+    code: 'ISSS-UM-008',
+    name: 'Unidad Médica Soyapango',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.DEPARTMENTAL,
+    operator: EstablishmentOperator.ISSS,
+    department: 'San Salvador',
+    municipality: 'Soyapango',
+    address: 'Carretera de Oro, Km. 22 y 1/2, Avenida Prusia, Prados de Venecia 3, Soyapango. Contiguo a gasolinera Texaco.',
+    phone: '2591-5200',
+    emergencyPhone: null,
+    hasEmergency: true,
+    latitude: 13.7120,
+    longitude: -89.1380,
+    specialties: [],
+  },
+
+  // AHUACHAPÁN
+  {
+    code: 'ISSS-UM-009',
+    name: 'Unidad Médica Ahuachapán',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.DEPARTMENTAL,
+    operator: EstablishmentOperator.ISSS,
+    department: 'Ahuachapán',
+    municipality: 'Ahuachapán',
+    address: 'Final 10ª Calle Oriente y Carretera a Sonsonate.',
+    phone: '2890-0147 / 2890-0148',
+    emergencyPhone: null,
+    hasEmergency: true,
+    latitude: 13.9240,
+    longitude: -89.8450,
+    specialties: [],
+  },
+
+  // CHALATENANGO
+  {
+    code: 'ISSS-UM-010',
+    name: 'Unidad Médica Chalatenango',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.DEPARTMENTAL,
+    operator: EstablishmentOperator.ISSS,
+    department: 'Chalatenango',
+    municipality: 'Chalatenango',
+    address: '6ª Calle Poniente, Barrio El Chile, Chalatenango. Frente a Cajas de Crédito.',
+    phone: '2990-0057',
+    emergencyPhone: null,
+    hasEmergency: false,
+    latitude: 14.0415,
+    longitude: -88.9350,
+    specialties: [],
+  },
+
+  // CABAÑAS
+  {
+    code: 'ISSS-UM-011',
+    name: 'Unidad Médica Ilobasco',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.BASIC,
+    operator: EstablishmentOperator.ISSS,
+    department: 'Cabañas',
+    municipality: 'Ilobasco',
+    address: 'Final Avenida Carlos Bonilla #17, Barrio El Calvario, Ilobasco.',
+    phone: '2990-2011 / 2990-2012',
+    emergencyPhone: null,
+    hasEmergency: false,
+    latitude: 13.8435,
+    longitude: -88.8540,
+    specialties: [],
+  },
+  {
+    code: 'ISSS-UM-012',
+    name: 'Unidad Médica Sensuntepeque',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.BASIC,
+    operator: EstablishmentOperator.ISSS,
+    department: 'Cabañas',
+    municipality: 'Sensuntepeque',
+    address: '3ª Calle Oriente y final Avenida Libertad #1, Barrio Los Remedios.',
+    phone: '2990-0037 / 2990-0038',
+    emergencyPhone: null,
+    hasEmergency: false,
+    latitude: 13.8765,
+    longitude: -88.6320,
+    specialties: [],
+  },
+
+  // CUSCATLÁN
+  {
+    code: 'ISSS-UM-013',
+    name: 'Unidad Médica Cojutepeque',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.DEPARTMENTAL,
+    operator: EstablishmentOperator.ISSS,
+    department: 'Cuscatlán',
+    municipality: 'Cojutepeque',
+    address: 'Carretera Panamericana Km. 33.5, Colonia Las Colinas, Calle Principal Polígono "A", Casas #9 y #10.',
+    phone: '2990-2007',
+    emergencyPhone: null,
+    hasEmergency: false,
+    latitude: 13.7220,
+    longitude: -88.9340,
+    specialties: [],
+  },
+
+  // LA LIBERTAD
+  {
+    code: 'ISSS-UM-014',
+    name: 'Unidad Médica La Libertad',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.BASIC,
+    operator: EstablishmentOperator.ISSS,
+    department: 'La Libertad',
+    municipality: 'La Libertad',
+    address: '2ª Calle Poniente y 5ª Avenida Sur, Puerto de La Libertad. Esquina opuesta a la Escuela El Calvario.',
+    phone: '2990-2016',
+    emergencyPhone: null,
+    hasEmergency: false,
+    latitude: 13.4880,
+    longitude: -89.3220,
+    specialties: [],
+  },
+  {
+    code: 'ISSS-UM-015',
+    name: 'Unidad Médica Quezaltepeque',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.DEPARTMENTAL,
+    operator: EstablishmentOperator.ISSS,
+    department: 'La Libertad',
+    municipality: 'Quezaltepeque',
+    address: 'Final Calle Emilia Melcher #76. Una cuadra después de la Unidad de Salud y a 2 cuadras del Penal.',
+    phone: '2990-0300 / 2990-0301',
+    emergencyPhone: null,
+    hasEmergency: true,
+    latitude: 13.8325,
+    longitude: -89.2730,
+    specialties: [],
+  },
+  {
+    code: 'ISSS-UM-016',
+    name: 'Unidad Médica Ateos (Sacacoyo)',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.BASIC,
+    operator: EstablishmentOperator.ISSS,
+    department: 'La Libertad',
+    municipality: 'Sacacoyo',
+    address: 'Carretera a Sonsonate Km. 30½, Cantón Ateos, Sacacoyo, contiguo a gasolinera Texaco.',
+    phone: '2990-2006',
+    emergencyPhone: null,
+    hasEmergency: false,
+    latitude: 13.7420,
+    longitude: -89.4120,
+    specialties: [],
+  },
+  {
+    code: 'ISSS-UM-017',
+    name: 'Unidad Médica Santa Tecla (Ex APAC)',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.DEPARTMENTAL,
+    operator: EstablishmentOperator.ISSS,
+    department: 'La Libertad',
+    municipality: 'Santa Tecla',
+    address: '4ª Calle Oriente, Colonia Utila, entre Av. Zablah Touche y 13 Av. Sur, 7-6 Santa Tecla.',
+    phone: '2593-0300',
+    emergencyPhone: null,
+    hasEmergency: true,
+    latitude: 13.6730,
+    longitude: -89.2850,
+    specialties: [],
+  },
+
+  // LA PAZ
+  {
+    code: 'ISSS-UM-018',
+    name: 'Unidad Médica Zacatecoluca',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.DEPARTMENTAL,
+    operator: EstablishmentOperator.ISSS,
+    department: 'La Paz',
+    municipality: 'Zacatecoluca',
+    address: '7ª Calle Oriente #56, Colonia Las Margaritas, Barrio San José, Zacatecoluca.',
+    phone: '2990-0052 / 2990-0054 / 2990-0056',
+    emergencyPhone: null,
+    hasEmergency: true,
+    latitude: 13.5040,
+    longitude: -88.8710,
+    specialties: [],
+  },
+
+  // LA UNIÓN
+  {
+    code: 'ISSS-UM-019',
+    name: 'Unidad Médica La Unión',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.DEPARTMENTAL,
+    operator: EstablishmentOperator.ISSS,
+    department: 'La Unión',
+    municipality: 'La Unión',
+    address: '3ª Calle Poniente 6-37, Barrio San Carlos, La Unión. Sobre Carretera Panamericana.',
+    phone: '2790-0027 / 2790-0030',
+    emergencyPhone: null,
+    hasEmergency: true,
+    latitude: 13.3360,
+    longitude: -87.8440,
+    specialties: [],
+  },
+
+  // SANTA ANA
+  {
+    code: 'ISSS-UM-020',
+    name: 'Unidad Médica Santa Ana',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.DEPARTMENTAL,
+    operator: EstablishmentOperator.ISSS,
+    department: 'Santa Ana',
+    municipality: 'Santa Ana',
+    address: 'Ave. José Matías Delgado entre 6 y 8 Calle Poniente (ex-Colegio San José).',
+    phone: '2890-0800',
+    emergencyPhone: null,
+    hasEmergency: true,
+    latitude: 13.9920,
+    longitude: -89.5580,
+    specialties: [],
+  },
+
+  // SONSONATE
+  {
+    code: 'ISSS-UM-021',
+    name: 'Unidad Médica Acajutla',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.BASIC,
+    operator: EstablishmentOperator.ISSS,
+    department: 'Sonsonate',
+    municipality: 'Acajutla',
+    address: 'Colonia Acacsual, Calle Principal y Avenida Pedro de Alvarado.',
+    phone: '2890-3008',
+    emergencyPhone: null,
+    hasEmergency: false,
+    latitude: 13.5925,
+    longitude: -89.8315,
+    specialties: [],
+  },
+  {
+    code: 'ISSS-UM-022',
+    name: 'Unidad Médica Juayúa',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.BASIC,
+    operator: EstablishmentOperator.ISSS,
+    department: 'Sonsonate',
+    municipality: 'Juayúa',
+    address: '1ª Calle Poniente y 2ª Avenida Norte, Barrio El Carmen, Juayúa.',
+    phone: '2890-3013 / 2890-3023',
+    emergencyPhone: null,
+    hasEmergency: false,
+    latitude: 13.8410,
+    longitude: -89.7450,
+    specialties: [],
+  },
+
+  // USULUTÁN
+  {
+    code: 'ISSS-UM-023',
+    name: 'Unidad Médica Berlín',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.BASIC,
+    operator: EstablishmentOperator.ISSS,
+    department: 'Usulután',
+    municipality: 'Berlín',
+    address: '1ª Calle Poniente, Barrio El Centro, Casa #4, Berlín, Usulután.',
+    phone: '2790-2002 / 2790-2003',
+    emergencyPhone: null,
+    hasEmergency: false,
+    latitude: 13.5020,
+    longitude: -88.5330,
+    specialties: [],
+  },
+  {
+    code: 'ISSS-UM-024',
+    name: 'Unidad Médica Puerto El Triunfo',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.BASIC,
+    operator: EstablishmentOperator.ISSS,
+    department: 'Usulután',
+    municipality: 'Puerto El Triunfo',
+    address: '1ª Avenida Norte y 2ª Calle Poniente #3, Puerto El Triunfo, Usulután.',
+    phone: '2790-2006',
+    emergencyPhone: null,
+    hasEmergency: true,
+    latitude: 13.2840,
+    longitude: -88.5520,
+    specialties: [],
+  },
+  {
+    code: 'ISSS-UM-025',
+    name: 'Unidad Médica Santiago de María',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.DEPARTMENTAL,
+    operator: EstablishmentOperator.ISSS,
+    department: 'Usulután',
+    municipality: 'Santiago de María',
+    address: 'Barrio La Parroquia, Santiago de María, antiguo Hotel Los Gramales Inn.',
+    phone: '2790-2011 / 2663-0564',
+    emergencyPhone: null,
+    hasEmergency: true,
+    latitude: 13.4830,
+    longitude: -88.4710,
+    specialties: [],
+  },
+  {
+    code: 'ISSS-UM-026',
+    name: 'Unidad Médica Usulután',
+    type: EstablishmentType.HEALTH_CENTER,
+    level: EstablishmentLevel.DEPARTMENTAL,
+    operator: EstablishmentOperator.ISSS,
+    department: 'Usulután',
+    municipality: 'Usulután',
+    address: '7ª Avenida Norte y 8ª Calle Poniente, Barrio La Merced, Usulután.',
+    phone: '2790-0040 / 2790-0041 / 2790-0042 / 2790-0043',
+    emergencyPhone: null,
+    hasEmergency: true,
+    latitude: 13.3450,
+    longitude: -88.4410,
+    specialties: [],
+  },
+];
+
+async function main() {
+  console.log('🧹 Limpiando Unidades Médicas ISSS anteriores...');
+  const deleted = await prisma.establishment.deleteMany({
+    where: {
+      code: {
+        startsWith: ISSS_UNIT_PREFIX,
+      },
+    },
+  });
+  console.log(`🗑️ Eliminados: ${deleted.count}`);
+
+  console.log('🏥 Sembrando catálogo oficial con georreferenciación GPS...');
+  for (const unit of verifiedISSSHealthUnits) {
+    await prisma.establishment.create({
+      data: {
+        code: unit.code,
+        name: unit.name,
+        type: unit.type,
+        level: unit.level,
+        operator: unit.operator,
+        department: unit.department,
+        municipality: unit.municipality,
+        address: unit.address,
+        phone: unit.phone,
+        emergencyPhone: unit.emergencyPhone,
+        hasEmergency: unit.hasEmergency,
+        latitude: unit.latitude,
+        longitude: unit.longitude,
+        specialties: unit.specialties,
+        totalBeds: 0,
+        availableBeds: 0,
+        status: EstablishmentStatus.OPERATIONAL,
+        syncStatus: SyncStatus.SYNCED,
+        version: 1,
+        originDeviceId: SYSTEM_DEVICE_ID,
+        lastModifiedByDeviceId: SYSTEM_DEVICE_ID,
+      },
+    });
+  }
+
+  const count = await prisma.establishment.count({
+    where: { code: { startsWith: ISSS_UNIT_PREFIX } },
+  });
+  console.log(`✅ Siembra completada. Total unidades en BD: ${count}`);
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

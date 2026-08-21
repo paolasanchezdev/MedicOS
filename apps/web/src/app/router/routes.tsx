@@ -1,3 +1,4 @@
+// apps/web/src/app/router/routes.tsx
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './protectedRoutes';
@@ -7,9 +8,10 @@ import LandingPage from '../../modules/landing/LandingPage';
 import Login from '../../modules/auth/pages/Login';
 import { Register } from '../../modules/auth/pages/Register';
 
-// Componentes de Portales
+// Componentes de Portales (Ruta corregida: portals en lugar de portales)
 import { AdminPanel } from '../../portals/admin/AdminPanel';
 import { PacientePanel } from '../../portals/paciente/PacientePanel';
+import { BrigadistaPanel } from '../../portals/brigadista/BrigadistaPanel';
 import { MedicoPanel } from '../../portals/medico/MedicoPanel';
 import { AuthorityPanel } from '../../portals/authority/AuthorityPanel';
 
@@ -31,7 +33,7 @@ export const AppRoutes: React.FC = () => {
         }
       />
 
-      {/* Portal Paciente - FORMA CORRECTA CON COMODÍN LIMPIO */}
+      {/* Portal Paciente */}
       <Route
         path="/paciente/*"
         element={
@@ -46,14 +48,14 @@ export const AppRoutes: React.FC = () => {
         path="/brigadista/*"
         element={
           <ProtectedRoute allowedRoles={['BRIGADIST', 'BRIGADISTA']}>
-            <Navigate to="/paciente/dashboard/resumen" replace />
+            <BrigadistaPanel />
           </ProtectedRoute>
         }
       />
 
       {/* Portal Médico */}
       <Route
-        path="/doctor/*"
+        path="/medico/*"
         element={
           <ProtectedRoute allowedRoles={['DOCTOR']}>
             <MedicoPanel />

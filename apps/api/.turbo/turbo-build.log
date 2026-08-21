@@ -1,8 +1,5 @@
-Debugger attached.
 
-> medicos-api@1.0.0 build
+> @medicos/api@1.0.0 build
 > tsc
 
-Debugger attached.
-Waiting for the debugger to disconnect...
-⠙[1G[0KWaiting for the debugger to disconnect...
+⠙[1G[0K

@@ -4,7 +4,7 @@
 // =========================================================================
 
 import dotenv from "dotenv";
-dotenv.config(); // 👈 Carga de variables de entorno antes de instanciar app
+dotenv.config(); 
 
 import app from "./app.js";
 import { Patient } from "@medicos/shared-types";

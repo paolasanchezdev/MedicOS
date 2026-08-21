@@ -2,7 +2,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import rateLimit from "express-rate-limit"; // 👈 Importamos express-rate-limit
+import rateLimit from "express-rate-limit"; 
 import routes from "./routes/index.js";
 import { errorHandler, AppError } from "./middleware/error.middleware.js";
 

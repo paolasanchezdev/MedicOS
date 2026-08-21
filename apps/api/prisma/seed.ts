@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/api/prisma/seed.ts
-// DESCRIPCIÓN: Sembrado de datos iniciales completo para el dashboard de MedicOS.
+// DESCRIPCIÓN: Sembrado de datos operativos para MedicOS (IAM, Brigadas,
+//              Pacientes, Consultas, Auditoría y Sincronización Outbox).
 // =========================================================================
 
 import path from 'path';
@@ -10,6 +11,7 @@ import pg from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import {
   PrismaClient,
+  Prisma,
   Role,
   Sex,
   BloodType,
@@ -19,6 +21,7 @@ import {
   DeviceStatus,
   SyncOperation,
   QueueStatus,
+  SessionStatus,
 } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
@@ -33,15 +36,38 @@ if (!connectionString) {
   throw new Error('DATABASE_URL no se encuentra definida en el archivo .env');
 }
 
-// Configurar el driver adapter de PostgreSQL para Prisma v7
+// Configurar el driver adapter de PostgreSQL para Prisma v7 / v8
 const pool = new pg.Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
+// Tipos auxiliares para garantizar tipado estricto sin implicit 'any'
+interface PacienteSeedData {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  dui: string;
+  dob: Date;
+  sex: Sex;
+  phone: string;
+  address: string;
+  bloodType: BloodType;
+  familyHistory: string;
+  createdAt: Date;
+}
+
+type PatientWithClinicalRecord = Prisma.PatientGetPayload<{
+  include: { clinicalRecord: true };
+}>;
+
 async function main() {
-  console.log('🌱 Iniciando sembrado de datos iniciales para MedicOS...');
+  console.log('🌱 Iniciando sembrado de datos operativos para MedicOS...');
 
   const now = new Date();
+
+  // Helpers para generar fechas relativas al momento actual
+  const fechaHaceMinutos = (minutos: number): Date => new Date(now.getTime() - minutos * 60 * 1000);
+  const fechaHaceHoras = (horas: number): Date => new Date(now.getTime() - horas * 60 * 60 * 1000);
 
   // 1. Registrar Dispositivos del Sistema (Infraestructura y Red)
   const centralDevice = await prisma.device.upsert({
@@ -58,34 +84,38 @@ async function main() {
   });
 
   const mobileDevice1 = await prisma.device.upsert({
-    where: { serialNumber: 'DEV-MOB-MORAZAN-01' },
+    where: { serialNumber: 'DEV-MOB-TEPEZONTES-01' },
     update: { status: DeviceStatus.ACTIVE },
     create: {
-      name: 'Tablet Brigada Morazán #1',
-      serialNumber: 'DEV-MOB-MORAZAN-01',
+      name: 'Tablet Brigada Tepezontes #1',
+      serialNumber: 'DEV-MOB-TEPEZONTES-01',
       operatingSystem: 'Android 14 / MedicOS Mobile',
       appVersion: '1.0.0',
-      location: 'Morazán',
+      location: 'San Miguel Tepezontes, La Paz',
       status: DeviceStatus.ACTIVE,
     },
   });
 
-  const mobileDevice2 = await prisma.device.upsert({
-    where: { serialNumber: 'DEV-MOB-CABANAS-01' },
+  await prisma.device.upsert({
+    where: { serialNumber: 'DEV-MOB-LAPAZ-01' },
     update: { status: DeviceStatus.OFFLINE },
     create: {
-      name: 'Tablet Brigada Cabañas #1',
-      serialNumber: 'DEV-MOB-CABANAS-01',
+      name: 'Tablet Brigada La Paz #1',
+      serialNumber: 'DEV-MOB-LAPAZ-01',
       operatingSystem: 'Android 14 / MedicOS Mobile',
       appVersion: '1.0.0',
-      location: 'Cabañas',
+      location: 'La Paz',
       status: DeviceStatus.OFFLINE,
     },
   });
 
   console.log('✅ Nodos de red/dispositivos registrados (Activos y Offline)');
 
-  // 2. Generar usuarios del sistema
+  // 2. Verificación de catálogo de establecimientos oficiales existente
+  const totalEstablecimientos = await prisma.establishment.count();
+  console.log(`ℹ️ Catálogo oficial de establecimientos conservado: ${totalEstablecimientos} registrados`);
+
+  // 3. Generar usuarios del sistema
   const adminPasswordHash = await bcrypt.hash('Admin2026!Medicos', 10);
   const patientPasswordHash = await bcrypt.hash('Paciente2026!Medicos', 10);
 
@@ -131,7 +161,21 @@ async function main() {
     },
   });
 
-  const patientUser = await prisma.user.upsert({
+  const authorityUser = await prisma.user.upsert({
+    where: { email: 'autoridad.salud@minsal.gob.sv' },
+    update: {},
+    create: {
+      email: 'autoridad.salud@minsal.gob.sv',
+      passwordHash: adminPasswordHash,
+      role: Role.AUTHORITY,
+      status: UserStatus.ACTIVE,
+      firstName: 'Patricia',
+      lastName: 'Rivas',
+      phone: '+503 7000-0004',
+    },
+  });
+
+  const patientUser1 = await prisma.user.upsert({
     where: { email: 'maria.gonzalez@paciente.medicos.org' },
     update: {},
     create: {
@@ -145,234 +189,369 @@ async function main() {
     },
   });
 
-  console.log('✅ Usuarios del sistema creados (ADMIN, DOCTOR, BRIGADISTA, PATIENT)');
+  const patientUser2 = await prisma.user.upsert({
+    where: { email: 'carlos.ruiz@paciente.medicos.org' },
+    update: {},
+    create: {
+      email: 'carlos.ruiz@paciente.medicos.org',
+      passwordHash: patientPasswordHash,
+      role: Role.PATIENT,
+      status: UserStatus.ACTIVE,
+      firstName: 'Carlos',
+      lastName: 'Ruiz',
+      phone: '+503 7234-8899',
+    },
+  });
 
-  // 3. Crear Brigada Médica de prueba
+  const patientUser3 = await prisma.user.upsert({
+    where: { email: 'ana.rodriguez@paciente.medicos.org' },
+    update: {},
+    create: {
+      email: 'ana.rodriguez@paciente.medicos.org',
+      passwordHash: patientPasswordHash,
+      role: Role.PATIENT,
+      status: UserStatus.ACTIVE,
+      firstName: 'Ana',
+      lastName: 'Rodríguez',
+      phone: '+503 7888-1122',
+    },
+  });
+
+  const patientUser4 = await prisma.user.upsert({
+    where: { email: 'jorge.martinez@paciente.medicos.org' },
+    update: {},
+    create: {
+      email: 'jorge.martinez@paciente.medicos.org',
+      passwordHash: patientPasswordHash,
+      role: Role.PATIENT,
+      status: UserStatus.ACTIVE,
+      firstName: 'Jorge',
+      lastName: 'Martínez',
+      phone: '+503 7555-9900',
+    },
+  });
+
+  console.log('✅ Usuarios del sistema creados (ADMIN, DOCTOR, BRIGADISTA, AUTHORITY, PATIENTS)');
+
+  // 4. Crear o Actualizar Brigada Médica
   let brigade = await prisma.brigade.findFirst({
-    where: { name: 'Brigada Médica Morazán 2026' },
+    where: { name: 'Brigada Médica San Miguel Tepezontes 2026' },
   });
 
   if (!brigade) {
     brigade = await prisma.brigade.create({
       data: {
-        name: 'Brigada Médica Morazán 2026',
-        department: 'Morazán',
-        municipality: 'San Francisco Gotera',
-        latitude: 13.6942,
-        longitude: -88.1072,
+        name: 'Brigada Médica San Miguel Tepezontes 2026',
+        department: 'La Paz',
+        municipality: 'San Miguel Tepezontes',
+        latitude: 13.6236,
+        longitude: -89.0142,
         status: BrigadeStatus.ACTIVE,
-        startDate: new Date('2026-08-01T08:00:00Z'),
-        endDate: new Date('2026-08-30T17:00:00Z'),
+        startDate: fechaHaceHoras(24),
+        endDate: new Date(now.getTime() + 23 * 24 * 60 * 60 * 1000),
         leaderId: adminUser.id,
         originDeviceId: centralDevice.id,
         lastModifiedByDeviceId: centralDevice.id,
         members: {
-          create: [
-            { userId: doctorUser.id },
-            { userId: brigadistaUser.id },
-          ],
+          create: [{ userId: doctorUser.id }, { userId: brigadistaUser.id }],
         },
       },
     });
-  }
-  console.log(`✅ Brigada registrada: ${brigade.name}`);
-
-  // 4. Crear o Actualizar Paciente y Expediente Clínico
-  let patient = await prisma.patient.findFirst({
-    where: { 
-      OR: [
-        { dui: '01234567-8' },
-        { userId: patientUser.id }
-      ]
-    },
-    include: { clinicalRecord: true },
-  });
-
-  if (!patient) {
-    patient = await prisma.patient.create({
+  } else {
+    brigade = await prisma.brigade.update({
+      where: { id: brigade.id },
       data: {
-        userId: patientUser.id,
-        firstName: 'María',
-        lastName: 'González',
-        dateOfBirth: new Date('1985-05-15T00:00:00Z'),
-        dui: '01234567-8',
-        sex: Sex.FEMALE,
-        phone: '+503 7123-4567',
-        address: 'Caserío El Centro, Cantón El Jocote, Morazán',
-        emergencyName: 'José González',
-        emergencyPhone: '+503 7234-5678',
-        emergencyRelation: 'Esposo',
-        originDeviceId: mobileDevice1.id,
-        lastModifiedByDeviceId: mobileDevice1.id,
-        createdAt: now,
-        clinicalRecord: {
-          create: {
-            bloodType: BloodType.O_POSITIVE,
-            familyHistory: 'Diabetes Mellitus Tipo 2 (Madre)',
-            surgicalHistory: 'Apendicectomía (2015)',
-            observations: 'Paciente no reporta alergias medicamentosas.',
-            originDeviceId: mobileDevice1.id,
-            lastModifiedByDeviceId: mobileDevice1.id,
-            createdAt: now,
+        status: BrigadeStatus.ACTIVE,
+        startDate: fechaHaceHoras(24),
+        endDate: new Date(now.getTime() + 23 * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
+  console.log(`✅ Brigada activa para hoy: ${brigade.name}`);
+
+  // 5. Crear o Actualizar Pacientes y Expedientes
+  const pacientesData: PacienteSeedData[] = [
+    {
+      userId: patientUser1.id,
+      firstName: 'María',
+      lastName: 'González',
+      dui: '01234567-8',
+      dob: new Date('1985-05-15T00:00:00Z'),
+      sex: Sex.FEMALE,
+      phone: '+503 7123-4567',
+      address: 'Barrio El Centro, Calle Principal, San Miguel Tepezontes',
+      bloodType: BloodType.O_POSITIVE,
+      familyHistory: 'Diabetes Mellitus Tipo 2 (Madre)',
+      createdAt: fechaHaceMinutos(180),
+    },
+    {
+      userId: patientUser2.id,
+      firstName: 'Carlos',
+      lastName: 'Ruiz',
+      dui: '02345678-9',
+      dob: new Date('1978-09-20T00:00:00Z'),
+      sex: Sex.MALE,
+      phone: '+503 7234-8899',
+      address: 'Caserío El Calvario, San Miguel Tepezontes',
+      bloodType: BloodType.A_POSITIVE,
+      familyHistory: 'Hipertensión Arterial (Padre)',
+      createdAt: fechaHaceMinutos(120),
+    },
+    {
+      userId: patientUser3.id,
+      firstName: 'Ana',
+      lastName: 'Rodríguez',
+      dui: '03456789-0',
+      dob: new Date('1992-11-10T00:00:00Z'),
+      sex: Sex.FEMALE,
+      phone: '+503 7888-1122',
+      address: 'Cantón La Cruz, San Miguel Tepezontes',
+      bloodType: BloodType.O_POSITIVE,
+      familyHistory: 'Sin antecedentes relevantes',
+      createdAt: fechaHaceMinutos(60),
+    },
+    {
+      userId: patientUser4.id,
+      firstName: 'Jorge',
+      lastName: 'Martínez',
+      dui: '04567890-1',
+      dob: new Date('1965-03-04T00:00:00Z'),
+      sex: Sex.MALE,
+      phone: '+503 7555-9900',
+      address: 'Barrio San José, San Miguel Tepezontes',
+      bloodType: BloodType.O_NEGATIVE,
+      familyHistory: 'Cardiopatía isquémica (Abuelo)',
+      createdAt: fechaHaceMinutos(30),
+    },
+  ];
+
+  const patientsList: PatientWithClinicalRecord[] = [];
+
+  for (const p of pacientesData) {
+    let patient = await prisma.patient.findFirst({
+      where: { dui: p.dui },
+      include: { clinicalRecord: true },
+    });
+
+    if (!patient) {
+      patient = await prisma.patient.create({
+        data: {
+          userId: p.userId,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          dateOfBirth: p.dob,
+          dui: p.dui,
+          sex: p.sex,
+          phone: p.phone,
+          address: p.address,
+          originDeviceId: mobileDevice1.id,
+          lastModifiedByDeviceId: mobileDevice1.id,
+          createdAt: p.createdAt,
+          updatedAt: p.createdAt,
+          clinicalRecord: {
+            create: {
+              bloodType: p.bloodType,
+              familyHistory: p.familyHistory,
+              originDeviceId: mobileDevice1.id,
+              lastModifiedByDeviceId: mobileDevice1.id,
+              createdAt: p.createdAt,
+              updatedAt: p.createdAt,
+            },
           },
         },
-      },
-      include: { clinicalRecord: true },
-    });
-  } else {
-    patient = await prisma.patient.update({
-      where: { id: patient.id },
-      data: {
-        userId: patientUser.id,
-        firstName: 'María',
-        lastName: 'González',
-        phone: '+503 7123-4567',
-        lastModifiedByDeviceId: mobileDevice1.id,
-        createdAt: now,
-      },
-      include: { clinicalRecord: true },
-    });
+        include: { clinicalRecord: true },
+      });
+    } else {
+      patient = await prisma.patient.update({
+        where: { id: patient.id },
+        data: {
+          createdAt: p.createdAt,
+          updatedAt: p.createdAt,
+        },
+        include: { clinicalRecord: true },
+      });
+    }
+
+    patientsList.push(patient);
   }
 
-  let clinicalRecord = patient.clinicalRecord;
-  if (!clinicalRecord) {
-    clinicalRecord = await prisma.clinicalRecord.create({
-      data: {
-        patientId: patient.id,
-        bloodType: BloodType.O_POSITIVE,
-        familyHistory: 'Diabetes Mellitus Tipo 2 (Madre)',
-        surgicalHistory: 'Apendicectomía (2015)',
-        observations: 'Paciente no reporta alergias medicamentosas.',
-        originDeviceId: mobileDevice1.id,
-        lastModifiedByDeviceId: mobileDevice1.id,
-        createdAt: now,
-      },
-    });
-  }
+  console.log('✅ Pacientes y expedientes clínicos preparados');
 
-  console.log(`✅ Paciente y expediente clínico vinculados para ${patient.firstName} ${patient.lastName}`);
+  // 6. Reconstruir Consultas del día de HOY para el médico
+  await prisma.consultation.deleteMany({});
 
-  // 5. Crear o Actualizar Consulta Médica
-  const futureDate = new Date();
-  futureDate.setDate(futureDate.getDate() + 7);
+  const followUpIn7Days = new Date(now);
+  followUpIn7Days.setDate(followUpIn7Days.getDate() + 7);
 
-  let consultation = await prisma.consultation.findFirst({
-    where: {
-      patientId: patient.id,
+  // Consulta 1: COMPLETADA (María González)
+  const c1 = await prisma.consultation.create({
+    data: {
+      patientId: patientsList[0].id,
       doctorId: doctorUser.id,
+      clinicalRecordId: patientsList[0].clinicalRecord!.id,
+      brigadeId: brigade.id,
+      status: ConsultationStatus.COMPLETED,
+      chiefComplaint: 'Cefalea frontal pulsátil de 3 días de evolución acompañada de fatiga.',
+      physicalExam: 'Paciente normotensa, consciente y orientada. Sin focalización neurológica.',
+      diagnosisCode: 'R51',
+      diagnosisDesc: 'Cefalea tensional primaria',
+      treatmentPlan: 'Paracetamol 500mg c/8h por 3 días. Hidratación adecuada.',
+      consultationDate: fechaHaceMinutos(150),
+      followUpDate: followUpIn7Days,
+      startedAt: fechaHaceMinutos(150),
+      completedAt: fechaHaceMinutos(125),
+      originDeviceId: mobileDevice1.id,
+      lastModifiedByDeviceId: mobileDevice1.id,
+      createdAt: fechaHaceMinutos(150),
+      updatedAt: fechaHaceMinutos(125),
     },
   });
 
-  if (!consultation) {
-    consultation = await prisma.consultation.create({
-      data: {
-        patientId: patient.id,
-        doctorId: doctorUser.id,
-        clinicalRecordId: clinicalRecord.id,
-        brigadeId: brigade.id,
-        status: ConsultationStatus.COMPLETED,
-        chiefComplaint: 'Cefalea frontal pulsátil de 3 días de evolución acompañada de fatiga.',
-        physicalExam: 'Paciente normotensa, consciente, orientada en tiempo y espacio. Sin signos de focalización neurológica.',
-        diagnosisCode: 'R51',
-        diagnosisDesc: 'Cefalea tensional primaria',
-        treatmentPlan: 'Paracetamol 500mg cada 8 horas por 3 días. Reposo relativo e hidratación adecuada.',
-        consultationDate: now,
-        followUpDate: futureDate,
-        startedAt: now,
-        completedAt: now,
-        originDeviceId: mobileDevice1.id,
-        lastModifiedByDeviceId: mobileDevice1.id,
-        createdAt: now,
-      },
-    });
-  } else {
-    consultation = await prisma.consultation.update({
-      where: { id: consultation.id },
-      data: {
-        followUpDate: futureDate,
-        lastModifiedByDeviceId: mobileDevice1.id,
-        createdAt: now,
-      },
-    });
-  }
-
-  // 6. Registrar Signos Vitales
-  const existingVitalSigns = await prisma.vitalSigns.findFirst({
-    where: { consultationId: consultation.id },
+  // Consulta 2: EN PROGRESO (Carlos Ruiz)
+  const c2 = await prisma.consultation.create({
+    data: {
+      patientId: patientsList[1].id,
+      doctorId: doctorUser.id,
+      clinicalRecordId: patientsList[1].clinicalRecord!.id,
+      brigadeId: brigade.id,
+      status: ConsultationStatus.IN_PROGRESS,
+      chiefComplaint: 'Fiebre persistente, escalofríos y presión arterial elevada.',
+      physicalExam: 'Facies febril, diaforético, campos pulmonares limpios.',
+      diagnosisDesc: '',
+      treatmentPlan: '',
+      consultationDate: fechaHaceMinutos(90),
+      startedAt: fechaHaceMinutos(90),
+      originDeviceId: mobileDevice1.id,
+      lastModifiedByDeviceId: mobileDevice1.id,
+      createdAt: fechaHaceMinutos(90),
+      updatedAt: fechaHaceMinutos(90),
+    },
   });
 
-  if (!existingVitalSigns) {
-    await prisma.vitalSigns.create({
-      data: {
-        patientId: patient.id,
-        consultationId: consultation.id,
-        temperature: 36.6,
-        heartRate: 75,
-        oxygenSat: 98,
-        systolic: 120,
-        diastolic: 80,
-        weight: 62.5,
-        height: 1.60,
-        originDeviceId: mobileDevice1.id,
-        lastModifiedByDeviceId: mobileDevice1.id,
-        createdAt: now,
-      },
-    });
-  }
+  // Consulta 3: DRAFT (Ana Rodríguez)
+  await prisma.consultation.create({
+    data: {
+      patientId: patientsList[2].id,
+      doctorId: doctorUser.id,
+      clinicalRecordId: patientsList[2].clinicalRecord!.id,
+      brigadeId: brigade.id,
+      status: ConsultationStatus.DRAFT,
+      chiefComplaint: 'Evaluación general y control de signos vitales.',
+      physicalExam: '',
+      diagnosisDesc: '',
+      treatmentPlan: '',
+      consultationDate: fechaHaceMinutos(45),
+      originDeviceId: mobileDevice1.id,
+      lastModifiedByDeviceId: mobileDevice1.id,
+      createdAt: fechaHaceMinutos(45),
+      updatedAt: fechaHaceMinutos(45),
+    },
+  });
 
-  // 7. Eventos de Auditoría (Bitácora de Actividad Reciente - Últimas 24 Horas)
+  // Consulta 4: CANCELADA (Jorge Martínez)
+  await prisma.consultation.create({
+    data: {
+      patientId: patientsList[3].id,
+      doctorId: doctorUser.id,
+      clinicalRecordId: patientsList[3].clinicalRecord!.id,
+      brigadeId: brigade.id,
+      status: ConsultationStatus.CANCELLED,
+      chiefComplaint: 'Control de rutina.',
+      physicalExam: '',
+      diagnosisDesc: '',
+      treatmentPlan: '',
+      consultationDate: fechaHaceMinutos(20),
+      originDeviceId: mobileDevice1.id,
+      lastModifiedByDeviceId: mobileDevice1.id,
+      createdAt: fechaHaceMinutos(20),
+      updatedAt: fechaHaceMinutos(20),
+    },
+  });
+
+  console.log('✅ Consultas del día generadas');
+
+  // 7. Signos Vitales
+  await prisma.vitalSigns.deleteMany({});
+
+  await prisma.vitalSigns.create({
+    data: {
+      patientId: patientsList[0].id,
+      consultationId: c1.id,
+      temperature: 36.6,
+      heartRate: 75,
+      oxygenSat: 98,
+      systolic: 120,
+      diastolic: 80,
+      weight: 62.5,
+      height: 1.6,
+      originDeviceId: mobileDevice1.id,
+      lastModifiedByDeviceId: mobileDevice1.id,
+      createdAt: fechaHaceMinutos(160),
+    },
+  });
+
+  await prisma.vitalSigns.create({
+    data: {
+      patientId: patientsList[1].id,
+      consultationId: c2.id,
+      temperature: 38.6,
+      heartRate: 102,
+      oxygenSat: 88,
+      systolic: 150,
+      diastolic: 95,
+      weight: 78.0,
+      height: 1.72,
+      originDeviceId: mobileDevice1.id,
+      lastModifiedByDeviceId: mobileDevice1.id,
+      createdAt: fechaHaceMinutos(100),
+    },
+  });
+
+  console.log('✅ Signos vitales insertados');
+
+  // 8. Eventos de Auditoría
   await prisma.auditLog.deleteMany({});
 
   const auditLogsData = [
     {
-      user: { connect: { id: adminUser.id } },
-      device: { connect: { id: centralDevice.id } },
+      userId: adminUser.id,
+      deviceId: centralDevice.id,
       action: 'LOGIN',
       entity: 'User',
       entityId: adminUser.id,
       changedFields: { message: 'Inicio de sesión exitoso en el portal administrativo' },
       ipAddress: '127.0.0.1',
-      createdAt: new Date(now.getTime() - 15 * 60 * 1000), // Hace 15 min
+      createdAt: fechaHaceMinutos(15),
     },
     {
-      user: { connect: { id: brigadistaUser.id } },
-      device: { connect: { id: mobileDevice1.id } },
+      userId: authorityUser.id,
+      deviceId: centralDevice.id,
+      action: 'LOGIN',
+      entity: 'User',
+      entityId: authorityUser.id,
+      changedFields: { message: 'Inicio de sesión exitoso en el portal de autoridad sanitaria' },
+      ipAddress: '127.0.0.1',
+      createdAt: fechaHaceMinutos(10),
+    },
+    {
+      userId: brigadistaUser.id,
+      deviceId: mobileDevice1.id,
       action: 'PATIENT_CREATE',
       entity: 'Patient',
-      entityId: patient.id,
+      entityId: patientsList[0].id,
       changedFields: { message: 'Registro de expediente clínico para paciente María González' },
       ipAddress: '192.168.1.45',
-      createdAt: new Date(now.getTime() - 45 * 60 * 1000), // Hace 45 min
+      createdAt: fechaHaceMinutos(45),
     },
     {
-      user: { connect: { id: doctorUser.id } },
-      device: { connect: { id: mobileDevice1.id } },
+      userId: doctorUser.id,
+      deviceId: mobileDevice1.id,
       action: 'CONSULTATION_CREATE',
       entity: 'Consultation',
-      entityId: consultation.id,
+      entityId: c1.id,
       changedFields: { message: 'Registro de consulta médica y prescripción de tratamiento' },
       ipAddress: '192.168.1.45',
-      createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000), // Hace 2 hrs
-    },
-    {
-      user: { connect: { id: adminUser.id } },
-      device: { connect: { id: centralDevice.id } },
-      action: 'BRIGADE_CREATE',
-      entity: 'Brigade',
-      entityId: brigade.id,
-      changedFields: { message: 'Programación de Brigada Médica Morazán 2026' },
-      ipAddress: '127.0.0.1',
-      createdAt: new Date(now.getTime() - 5 * 60 * 60 * 1000), // Hace 5 hrs
-    },
-    {
-      user: { connect: { id: brigadistaUser.id } },
-      device: { connect: { id: mobileDevice1.id } },
-      action: 'SYNC_EXECUTE',
-      entity: 'SyncQueue',
-      entityId: mobileDevice1.id,
-      changedFields: { message: 'Sincronización de datos locales ejecutada con éxito' },
-      ipAddress: '192.168.1.45',
-      createdAt: new Date(now.getTime() - 8 * 60 * 60 * 1000), // Hace 8 hrs
+      createdAt: fechaHaceMinutos(120),
     },
   ];
 
@@ -380,72 +559,29 @@ async function main() {
     await prisma.auditLog.create({ data: log });
   }
 
-  console.log(`✅ ${auditLogsData.length} eventos de auditoría insertados (Actividad Reciente en 24h)`);
-
-  // 8. Cola Outbox (Sincronización Offline-First)
+  // 9. Cola Outbox (Sincronización Offline-First)
   await prisma.syncQueue.deleteMany({});
 
   const syncQueueData = [
     {
+      deviceId: mobileDevice1.id,
       entity: 'Patient',
-      entityId: patient.id,
+      entityId: patientsList[0].id,
       operation: SyncOperation.CREATE,
-      payload: JSON.stringify({ patientId: patient.id, name: 'María González' }),
+      payload: JSON.stringify({ patientId: patientsList[0].id, name: 'María González' }),
       status: QueueStatus.PENDING,
       retryCount: 0,
-      device: { connect: { id: mobileDevice1.id } },
-      createdAt: new Date(now.getTime() - 10 * 60 * 1000),
+      createdAt: fechaHaceMinutos(10),
     },
     {
-      entity: 'VitalSigns',
-      entityId: consultation.id,
-      operation: SyncOperation.CREATE,
-      payload: JSON.stringify({ consultationId: consultation.id }),
-      status: QueueStatus.PENDING,
-      retryCount: 0,
-      device: { connect: { id: mobileDevice1.id } },
-      createdAt: new Date(now.getTime() - 5 * 60 * 1000),
-    },
-    {
+      deviceId: centralDevice.id,
       entity: 'Consultation',
-      entityId: consultation.id,
+      entityId: c1.id,
       operation: SyncOperation.UPDATE,
-      payload: JSON.stringify({ consultationId: consultation.id }),
-      status: QueueStatus.PROCESSING,
-      retryCount: 1,
-      device: { connect: { id: mobileDevice2.id } },
-      createdAt: new Date(now.getTime() - 20 * 60 * 1000),
-    },
-    {
-      entity: 'ClinicalRecord',
-      entityId: clinicalRecord.id,
-      operation: SyncOperation.UPDATE,
-      payload: JSON.stringify({ recordId: clinicalRecord.id }),
-      status: QueueStatus.FAILED,
-      retryCount: 3,
-      errorMessage: 'Tiempo de espera agotado al intentar conectar con la API central.',
-      device: { connect: { id: mobileDevice2.id } },
-      createdAt: new Date(now.getTime() - 30 * 60 * 1000),
-    },
-    {
-      entity: 'User',
-      entityId: patientUser.id,
-      operation: SyncOperation.CREATE,
-      payload: JSON.stringify({ userId: patientUser.id }),
+      payload: JSON.stringify({ consultationId: c1.id }),
       status: QueueStatus.COMPLETED,
       retryCount: 1,
-      device: { connect: { id: centralDevice.id } },
-      createdAt: new Date(now.getTime() - 60 * 60 * 1000),
-    },
-    {
-      entity: 'Brigade',
-      entityId: brigade.id,
-      operation: SyncOperation.CREATE,
-      payload: JSON.stringify({ brigadeId: brigade.id }),
-      status: QueueStatus.COMPLETED,
-      retryCount: 1,
-      device: { connect: { id: centralDevice.id } },
-      createdAt: new Date(now.getTime() - 120 * 60 * 1000),
+      createdAt: fechaHaceMinutos(60),
     },
   ];
 
@@ -453,13 +589,26 @@ async function main() {
     await prisma.syncQueue.create({ data: item });
   }
 
-  console.log('✅ Cola Outbox poblada con estados PENDING, PROCESSING, FAILED y COMPLETED');
+  // 10. Reconstruir Jornada Activa
+  await prisma.workSession.deleteMany({});
 
-  console.log('🎉 Sembrado completo y exitoso para todas las tarjetas del dashboard.');
+  await prisma.workSession.create({
+    data: {
+      brigadistaId: brigadistaUser.id,
+      brigadeId: brigade.id,
+      status: SessionStatus.STARTED,
+      startedAt: fechaHaceHoras(2),
+      originDeviceId: mobileDevice1.id,
+      lastModifiedByDeviceId: mobileDevice1.id,
+    },
+  });
+
+  console.log('✅ Jornada de trabajo iniciada correctamente');
+  console.log('🎉 Sembrado dinámico completo y exitoso para MedicOS.');
 }
 
 main()
-  .catch((e) => {
+  .catch((e: unknown) => {
     console.error('❌ Error ejecutando el sembrado:', e);
     process.exit(1);
   })

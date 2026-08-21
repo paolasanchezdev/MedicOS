@@ -31,7 +31,7 @@ export const TarjetaBienvenidaAdmin: React.FC<TarjetaBienvenidaAdminProps> = ({
   const fechaHoy = fechaHoyRaw.charAt(0).toUpperCase() + fechaHoyRaw.slice(1);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#2B7A78] via-[#236866] to-[#1B5250] p-6 sm:p-7 text-white shadow-sm border border-teal-700/50">
+    <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-[#2B7A78] via-[#236866] to-[#1B5250] p-6 sm:p-7 text-white shadow-sm border border-teal-700/50">
       {/* Resplandor y patrón decorativo de fondo tipo onda médica */}
       <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-teal-400/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute right-10 top-1/2 -translate-y-1/2 opacity-10 pointer-events-none hidden lg:block">

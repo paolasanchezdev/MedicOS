@@ -1,5 +1,5 @@
 // =========================================================================
-// ARCHIVO: apps/api/src/services/auth.service.ts
+// ARCHIVO: apps/api/src/modules/auth/auth.service.ts
 // =========================================================================
 
 import { BaseService } from "../../services/base.service.js";

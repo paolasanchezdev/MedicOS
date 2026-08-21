@@ -1,3 +1,4 @@
+// apps/web/src/portals/admin/routes/AdminRoutes.tsx
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AdminLayout } from '../layout/AdminLayout';
@@ -24,11 +25,16 @@ import { ImportacionDatosPage } from '../pages/datos/importacion/ImportacionDato
 import { IntegridadDatosPage } from '../pages/datos/integridad/IntegridadDatosPage';
 import { SincronizacionPage } from '../pages/datos/sincronizacion/SincronizacionPage';
 
-// Establecimientos
+// Establecimientos (Red de Referencia y Derivación)
 import { ClinicasPage } from '../pages/establecimientos/clinicas/ClinicasPage';
 import { HospitalesPage } from '../pages/establecimientos/hospitales/HospitalesPage';
-import { RecursosEstablecimientosPage } from '../pages/establecimientos/recursos/RecursosEstablecimientosPage';
 import { UnidadesSaludPage } from '../pages/establecimientos/unidades-salud/UnidadesSaludPage';
+
+// Recursos e Inventario
+import { MedicamentosPage } from '../pages/recursos/medicamentos/MedicamentosPage';
+import { EquiposMedicosPage } from '../pages/recursos/equipos/EquiposMedicosPage';
+import { DispositivosTecnologicosPage } from '../pages/recursos/tecnologia/DispositivosTecnologicosPage';
+import { DotacionBrigadasPage } from '../pages/recursos/dotacion/DotacionBrigadasPage';
 
 // Notificaciones
 import { CentroNotificacionesPage } from '../pages/notificaciones/centro/CentroNotificacionesPage';
@@ -80,11 +86,18 @@ export const AdminRoutes: React.FC = () => {
         <Route path="usuarios/permisos" element={<PermisosPage />} />
         <Route path="usuarios/estado" element={<EstadoUsuariosPage />} />
 
-        {/* Establecimientos */}
+        {/* Establecimientos (Red de Referencia y Derivación) */}
+        <Route path="establecimientos" element={<Navigate to="establecimientos/hospitales" replace />} />
         <Route path="establecimientos/hospitales" element={<HospitalesPage />} />
         <Route path="establecimientos/clinicas" element={<ClinicasPage />} />
         <Route path="establecimientos/unidades-salud" element={<UnidadesSaludPage />} />
-        <Route path="establecimientos/recursos" element={<RecursosEstablecimientosPage />} />
+
+        {/* Recursos e Inventario Operativo */}
+        <Route path="recursos" element={<Navigate to="recursos/medicamentos" replace />} />
+        <Route path="recursos/medicamentos" element={<MedicamentosPage />} />
+        <Route path="recursos/equipos" element={<EquiposMedicosPage />} />
+        <Route path="recursos/tecnologia" element={<DispositivosTecnologicosPage />} />
+        <Route path="recursos/dotacion" element={<DotacionBrigadasPage />} />
 
         {/* Brigadas */}
         <Route path="brigadas/todas" element={<BrigadasPage />} />
