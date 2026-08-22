@@ -1,6 +1,11 @@
+// =========================================================================
+// ARCHIVO: apps/web/src/portals/paciente/pages/dashboard/resumen/components/TarjetaTratamientosActivos.tsx
+// DESCRIPCIÓN: Tarjeta de prescripciones y tratamientos activos estilo MedicOS.
+// =========================================================================
+
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Pill, ChevronRight, Calendar, AlertCircle } from 'lucide-react';
+import { Pill, ChevronRight, Calendar, UserCheck } from 'lucide-react';
 
 export interface TratamientoActualData {
   indicaciones: string;
@@ -19,35 +24,47 @@ interface Props {
 }
 
 export const TarjetaTratamientosActivos: React.FC<Props> = ({ tratamiento }) => {
-  if (!tratamiento || (!tratamiento.indicaciones && (!tratamiento.medicamentos || tratamiento.medicamentos.length === 0))) {
+  const tieneTratamiento =
+    tratamiento &&
+    (Boolean(tratamiento.indicaciones?.trim()) ||
+      (tratamiento.medicamentos && tratamiento.medicamentos.length > 0));
+
+  if (!tieneTratamiento || !tratamiento) {
     return (
-      <div className="bg-medicos-surface rounded-2xl border border-medicos-soft-border p-5 shadow-xs flex flex-col justify-between h-full space-y-4">
-        <div className="flex items-center justify-between border-b border-medicos-soft-border pb-3">
-          <span className="text-xs font-bold text-medicos-dark-blue uppercase tracking-wider flex items-center gap-1.5">
-            <Pill className="w-4 h-4 text-medicos-teal" /> Prescripciones y Fármacos
-          </span>
-          <span className="text-[10px] font-semibold text-medicos-muted uppercase">Sin tratamientos</span>
-        </div>
-
-        <div className="py-6 text-center space-y-2">
-          <div className="w-10 h-10 rounded-full bg-medicos-light-bg text-medicos-teal flex items-center justify-center mx-auto border border-medicos-soft-border">
-            <Pill className="w-5 h-5" />
+      <div className="group bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between h-full">
+        <div>
+          {/* Cabecera */}
+          <div className="flex items-center justify-between">
+            <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200/70 flex items-center justify-center text-slate-500 shadow-2xs">
+              <Pill className="w-5 h-5" />
+            </div>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200/60">
+              Sin prescripciones
+            </span>
           </div>
-          <p className="text-xs font-bold text-medicos-dark-blue">No hay tratamientos o prescripciones activas</p>
-          <p className="text-[11px] text-medicos-muted max-w-xs mx-auto">
-            No tienes indicaciones farmacológicas ni recetas vigentes emitidas por un médico.
-          </p>
+
+          {/* Métrica / Título */}
+          <div className="mt-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Tratamiento y Recetas
+            </p>
+            <p className="text-base font-bold text-slate-800 tracking-tight mt-1">
+              No registras tratamientos activos
+            </p>
+            <p className="text-xs text-slate-500 font-normal leading-relaxed mt-1">
+              Cuando un médico prescriba un medicamento o plan de dosificación en una brigada médica, aparecerá registrado en este módulo.
+            </p>
+          </div>
         </div>
 
-        <div className="pt-2 border-t border-medicos-soft-border flex items-center justify-end">
-          <Link
-            to="/paciente/tratamientos"
-            className="px-3 py-1.5 rounded-lg border border-medicos-soft-border text-medicos-teal text-xs font-semibold hover:bg-medicos-light-bg transition-all duration-150 flex items-center gap-1"
-          >
-            <span>Historial de recetas</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
+        {/* Acción inferior */}
+        <Link
+          to="/paciente/tratamientos/recetas-activas"
+          className="mt-5 pt-3 border-t border-slate-100 w-full inline-flex items-center justify-between text-xs font-semibold text-[#2a726d] hover:text-[#23605c] transition-colors group/btn"
+        >
+          <span>Ver catálogo de medicamentos</span>
+          <ChevronRight className="w-4 h-4 transition-transform group-hover/btn:translate-x-0.5" />
+        </Link>
       </div>
     );
   }
@@ -58,71 +75,91 @@ export const TarjetaTratamientosActivos: React.FC<Props> = ({ tratamiento }) => 
     : null;
 
   return (
-    <div className="bg-medicos-surface rounded-2xl border border-medicos-soft-border p-5 shadow-xs flex flex-col justify-between h-full space-y-4">
-      <div className="flex items-center justify-between border-b border-medicos-soft-border pb-3">
-        <span className="text-xs font-bold text-medicos-dark-blue uppercase tracking-wider flex items-center gap-1.5">
-          <Pill className="w-4 h-4 text-medicos-teal" /> Tratamiento Vigente
-        </span>
-        <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-medicos-light-bg text-medicos-teal border border-medicos-soft-border">
-          ACTIVO
-        </span>
-      </div>
+    <div className="group bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between h-full">
+      <div>
+        {/* Cabecera */}
+        <div className="flex items-center justify-between">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shadow-xs">
+            <Pill className="w-5 h-5" />
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Tratamiento Activo
+          </span>
+        </div>
 
-      <div className="space-y-3">
-        {tratamiento.medicamentos && tratamiento.medicamentos.length > 0 ? (
-          <div className="space-y-2">
-            <p className="text-[11px] font-bold text-medicos-muted uppercase tracking-wider">Medicamentos Prescritos</p>
-            <div className="space-y-1.5">
+        {/* Título */}
+        <div className="mt-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Esquema Terapéutico
+          </p>
+          <p className="text-base font-bold text-slate-900 tracking-tight mt-1">
+            Prescripción Vigente
+          </p>
+        </div>
+
+        {/* Contenido / Medicamentos o Plan */}
+        <div className="mt-4 pt-3 border-t border-slate-100 space-y-2.5">
+          {tratamiento.medicamentos && tratamiento.medicamentos.length > 0 ? (
+            <div className="space-y-2">
               {tratamiento.medicamentos.slice(0, 3).map((med, idx) => (
-                <div key={idx} className="bg-medicos-light-bg p-2.5 rounded-xl border border-medicos-soft-border text-xs flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-medicos-dark-blue">{med.nombre}</p>
-                    <p className="text-[11px] text-medicos-muted font-medium">{med.dosis} — {med.frecuencia}</p>
+                <div
+                  key={idx}
+                  className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50/70 border border-slate-100 text-xs"
+                >
+                  <div className="min-w-0 pr-2">
+                    <p className="font-bold text-slate-900 truncate">{med.nombre}</p>
+                    <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                      {med.dosis} &bull; {med.frecuencia}
+                    </p>
                   </div>
                   {med.duracion && (
-                    <span className="text-[10px] font-semibold bg-medicos-surface px-2 py-0.5 rounded-md border border-medicos-soft-border text-medicos-teal shrink-0">
+                    <span className="text-[10px] font-semibold bg-white px-2 py-0.5 rounded-md border border-slate-200/60 text-slate-700 shadow-2xs shrink-0">
                       {med.duracion}
                     </span>
                   )}
                 </div>
               ))}
             </div>
-          </div>
-        ) : (
-          <div className="bg-medicos-light-bg p-3.5 rounded-xl border border-medicos-soft-border">
-            <p className="text-[11px] font-bold text-medicos-muted uppercase tracking-wider mb-1">Plan e Indicaciones Médicas</p>
-            <p className="text-xs text-medicos-dark-blue leading-relaxed font-medium">
-              {tratamiento.indicaciones}
-            </p>
-          </div>
-        )}
-
-        {(tratamiento.doctorNombre || fechaFormateada) && (
-          <div className="text-[11px] text-medicos-muted space-y-0.5 pt-1">
-            {tratamiento.doctorNombre && (
-              <p className="font-semibold text-medicos-dark-blue">Indicado por: {tratamiento.doctorNombre}</p>
-            )}
-            {fechaFormateada && (
-              <p className="flex items-center gap-1 text-medicos-muted font-medium">
-                <Calendar className="w-3 h-3 text-medicos-teal" /> Emisión: {fechaFormateada}
+          ) : (
+            <div className="p-3 rounded-lg bg-slate-50/70 border border-slate-100">
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                Indicaciones Médicas
               </p>
-            )}
-          </div>
-        )}
+              <p className="text-xs text-slate-800 font-medium leading-relaxed">
+                {tratamiento.indicaciones}
+              </p>
+            </div>
+          )}
+
+          {/* Metadatos (Doctor y Fecha) */}
+          {(tratamiento.doctorNombre || fechaFormateada) && (
+            <div className="pt-2 flex flex-wrap items-center justify-between text-[11px] text-slate-500 font-medium gap-2">
+              {tratamiento.doctorNombre && (
+                <span className="flex items-center gap-1.5 truncate">
+                  <UserCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="truncate">Dr(a). {tratamiento.doctorNombre}</span>
+                </span>
+              )}
+              {fechaFormateada && (
+                <span className="flex items-center gap-1 shrink-0">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Emisión: {fechaFormateada}</span>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="pt-2 border-t border-medicos-soft-border flex items-center justify-between">
-        <span className="text-[10px] text-medicos-muted flex items-center gap-1 font-medium">
-          <AlertCircle className="w-3 h-3 text-medicos-teal" /> Cumplir horario indicado
-        </span>
-        <Link
-          to="/paciente/tratamientos"
-          className="px-3 py-1.5 rounded-lg text-medicos-teal text-xs font-semibold hover:bg-medicos-light-bg transition-all duration-150 flex items-center gap-1"
-        >
-          <span>Ver todas las recetas</span>
-          <ChevronRight className="w-3.5 h-3.5" />
-        </Link>
-      </div>
+      {/* Acción inferior */}
+      <Link
+        to="/paciente/tratamientos/recetas-activas"
+        className="mt-5 pt-3 border-t border-slate-100 w-full inline-flex items-center justify-between text-xs font-semibold text-[#2a726d] hover:text-[#23605c] transition-colors group/btn"
+      >
+        <span>Ver detalle de recetas y tomas</span>
+        <ChevronRight className="w-4 h-4 transition-transform group-hover/btn:translate-x-0.5" />
+      </Link>
     </div>
   );
 };

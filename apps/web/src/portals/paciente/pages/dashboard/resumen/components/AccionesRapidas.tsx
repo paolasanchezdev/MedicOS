@@ -1,94 +1,93 @@
+// =========================================================================
+// ARCHIVO: apps/web/src/portals/paciente/pages/dashboard/resumen/components/AccionesRapidas.tsx
+// DESCRIPCIÓN: Panel de accesos directos estilo iOS / Microsoft Fluent Design.
+// =========================================================================
+
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { HeartPulse, FileText, Pill, FlaskConical, ArrowRight } from 'lucide-react';
+import { HeartPulse, FileText, Pill, FlaskConical, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+interface AccionItem {
+  label: string;
+  description: string;
+  icon: React.ElementType;
+  path: string;
+  iconBg: string;
+  iconColor: string;
+}
 
 export const AccionesRapidas: React.FC = () => {
-  const acciones = [
+  const navigate = useNavigate();
+
+  const acciones: AccionItem[] = [
     {
-      titulo: 'Registrar Signos Vitales',
-      descripcion: 'Presión, glucosa, oxigenación o peso.',
-      icono: HeartPulse,
-      ruta: '/paciente/signos-vitales',
-      badge: 'Monitoreo',
-      bgClass: 'bg-rose-50/80 hover:bg-rose-100/70 border-rose-200/80',
-      iconBg: 'bg-rose-500 text-white shadow-xs',
-      badgeClass: 'bg-rose-100 text-rose-700 border-rose-200',
-      accentColor: 'text-rose-600',
+      label: 'Signos Vitales',
+      description: 'Presión, glucosa y peso',
+      icon: HeartPulse,
+      path: '/paciente/monitoreo/signos-vitales',
+      iconBg: 'bg-rose-500/10 border-rose-500/20',
+      iconColor: 'text-rose-700',
     },
     {
-      titulo: 'Expediente Clínico',
-      descripcion: 'Diagnósticos, antecedentes y evolución.',
-      icono: FileText,
-      ruta: '/paciente/expediente',
-      badge: 'Historial',
-      bgClass: 'bg-teal-50/80 hover:bg-teal-100/70 border-teal-200/80',
-      iconBg: 'bg-[#2a726d] text-white shadow-xs',
-      badgeClass: 'bg-teal-100 text-[#2a726d] border-teal-200',
-      accentColor: 'text-[#2a726d]',
+      label: 'Expediente Clínico',
+      description: 'Diagnósticos y evolución',
+      icon: FileText,
+      path: '/paciente/expediente/consultas',
+      iconBg: 'bg-teal-500/10 border-teal-500/20',
+      iconColor: 'text-teal-700',
     },
     {
-      titulo: 'Recetas y Fármacos',
-      descripcion: 'Dosis, indicaciones y vigencia.',
-      icono: Pill,
-      ruta: '/paciente/tratamientos',
-      badge: 'Farmacia',
-      bgClass: 'bg-amber-50/80 hover:bg-amber-100/70 border-amber-200/80',
-      iconBg: 'bg-amber-500 text-white shadow-xs',
-      badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
-      accentColor: 'text-amber-600',
+      label: 'Recetas y Fármacos',
+      description: 'Dosis y esquemas activos',
+      icon: Pill,
+      path: '/paciente/tratamientos/recetas-activas',
+      iconBg: 'bg-amber-500/10 border-amber-500/20',
+      iconColor: 'text-amber-700',
     },
     {
-      titulo: 'Resultados Laboratorio',
-      descripcion: 'Informes de exámenes y análisis.',
-      icono: FlaskConical,
-      ruta: '/paciente/resultados',
-      badge: 'Exámenes',
-      bgClass: 'bg-indigo-50/80 hover:bg-indigo-100/70 border-indigo-200/80',
-      iconBg: 'bg-indigo-600 text-white shadow-xs',
-      badgeClass: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-      accentColor: 'text-indigo-600',
+      label: 'Resultados Laboratorio',
+      description: 'Exámenes e informes',
+      icon: FlaskConical,
+      path: '/paciente/estudios/resultados-laboratorio',
+      iconBg: 'bg-indigo-500/10 border-indigo-500/20',
+      iconColor: 'text-indigo-700',
     },
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
-        <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-          <span>Módulos de Atención Rápida</span>
-        </h2>
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
-          Accesos Directos
-        </span>
+    <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/70 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
+      <div className="flex items-center justify-between mb-3.5 px-0.5">
+        <h3 className="text-xs font-semibold tracking-wider text-slate-400 uppercase">
+          Módulos de Atención Rápida
+        </h3>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {acciones.map((accion) => {
-          const Icono = accion.icono;
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {acciones.map((acc, index) => {
+          const IconComponent = acc.icon;
           return (
-            <Link
-              key={accion.ruta}
-              to={accion.ruta}
-              className={`p-5 rounded-2xl border transition-all duration-200 flex flex-col justify-between group space-y-4 shadow-2xs hover:shadow-xs active:scale-[0.99] ${accion.bgClass}`}
+            <button
+              key={index}
+              onClick={() => navigate(acc.path)}
+              className="group flex items-center justify-between p-3.5 rounded-xl bg-slate-50/60 hover:bg-slate-100/80 active:bg-slate-200/60 border border-slate-200/50 hover:border-slate-300/60 transition-all duration-200 active:scale-[0.98] text-left cursor-pointer"
             >
-              <div className="flex items-center justify-between">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-105 ${accion.iconBg}`}>
-                  <Icono className="w-5 h-5" />
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className={`w-10 h-10 rounded-xl border ${acc.iconBg} ${acc.iconColor} flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105`}
+                >
+                  <IconComponent className="w-5 h-5 stroke-2" />
                 </div>
-                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${accion.badgeClass}`}>
-                  {accion.badge}
-                </span>
+                <div className="truncate">
+                  <span className="block text-xs font-semibold text-slate-900 truncate tracking-tight">
+                    {acc.label}
+                  </span>
+                  <span className="block text-[11px] text-slate-500 font-normal leading-tight mt-0.5 truncate">
+                    {acc.description}
+                  </span>
+                </div>
               </div>
-
-              <div>
-                <h3 className="text-xs font-bold text-slate-900 flex items-center justify-between">
-                  <span>{accion.titulo}</span>
-                  <ArrowRight className={`w-4 h-4 ${accion.accentColor} opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200`} />
-                </h3>
-                <p className="text-[11px] text-slate-600 mt-1 leading-snug font-medium">
-                  {accion.descripcion}
-                </p>
-              </div>
-            </Link>
+              <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+            </button>
           );
         })}
       </div>

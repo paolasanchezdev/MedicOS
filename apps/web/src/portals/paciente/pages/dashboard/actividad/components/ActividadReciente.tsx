@@ -1,3 +1,8 @@
+// =========================================================================
+// ARCHIVO: apps/web/src/portals/paciente/pages/dashboard/actividad/components/ActividadReciente.tsx
+// DESCRIPCIÓN: Listado cronológico agrupado por meses estilo Fluent / Admin.
+// =========================================================================
+
 import React from 'react';
 import ActividadItem, { type ElementoActividad } from './ActividadItem';
 
@@ -34,10 +39,15 @@ export const ActividadReciente: React.FC<ActividadRecienteProps> = ({
     <div className="space-y-6">
       {clavesMeses.map((mes) => (
         <div key={mes} className="space-y-3">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-medicos-muted tracking-wider">{mes}</span>
-            <div className="h-px bg-medicos-soft-border flex-1" />
+          {/* Separador de Mes */}
+          <div className="flex items-center gap-3 px-1">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              {mes}
+            </span>
+            <div className="h-px bg-slate-200/70 flex-1" />
           </div>
+
+          {/* Listado de Tarjetas */}
           <div className="space-y-3">
             {grupos[mes].map((item) => (
               <ActividadItem key={item.id} item={item} onVerDetalle={onVerDetalle} />
