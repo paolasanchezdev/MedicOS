@@ -1,3 +1,5 @@
+// apps/api/src/modules/patients/patients.controller.ts
+
 import { Request, Response } from 'express';
 import { patientsService } from './patients.service.js';
 import { patientDashboardService } from './patient-dashboard.service.js';

@@ -90,9 +90,9 @@ export const ActividadReciente: React.FC<ActividadRecienteProps> = ({ logs }) =>
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-8 h-8 rounded-full bg-slate-100/80 text-slate-600 flex items-center justify-center shrink-0 border border-slate-200/50">
                         {log.user ? (
-                          <User className="w-3.5 h-3.5 stroke-[2]" />
+                          <User className="w-3.5 h-3.5 stroke-2" />
                         ) : (
-                          <Cpu className="w-3.5 h-3.5 stroke-[2]" />
+                          <Cpu className="w-3.5 h-3.5 stroke-2" />
                         )}
                       </div>
 

@@ -1055,6 +1055,7 @@ MedicOS/
 │       ├── tsconfig.app.json
 │       ├── tsconfig.json
 │       ├── tsconfig.node.json
+│       ├── vercel.json
 │       └── vite.config.ts
 ├── packages/
 │   ├── design-system/
@@ -1088,5 +1089,6 @@ MedicOS/
 ├── run.ps1
 ├── run.sh
 ├── tsconfig.json
-└── turbo.json
+├── turbo.json
+└── vercel.json
 ```
