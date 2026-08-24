@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/shared/lib/apiClient.ts
-// DESCRIPCIÓN: Cliente centralizado de MedicOS impulsado por Cookies HttpOnly.
+// DESCRIPCIÓN: Cliente centralizado de MedicOS con autenticación dual (Bearer Token + Cookies).
 // =========================================================================
 
 import { sessionManager } from '../../core/auth/session';
@@ -37,22 +37,29 @@ export const apiClient = async <T = unknown>(
   endpoint: string, 
   options: RequestInit = {}
 ): Promise<T> => {
+  const token = sessionManager.getToken();
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...((options.headers as Record<string, string>) || {}),
   };
 
+  // 🔑 Inyecta el header Authorization Bearer si el token existe y no se ha especificado uno
+  if (token && !headers['Authorization']) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const config: RequestInit = {
     ...options,
     headers,
-    credentials: 'include', // 🔒 Envía la cookie HttpOnly automáticamente
+    credentials: 'include', // Mantiene compatibilidad con cookies en el mismo dominio
   };
 
   // Asegura que el endpoint comience con una sola barra
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const targetUrl = `${BASE_URL}${cleanEndpoint}`;
 
-  // 🔍 Depuración: Ver exactamente qué se envía al servidor
+  // 🔍 Depuración: Registro de peticiones
   console.log(`🌐 [apiClient] ${options.method || 'GET'} -> ${targetUrl}`, {
     headers,
     body: options.body ? JSON.parse(options.body as string) : undefined,
@@ -61,8 +68,12 @@ export const apiClient = async <T = unknown>(
   const response = await fetch(targetUrl, config);
 
   // 🛑 Manejar auto-logout SOLO si la sesión expira en peticiones protegidas.
-  // NO redirigir si el 401 proviene del intento de login.
-  if (response.status === 401 && !endpoint.includes('/auth/login')) {
+  // NO redirigir si el 401 proviene del intento de login o registro.
+  if (
+    response.status === 401 &&
+    !endpoint.includes('/auth/login') &&
+    !endpoint.includes('/auth/register')
+  ) {
     sessionManager.clearSession();
     window.location.href = '/login';
     throw new Error('Sesión expirada.');

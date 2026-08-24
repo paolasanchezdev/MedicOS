@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/core/context/AuthContext.tsx
-// DESCRIPCIÓN: Proveedor de autenticación sincronizado con sessionManager.
+// DESCRIPCIÓN: Proveedor de autenticación sincronizado con sessionManager y Bearer Token.
 // =========================================================================
 
 import React, { useState } from 'react';
@@ -12,11 +12,12 @@ import { useIdleTimeout } from '../../modules/auth/hooks/useIdleTimeout';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => sessionManager.getUser());
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(() => sessionManager.getToken());
   const [loading] = useState(false);
 
   const login = (newToken: string, newUser: User) => {
-    sessionManager.setSession(newUser);
+    // 🔒 Persistencia síncrona inmediata en localStorage antes de disparar re-renders
+    sessionManager.setSession(newUser, newToken);
     setToken(newToken);
     setUser(newUser);
   };
@@ -52,3 +53,5 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
+
+export default AuthProvider;
