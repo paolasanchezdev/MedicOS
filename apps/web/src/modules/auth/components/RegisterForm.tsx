@@ -268,7 +268,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onS
         </div>
 
         {/* 6. Widget de Cloudflare Turnstile */}
-        <div className="flex justify-center my-3 min-h-[65px]">
+        <div className="flex justify-center my-3 min-h-16.25">
           <Turnstile
             siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAD8UiAMMNgACfaXJ'} 
             onSuccess={handleTurnstileSuccess}

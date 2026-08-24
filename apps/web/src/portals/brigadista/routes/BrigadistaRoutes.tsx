@@ -1,7 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/routes/BrigadistaRoutes.tsx
-// DESCRIPCIÓN: Definición de rutas del Portal Brigadista integradas al layout
-//              y vinculadas a la estructura completa de páginas.
+// DESCRIPCIÓN: Definición de rutas del Portal Brigadista con módulo de Signos Vitales conectado.
 // =========================================================================
 
 import React from 'react';
@@ -9,6 +8,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { BrigadistaLayout } from '../layout/BrigadistaLayout';
 import { ResumenBrigadistaPage } from '../pages/dashboard/resumen/ResumenBrigadistaPage';
 import { ActividadBrigadistaPage } from '../pages/dashboard/actividad/ActividadBrigadistaPage';
+import { SignosVitalesPage } from '../pages/evaluacion/signos-vitales/SignosVitalesPage';
 
 const PagePlaceholder: React.FC<{ title: string; category?: string }> = ({ title, category }) => (
   <div className="p-6 bg-white rounded-2xl border border-slate-200/80 shadow-2xs">
@@ -87,10 +87,7 @@ export const BrigadistaRoutes: React.FC = () => {
 
         {/* Evaluación Clínica */}
         <Route path="evaluacion" element={<Navigate to="evaluacion/signos-vitales" replace />} />
-        <Route
-          path="evaluacion/signos-vitales"
-          element={<PagePlaceholder title="Signos Vitales" category="Evaluación Clínica" />}
-        />
+        <Route path="evaluacion/signos-vitales" element={<SignosVitalesPage />} />
         <Route
           path="evaluacion/sintomas"
           element={<PagePlaceholder title="Síntomas" category="Evaluación Clínica" />}

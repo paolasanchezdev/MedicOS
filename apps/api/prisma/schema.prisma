@@ -86,6 +86,14 @@ enum ConsultationStatus {
   CANCELLED
 }
 
+enum AppointmentStatus {
+  REQUESTED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
 enum BloodType {
   A_POSITIVE
   A_NEGATIVE
@@ -287,6 +295,7 @@ model User {
   brigadesLed      Brigade[]       @relation("BrigadeLeader")
   brigadesAssigned BrigadeMember[]
   consultations    Consultation[]  @relation("DoctorConsultations")
+  appointments     Appointment[]   @relation("DoctorAppointments")
   workSessions     WorkSession[]   @relation("BrigadistaSessions")
   auditLogs        AuditLog[]
   patient          Patient?
@@ -316,10 +325,10 @@ model Brigade {
   deletedAt    DateTime?
 
   // Relaciones Operativas
-  leader        User?                  @relation("BrigadeLeader", fields: [leaderId], references: [id], onDelete: SetNull)
+  leader        User?                 @relation("BrigadeLeader", fields: [leaderId], references: [id], onDelete: SetNull)
   members       BrigadeMember[]
   consultations Consultation[]
-  workSessions  WorkSession[]          @relation("BrigadeSessions")
+  workSessions  WorkSession[]         @relation("BrigadeSessions")
 
   // Dotación de Recursos en Campo
   supplyItems    BrigadeSupplyItem[]
@@ -588,6 +597,7 @@ model Patient {
 
   clinicalRecord ClinicalRecord?
   consultations  Consultation[]
+  appointments   Appointment[]
   vitalSigns     VitalSigns[]
 
   @@index([dui])
@@ -623,6 +633,40 @@ model ClinicalRecord {
 }
 
 // ======================================================
+// GESTIÓN DE CITAS PROGRAMADAS (APPOINTMENTS)
+// ======================================================
+
+model Appointment {
+  id              String            @id @default(uuid())
+  patientId       String
+  doctorId        String
+  appointmentDate DateTime
+  durationMinutes Int               @default(30)
+  reason          String
+  status          AppointmentStatus @default(CONFIRMED)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones
+  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor        User           @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  consultations Consultation[]
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String     @default("SERVER_CENTRAL")
+  lastModifiedByDeviceId String     @default("SERVER_CENTRAL")
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([doctorId, appointmentDate])
+  @@index([patientId])
+  @@index([status])
+}
+
+// ======================================================
 // ENCUENTROS CLÍNICOS Y SIGNOS VITALES
 // ======================================================
 
@@ -631,7 +675,8 @@ model Consultation {
   patientId        String
   doctorId         String
   clinicalRecordId String
-  brigadeId        String
+  brigadeId        String?            // Opcional para citas fuera de brigada
+  appointmentId    String?            // Opcional si proviene de cita agendada
   status           ConsultationStatus @default(DRAFT)
 
   // Metodología SOAP
@@ -651,12 +696,13 @@ model Consultation {
   deletedAt        DateTime?
 
   // Relaciones
-  patient        Patient        @relation(fields: [patientId], references: [id])
-  doctor         User           @relation("DoctorConsultations", fields: [doctorId], references: [id])
-  clinicalRecord ClinicalRecord @relation(fields: [clinicalRecordId], references: [id])
-  brigade        Brigade        @relation(fields: [brigadeId], references: [id])
+  patient        Patient         @relation(fields: [patientId], references: [id])
+  doctor         User            @relation("DoctorConsultations", fields: [doctorId], references: [id])
+  clinicalRecord ClinicalRecord  @relation(fields: [clinicalRecordId], references: [id])
+  brigade        Brigade?        @relation(fields: [brigadeId], references: [id])
+  appointment    Appointment?    @relation(fields: [appointmentId], references: [id])
   workSessionId  String?
-  workSession    WorkSession?   @relation(fields: [workSessionId], references: [id])
+  workSession    WorkSession?    @relation(fields: [workSessionId], references: [id])
   vitalSigns     VitalSigns[]
 
   // Metadatos Obligatorios Offline First
@@ -669,6 +715,7 @@ model Consultation {
   @@index([patientId])
   @@index([doctorId])
   @@index([brigadeId])
+  @@index([appointmentId])
   @@index([workSessionId])
   @@index([status])
   @@index([syncStatus])

@@ -1,3 +1,8 @@
+// =========================================================================
+// ARCHIVO: apps/api/src/modules/patients/patients.service.ts
+// DESCRIPCIÓN: Servicio de gestión de pacientes y signos vitales en Neon PostgreSQL.
+// =========================================================================
+
 import { prisma } from '../../config/prisma.js';
 import { BaseService } from '../../services/base.service.js';
 
@@ -12,6 +17,19 @@ export interface CreatePatientDTO {
   emergencyName?: string;
   emergencyPhone?: string;
   emergencyRelation?: string;
+  originDeviceId?: string;
+}
+
+export interface CreateVitalSignsDTO {
+  patientId?: string;
+  consultationId?: string;
+  systolic: number;
+  diastolic: number;
+  heartRate: number;
+  temperature: number;
+  oxygenSat: number;
+  weight?: number | null;
+  height?: number | null;
   originDeviceId?: string;
 }
 
@@ -50,10 +68,34 @@ export class PatientsService extends BaseService {
     return patientByUser ? patientByUser.id : null;
   }
 
-  async getAllPatients() {
+  async getAllPatients(search?: string) {
+    if (!search || !search.trim()) {
+      return prisma.patient.findMany({
+        where: { deletedAt: null },
+        include: {
+          clinicalRecord: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+
+    const cleanQuery = search.trim();
+
     return prisma.patient.findMany({
-      where: { deletedAt: null },
+      where: {
+        deletedAt: null,
+        OR: [
+          { dui: { contains: cleanQuery, mode: 'insensitive' } },
+          { firstName: { contains: cleanQuery, mode: 'insensitive' } },
+          { lastName: { contains: cleanQuery, mode: 'insensitive' } },
+          { phone: { contains: cleanQuery, mode: 'insensitive' } },
+        ],
+      },
+      include: {
+        clinicalRecord: true,
+      },
       orderBy: { createdAt: 'desc' },
+      take: 15,
     });
   }
 
@@ -200,6 +242,71 @@ export class PatientsService extends BaseService {
         originDeviceId: deviceId,
         lastModifiedByDeviceId: deviceId,
       },
+    });
+  }
+
+  async createVitalSigns(patientIdentifier: string, data: CreateVitalSignsDTO) {
+    const resolvedId = await this.resolvePatientId(patientIdentifier);
+    const patientId = resolvedId || patientIdentifier;
+
+    const patientExists = await prisma.patient.findFirst({
+      where: { id: patientId, deletedAt: null },
+    });
+
+    if (!patientExists) {
+      throw new Error('El paciente especificado no existe o no tiene expediente clínico activo.');
+    }
+
+    const deviceId = data.originDeviceId || 'SERVER_CENTRAL';
+
+    return prisma.vitalSigns.create({
+      data: {
+        patientId,
+        consultationId: data.consultationId || null,
+        systolic: Math.round(data.systolic),
+        diastolic: Math.round(data.diastolic),
+        heartRate: Math.round(data.heartRate),
+        temperature: Number(data.temperature),
+        oxygenSat: Math.round(data.oxygenSat),
+        weight: data.weight ? Number(data.weight) : null,
+        height: data.height ? Number(data.height) : null,
+        originDeviceId: deviceId,
+        lastModifiedByDeviceId: deviceId,
+      },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            dui: true,
+          },
+        },
+      },
+    });
+  }
+
+  async getTodayVitalSigns() {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    return prisma.vitalSigns.findMany({
+      where: {
+        deletedAt: null,
+        createdAt: { gte: startOfDay },
+      },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            dui: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
     });
   }
 }

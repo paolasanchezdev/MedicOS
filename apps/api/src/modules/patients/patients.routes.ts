@@ -1,3 +1,8 @@
+// =========================================================================
+// ARCHIVO: apps/api/src/modules/patients/patients.routes.ts
+// DESCRIPCIÓN: Rutas protegidas para Pacientes y Signos Vitales.
+// =========================================================================
+
 import { Router } from 'express';
 import { patientsController } from './patients.controller.js';
 import { checkAuth, checkRole } from '../../middleware/auth.middleware.js';
@@ -8,21 +13,76 @@ const router = Router();
 
 router.use(checkAuth);
 
-// 1. Listado general y creación
-router.get('/', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'AUTHORITY'), patientsController.getAllPatients);
-router.post('/', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA'), validate(createPatientSchema), patientsController.createPatient);
+// 1. Rutas Estáticas de Signos Vitales (Antes de /:id para evitar colisiones)
+router.get(
+  '/vitals/today',
+  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'AUTHORITY'),
+  patientsController.getTodayVitalSigns
+);
+router.post(
+  '/vitals',
+  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA'),
+  patientsController.createVitalSigns
+);
 
-// 2. Rutas estáticas del panel de paciente (deben ir antes de /:id)
-router.get('/resumen', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), patientsController.getPatientSummary);
-router.get('/dashboard/resumen', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), patientsController.getPatientSummary);
+// 2. Listado general y creación de Pacientes
+router.get(
+  '/',
+  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'AUTHORITY'),
+  patientsController.getAllPatients
+);
+router.post(
+  '/',
+  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA'),
+  validate(createPatientSchema),
+  patientsController.createPatient
+);
 
-router.get('/actividad', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), patientsController.getPatientActivity);
-router.get('/activity', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), patientsController.getPatientActivity);
-router.get('/dashboard/activity', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), patientsController.getPatientActivity);
+// 3. Rutas de Dashboard de Paciente
+router.get(
+  '/resumen',
+  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'),
+  patientsController.getPatientSummary
+);
+router.get(
+  '/dashboard/resumen',
+  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'),
+  patientsController.getPatientSummary
+);
+router.get(
+  '/actividad',
+  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'),
+  patientsController.getPatientActivity
+);
+router.get(
+  '/dashboard/activity',
+  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'),
+  patientsController.getPatientActivity
+);
 
-// 3. Rutas con parámetros
-router.get('/:id/actividad', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), validate(patientIdParamSchema), patientsController.getPatientActivity);
-router.get('/:id/historial', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), validate(patientIdParamSchema), patientsController.getPatientHistory);
-router.get('/:id', checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'), validate(patientIdParamSchema), patientsController.getPatientById);
+// 4. Rutas parametrizadas por ID
+router.get(
+  '/:id/actividad',
+  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'),
+  validate(patientIdParamSchema),
+  patientsController.getPatientActivity
+);
+router.get(
+  '/:id/historial',
+  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'),
+  validate(patientIdParamSchema),
+  patientsController.getPatientHistory
+);
+router.post(
+  '/:id/vitals',
+  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA'),
+  patientsController.createVitalSigns
+);
+router.get(
+  '/:id',
+  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'),
+  validate(patientIdParamSchema),
+  patientsController.getPatientById
+);
 
 export const patientRoutes = router;

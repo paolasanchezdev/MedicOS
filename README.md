@@ -48,6 +48,10 @@ MedicOS/
 │   │   │   │   │   ├── admin.controller.ts
 │   │   │   │   │   ├── admin.routes.ts
 │   │   │   │   │   └── admin.service.ts
+│   │   │   │   ├── appointments/
+│   │   │   │   │   ├── appointments.controller.ts
+│   │   │   │   │   ├── appointments.routes.ts
+│   │   │   │   │   └── appointments.service.ts
 │   │   │   │   ├── auth/
 │   │   │   │   │   ├── auth.controller.ts
 │   │   │   │   │   ├── auth.routes.ts
@@ -712,6 +716,13 @@ MedicOS/
 │       │   │   │   │   │   ├── observaciones/
 │       │   │   │   │   │   │   └── ObservacionesPage.tsx
 │       │   │   │   │   │   ├── signos-vitales/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── BuscadorPacienteTriage.tsx
+│       │   │   │   │   │   │   │   ├── FormularioSignosVitales.tsx
+│       │   │   │   │   │   │   │   ├── HistorialTriageTable.tsx
+│       │   │   │   │   │   │   │   ├── SemaforoTriageCard.tsx
+│       │   │   │   │   │   │   │   ├── SignosVitalesHeader.tsx
+│       │   │   │   │   │   │   │   └── SignosVitalesMetrics.tsx
 │       │   │   │   │   │   │   └── SignosVitalesPage.tsx
 │       │   │   │   │   │   └── sintomas/
 │       │   │   │   │   │       └── SintomasPage.tsx
@@ -790,6 +801,7 @@ MedicOS/
 │       │   │   │   │   │   ├── historial/
 │       │   │   │   │   │   │   └── HistorialConsultasPage.tsx
 │       │   │   │   │   │   ├── nueva/
+│       │   │   │   │   │   │   ├── components/
 │       │   │   │   │   │   │   └── NuevaConsultaPage.tsx
 │       │   │   │   │   │   └── seguimiento/
 │       │   │   │   │   │       └── SeguimientoConsultasPage.tsx

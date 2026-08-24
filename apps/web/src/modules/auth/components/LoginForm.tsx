@@ -132,7 +132,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         </div>
 
         {/* Widget Turnstile */}
-        <div className="flex justify-center py-1 min-h-[65px]">
+        <div className="flex justify-center py-1 min-h-16.25">
           <Turnstile
             ref={turnstileRef}
             siteKey={siteKey}
