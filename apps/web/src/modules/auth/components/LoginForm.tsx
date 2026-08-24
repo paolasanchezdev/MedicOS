@@ -1,11 +1,11 @@
 // =========================================================================
-// ARCHIVO: apps/web/src/core/auth/components/LoginForm.tsx
-// DESCRIPCIÓN: Formulario de Login con protección anti-bot Cloudflare Turnstile.
+// ARCHIVO: apps/web/src/modules/auth/components/LoginForm.tsx
+// DESCRIPCIÓN: Formulario de Login con reinicio automático de Turnstile por intento.
 // =========================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
-import { Turnstile } from '@marsidev/react-turnstile'; // 👈 1. Importamos el componente Turnstile
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 
 interface LoginFormProps {
   onSwitchToRegister?: () => void;
@@ -15,40 +15,54 @@ interface LoginFormProps {
 export interface LoginFormData {
   email: string;
   password: string;
-  turnstileToken: string; // 👈 2. Añadimos el token al tipo de datos enviados
+  turnstileToken: string;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onSubmit }) => {
   const [showPassword, setShowPassword] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState<string>(''); // Estado para almacenar el token
+  const [turnstileToken, setTurnstileToken] = useState<string>('');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
-  // Obtenemos la llave pública desde las variables de entorno de Vite
+  const turnstileRef = useRef<TurnstileInstance | null>(null);
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAD8UiAMMNgACfaXJ';
+
+  const handleTurnstileSuccess = useCallback((token: string) => {
+    setTurnstileToken(token);
+  }, []);
+
+  const handleTurnstileReset = useCallback(() => {
+    setTurnstileToken('');
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Verificación rápida en cliente
+
     if (!turnstileToken) {
       alert('Por favor, espera a que se complete la verificación de seguridad anti-bot.');
       return;
     }
 
+    const currentToken = turnstileToken;
+
+    // Invalida localmente y reinicia el widget para que el siguiente intento genere un token nuevo
+    setTurnstileToken('');
+    turnstileRef.current?.reset();
+
     if (onSubmit) {
       onSubmit({
-        ...formData,
-        turnstileToken, // 👈 3. Incluimos el token en la petición
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+        turnstileToken: currentToken,
       });
     }
   };
 
   return (
     <div className="w-full max-w-md mx-auto">
-      {/* TÍTULO Y SUBTÍTULO (Centrado en móviles, alineado a la izquierda en pantallas grandes) */}
+      {/* Encabezado */}
       <div className="mb-6 text-center sm:text-left">
         <h2 className="text-3xl font-black text-slate-900 tracking-tight">
           Iniciar Sesión
@@ -66,8 +80,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onSubm
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4 text-left">
-        
-        {/* CORREO ELECTRÓNICO */}
+        {/* Correo Electrónico */}
         <div>
           <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
             Correo Electrónico <span className="text-rose-600 font-bold">*</span>
@@ -85,7 +98,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onSubm
           </div>
         </div>
 
-        {/* CONTRASEÑA */}
+        {/* Contraseña */}
         <div>
           <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
             Contraseña <span className="text-rose-600 font-bold">*</span>
@@ -110,17 +123,18 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onSubm
           </div>
         </div>
 
-        {/* 🆕 WIDGET ANTI-BOT TURNSTILE DE CLOUDFLARE */}
-        <div className="flex justify-center py-1">
+        {/* Widget Anti-Bot Turnstile */}
+        <div className="flex justify-center py-1 min-h-[65px]">
           <Turnstile
+            ref={turnstileRef}
             siteKey={siteKey}
-            onSuccess={(token) => setTurnstileToken(token)}
-            onExpire={() => setTurnstileToken('')}
-            onError={() => setTurnstileToken('')}
+            onSuccess={handleTurnstileSuccess}
+            onExpire={handleTurnstileReset}
+            onError={handleTurnstileReset}
           />
         </div>
 
-        {/* BOTÓN ENTRAR A LA PLATAFORMA */}
+        {/* Botón de Envío */}
         <button
           type="submit"
           disabled={!turnstileToken}
@@ -130,7 +144,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onSubm
           <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
         </button>
 
-        {/* BOTÓN INICIAR CON GOOGLE */}
+        {/* Botón Google */}
         <button
           type="button"
           className="w-full py-3 px-4 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-bold text-sm rounded-xl transition-all duration-200 flex items-center justify-center gap-2.5 cursor-pointer shadow-xs active:scale-[0.99]"
@@ -156,12 +170,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onSubm
           <span>Iniciar con Google</span>
         </button>
 
-        {/* PIE DE PÁGINA */}
         <p className="text-xs text-slate-600 text-center pt-2 font-medium">
           © 2026 MedicOS. Acceso restringido para personal autorizado.
         </p>
-
       </form>
     </div>
   );
 };
+
+export default LoginForm;
