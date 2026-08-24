@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/modules/auth/hooks/useLoginForm.ts
-// DESCRIPCIÓN: Hook de autenticación con redirección a /resumen para brigadista.
+// DESCRIPCIÓN: Hook de autenticación con redirección por rol y persistencia JWT.
 // =========================================================================
 
 import { useState } from 'react';

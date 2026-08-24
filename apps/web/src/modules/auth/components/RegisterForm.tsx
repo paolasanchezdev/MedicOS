@@ -1,11 +1,10 @@
 // =========================================================================
-// ARCHIVO: apps/web/src/core/auth/components/RegisterForm.tsx
-// DESCRIPCIÓN: Formulario de registro con verificación Anti-Bot (Turnstile) integrada.
+// ARCHIVO: apps/web/src/modules/auth/components/RegisterForm.tsx
+// DESCRIPCIÓN: Formulario de registro con nombres flexibles y Turnstile estabilizado.
 // =========================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { User, Mail, Lock, Phone, CreditCard, Eye, EyeOff, ArrowRight } from 'lucide-react';
-// 🚀 NUEVO: Importamos el componente de Turnstile (Asegúrate de que esta importación coincida con la que usas en tu Login)
 import { Turnstile } from '@marsidev/react-turnstile';
 
 interface RegisterFormProps {
@@ -22,7 +21,7 @@ export interface RegisterFormData {
   telefono: string;
   email: string;
   password: string;
-  turnstileToken: string; // 🚀 NUEVO: Agregamos el token a la interfaz
+  turnstileToken: string;
 }
 
 export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onSubmit }) => {
@@ -36,10 +35,19 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onS
     telefono: '',
     email: '',
     password: '',
-    turnstileToken: '', // 🚀 NUEVO: Inicializamos el token vacío
+    turnstileToken: '',
   });
 
-  // AUTO-FORMATO PARA EL DUI (00000000-0)
+  // Callbacks estabilizados para evitar reinicios de Turnstile al escribir
+  const handleTurnstileSuccess = useCallback((token: string) => {
+    setFormData((prev) => ({ ...prev, turnstileToken: token }));
+  }, []);
+
+  const handleTurnstileReset = useCallback(() => {
+    setFormData((prev) => ({ ...prev, turnstileToken: '' }));
+  }, []);
+
+  // Formato automático de DUI salvadoreño (00000000-0)
   const handleDuiChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
     if (value.length > 9) value = value.slice(0, 9);
@@ -51,7 +59,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onS
     setFormData((prev) => ({ ...prev, dui: value }));
   };
 
-  // AUTO-FORMATO PARA EL TELÉFONO (0000-0000)
+  // Formato automático de Teléfono (0000-0000)
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
     if (value.length > 8) value = value.slice(0, 8);
@@ -66,20 +74,26 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onS
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 🚀 NUEVO: Validamos que el usuario haya resuelto el Turnstile antes de enviar
     if (!formData.turnstileToken) {
       alert('Por favor, completa la verificación de seguridad (Anti-Bot).');
       return;
     }
 
     if (onSubmit) {
-      onSubmit(formData);
+      onSubmit({
+        ...formData,
+        primerNombre: formData.primerNombre.trim(),
+        segundoNombre: formData.segundoNombre.trim(),
+        primerApellido: formData.primerApellido.trim(),
+        segundoApellido: formData.segundoApellido.trim(),
+        email: formData.email.trim().toLowerCase(),
+      });
     }
   };
 
   return (
     <div className="w-full max-w-lg mx-auto">
-      {/* TÍTULO Y SUBTÍTULO */}
+      {/* Título y enlace de alternancia */}
       <div className="mb-4 text-center sm:text-left">
         <h2 className="text-3xl font-black text-slate-900 tracking-tight">
           Crear Cuenta
@@ -98,8 +112,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onS
 
       <form onSubmit={handleSubmit} className="space-y-3 text-left">
         
-        {/* NOMBRES SEPARADOS */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* 1. Nombres */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
               Primer Nombre <span className="text-rose-600 font-bold">*</span>
@@ -118,8 +132,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onS
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
-              Segundo Nombre
+            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
+              Segundo Nombre <span className="text-slate-400 font-normal lowercase">(opcional)</span>
             </label>
             <div className="relative">
               <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" />
@@ -134,8 +148,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onS
           </div>
         </div>
 
-        {/* APELLIDOS SEPARADOS */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* 2. Apellidos */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
               Primer Apellido <span className="text-rose-600 font-bold">*</span>
@@ -154,15 +168,14 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onS
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
-              Segundo Apellido <span className="text-rose-600 font-bold">*</span>
+            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
+              Segundo Apellido <span className="text-slate-400 font-normal lowercase">(opcional)</span>
             </label>
             <div className="relative">
               <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600" />
               <input
                 type="text"
-                required
-                placeholder="Perez"
+                placeholder="Pérez"
                 value={formData.segundoApellido}
                 onChange={(e) => setFormData({ ...formData, segundoApellido: e.target.value })}
                 className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 placeholder-slate-400 focus:bg-white focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 focus:outline-hidden transition-all duration-200"
@@ -171,8 +184,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onS
           </div>
         </div>
 
-        {/* DUI Y TELÉFONO */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* 3. DUI y Teléfono */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
               DUI <span className="text-rose-600 font-bold">*</span>
@@ -210,7 +223,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onS
           </div>
         </div>
 
-        {/* CORREO ELECTRÓNICO */}
+        {/* 4. Correo Electrónico */}
         <div>
           <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
             Correo Electrónico <span className="text-rose-600 font-bold">*</span>
@@ -228,7 +241,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onS
           </div>
         </div>
 
-        {/* CONTRASEÑA */}
+        {/* 5. Contraseña */}
         <div>
           <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
             Contraseña <span className="text-rose-600 font-bold">*</span>
@@ -254,18 +267,17 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onS
           </div>
         </div>
 
-        {/* 🚀 NUEVO: WIDGET DE CLOUDFLARE TURNSTILE */}
-        <div className="flex justify-center my-3">
+        {/* 6. Widget de Cloudflare Turnstile */}
+        <div className="flex justify-center my-3 min-h-[65px]">
           <Turnstile
-            // Cambia esto si tienes la llave guardada en otra variable de entorno
             siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAD8UiAMMNgACfaXJ'} 
-            onSuccess={(token) => setFormData((prev) => ({ ...prev, turnstileToken: token }))}
-            onError={() => setFormData((prev) => ({ ...prev, turnstileToken: '' }))}
-            onExpire={() => setFormData((prev) => ({ ...prev, turnstileToken: '' }))}
+            onSuccess={handleTurnstileSuccess}
+            onError={handleTurnstileReset}
+            onExpire={handleTurnstileReset}
           />
         </div>
 
-        {/* BOTÓN DE REGISTRO */}
+        {/* Botón de Registro */}
         <button
           type="submit"
           className="w-full mt-3 py-3 px-4 bg-[#0e7490] hover:bg-[#0891b2] text-white font-bold text-sm rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2 group cursor-pointer active:scale-[0.99]"
@@ -274,7 +286,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onS
           <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
         </button>
 
-        {/* AVISO LEGAL */}
         <p className="text-xs text-slate-600 text-center pt-1 font-medium">
           Al registrarte aceptas los Términos de Servicio y Privacidad de MedicOS.
         </p>
@@ -283,3 +294,5 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onS
     </div>
   );
 };
+
+export default RegisterForm;
