@@ -1,4 +1,8 @@
-//apps/web/src/modules/auth/pages/Login.tsx
+// =========================================================================
+// ARCHIVO: apps/web/src/modules/auth/pages/Login.tsx
+// DESCRIPCIÓN: Vista principal de autenticación (Login/Registro) con prevención de multi-clic.
+// =========================================================================
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
@@ -17,7 +21,7 @@ export const Login: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Redirección SPA mediante useNavigate en lugar de reload completo
+  // Redirección centralizada por rol de usuario
   const redirectByUserRole = (role?: string) => {
     const userRole = role?.toUpperCase();
     console.log("Rol detectado para redirección:", userRole);
@@ -49,6 +53,8 @@ export const Login: React.FC = () => {
     if (e?.preventDefault) {
       e.preventDefault();
     }
+
+    if (loading) return;
 
     console.log("1. Intentando iniciar sesión con:", data.email);
     setLoading(true);
@@ -83,6 +89,8 @@ export const Login: React.FC = () => {
     if (e?.preventDefault) {
       e.preventDefault();
     }
+
+    if (loading) return;
 
     setLoading(true);
     setError(null);
@@ -212,6 +220,7 @@ export const Login: React.FC = () => {
                 </div>
               )}
               <LoginForm 
+                loading={loading}
                 onSwitchToRegister={() => { setError(null); setSuccessMessage(null); setMode('register'); }} 
                 onSubmit={handleLoginSubmit}
               />

@@ -1,13 +1,14 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/modules/auth/components/LoginForm.tsx
-// DESCRIPCIÓN: Formulario de Login con reinicio automático de Turnstile por intento.
+// DESCRIPCIÓN: Formulario de Login con prevención de multi-clic y Turnstile blindado.
 // =========================================================================
 
 import React, { useState, useRef, useCallback } from 'react';
-import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 
 interface LoginFormProps {
+  loading?: boolean;
   onSwitchToRegister?: () => void;
   onSubmit?: (data: LoginFormData) => void;
 }
@@ -18,7 +19,11 @@ export interface LoginFormData {
   turnstileToken: string;
 }
 
-export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onSubmit }) => {
+export const LoginForm: React.FC<LoginFormProps> = ({ 
+  loading = false, 
+  onSwitchToRegister, 
+  onSubmit 
+}) => {
   const [showPassword, setShowPassword] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string>('');
   const [formData, setFormData] = useState({
@@ -40,6 +45,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onSubm
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (loading) return;
+
     if (!turnstileToken) {
       alert('Por favor, espera a que se complete la verificación de seguridad anti-bot.');
       return;
@@ -47,7 +54,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onSubm
 
     const currentToken = turnstileToken;
 
-    // Invalida localmente y reinicia el widget para que el siguiente intento genere un token nuevo
+    // Resetea el token local y el widget para el siguiente ciclo
     setTurnstileToken('');
     turnstileRef.current?.reset();
 
@@ -62,7 +69,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onSubm
 
   return (
     <div className="w-full max-w-md mx-auto">
-      {/* Encabezado */}
       <div className="mb-6 text-center sm:text-left">
         <h2 className="text-3xl font-black text-slate-900 tracking-tight">
           Iniciar Sesión
@@ -90,10 +96,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onSubm
             <input
               type="email"
               required
+              disabled={loading}
               placeholder="ejemplo@medicos.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full pl-10 pr-3 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 placeholder-slate-400 focus:bg-white focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 focus:outline-hidden transition-all duration-200"
+              className="w-full pl-10 pr-3 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 placeholder-slate-400 focus:bg-white focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 focus:outline-hidden transition-all duration-200 disabled:opacity-60"
             />
           </div>
         </div>
@@ -108,10 +115,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onSubm
             <input
               type={showPassword ? 'text' : 'password'}
               required
+              disabled={loading}
               placeholder="••••••••"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 placeholder-slate-400 focus:bg-white focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 focus:outline-hidden transition-all duration-200"
+              className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 placeholder-slate-400 focus:bg-white focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 focus:outline-hidden transition-all duration-200 disabled:opacity-60"
             />
             <button
               type="button"
@@ -123,7 +131,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onSubm
           </div>
         </div>
 
-        {/* Widget Anti-Bot Turnstile */}
+        {/* Widget Turnstile */}
         <div className="flex justify-center py-1 min-h-[65px]">
           <Turnstile
             ref={turnstileRef}
@@ -134,20 +142,30 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onSubm
           />
         </div>
 
-        {/* Botón de Envío */}
+        {/* Botón de Envío con Bloqueo de Carga */}
         <button
           type="submit"
-          disabled={!turnstileToken}
+          disabled={loading || !turnstileToken}
           className="w-full mt-2 py-3 px-4 bg-[#0e7490] hover:bg-[#0891b2] disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2 group cursor-pointer active:scale-[0.99]"
         >
-          <span>Entrar a la Plataforma</span>
-          <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
+          {loading ? (
+            <>
+              <Loader2 size={18} className="animate-spin" />
+              <span>Verificando credenciales...</span>
+            </>
+          ) : (
+            <>
+              <span>Entrar a la Plataforma</span>
+              <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
+            </>
+          )}
         </button>
 
-        {/* Botón Google */}
+        {/* Iniciar con Google */}
         <button
           type="button"
-          className="w-full py-3 px-4 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-bold text-sm rounded-xl transition-all duration-200 flex items-center justify-center gap-2.5 cursor-pointer shadow-xs active:scale-[0.99]"
+          disabled={loading}
+          className="w-full py-3 px-4 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-bold text-sm rounded-xl transition-all duration-200 flex items-center justify-center gap-2.5 cursor-pointer shadow-xs active:scale-[0.99] disabled:opacity-60"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
