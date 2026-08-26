@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/shared/lib/apiClient.ts
-// DESCRIPCIÓN: Cliente centralizado de MedicOS con autenticación dual (Bearer Token + Cookies).
+// DESCRIPCIÓN: Cliente centralizado de MedicOS con logs de conexión y trazabilidad de datos.
 // =========================================================================
 
 import { sessionManager } from '../../core/auth/session';
@@ -59,8 +59,10 @@ export const apiClient = async <T = unknown>(
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const targetUrl = `${BASE_URL}${cleanEndpoint}`;
 
-  // 🔍 Depuración: Registro de peticiones
-  console.log(`🌐 [apiClient] ${options.method || 'GET'} -> ${targetUrl}`, {
+  const method = options.method || 'GET';
+
+  // 🔍 Depuración: Registro de salida de petición
+  console.log(`🌐 [apiClient] ${method} -> ${targetUrl}`, {
     headers,
     body: options.body ? JSON.parse(options.body as string) : undefined,
   });
@@ -81,13 +83,30 @@ export const apiClient = async <T = unknown>(
 
   if (!response.ok) {
     const errorData = (await response.json().catch(() => ({}))) as { message?: string };
-    console.error(`❌ [apiClient] Error ${response.status} en ${endpoint}:`, errorData);
+    console.error(
+      `%c❌ [apiClient] Error ${response.status} en ${endpoint}: Base de Datos o API no disponible`,
+      'color: #e11d48; font-weight: bold; background: #ffe4e6; padding: 2px 6px; border-radius: 4px;',
+      errorData
+    );
     throw new Error(errorData.message || `Error en la petición (${response.status})`);
   }
 
   if (response.status === 204) {
+    console.log(
+      `%c✅ [apiClient] 204 No Content -> ${cleanEndpoint} (Operación completada en BD)`,
+      'color: #059669; font-weight: bold; background: #ecfdf5; padding: 2px 6px; border-radius: 4px;'
+    );
     return {} as T;
   }
 
-  return response.json() as Promise<T>;
+  const data = (await response.json()) as T;
+
+  // ✅ Log explícito de conexión exitosa y recepción de datos reales de BD
+  console.log(
+    `%c✅ [apiClient] ${response.status} OK -> ${cleanEndpoint} | Conexión activa con Base de Datos`,
+    'color: #059669; font-weight: bold; background: #ecfdf5; padding: 2px 6px; border-radius: 4px;',
+    { datosObtenidos: data }
+  );
+
+  return data;
 };
