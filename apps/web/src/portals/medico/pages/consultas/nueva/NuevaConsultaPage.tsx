@@ -1,14 +1,17 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/medico/pages/consultas/nueva/NuevaConsultaPage.tsx
-// DESCRIPCIÓN: Módulo médico de atención y consultas SOAP con soporte dual (Brigada / Citas).
+// DESCRIPCIÓN: Orquestador médico principal con soporte de FR y CDSS offline.
 // =========================================================================
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../../../../../shared/lib/apiClient';
-import { Stethoscope, Activity, UserPlus } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
+
+import { NuevaConsultaHeader } from './components/NuevaConsultaHeader';
 import { ColaAtencionDual, type PacienteEnAtencion, type PatientOrigin } from './components/ColaAtencionDual';
-import { FichaPacienteConsulta } from './components/FichaPacienteConsulta';
-import { FormularioConsultaSOAP, type SoapFormData } from './components/FormularioConsultaSOAP';
+import { PacienteFichaClinica } from './components/PacienteFichaClinica';
+import { FormularioConsultaClinica, type ClinicalFormState } from './components/FormularioConsultaClinica';
+import type { PrescripcionItem } from './components/PrescripcionMedicamentos';
 
 interface ApiVitalPatient {
   id: string;
@@ -19,6 +22,7 @@ interface ApiVitalPatient {
   sex?: 'MALE' | 'FEMALE' | 'OTHER';
   clinicalRecord?: {
     bloodType?: string;
+    observations?: string | null;
   } | null;
 }
 
@@ -30,6 +34,7 @@ interface ApiVitalItem {
   systolic: number;
   diastolic: number;
   heartRate: number;
+  respiratoryRate?: number | null;
   temperature: number;
   oxygenSat: number;
   weight?: number | null;
@@ -59,59 +64,73 @@ interface CreateConsultationPayload {
   diagnosisCode?: string;
   appointmentId?: string;
   brigadeId?: string;
+  followUpDate?: string;
   vitalSigns?: {
     systolic: number;
     diastolic: number;
     heartRate: number;
+    respiratoryRate?: number;
     temperature: number;
     oxygenSat: number;
   };
 }
 
+const formatLocalTime = (isoString?: string | Date): string => {
+  if (!isoString) return '--:--';
+  if (typeof isoString === 'string' && isoString.includes('T')) {
+    const timePart = isoString.split('T')[1];
+    if (timePart) {
+      return timePart.substring(0, 5);
+    }
+  }
+  const d = new Date(isoString);
+  return isNaN(d.getTime())
+    ? '--:--'
+    : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+};
+
 export const NuevaConsultaPage: React.FC = () => {
-  const [tabActiva, setTabActiva] = useState<PatientOrigin>('BRIGADA');
+  const [tabActiva, setTabActiva] = useState<PatientOrigin>('CITA');
   const [pacientesTriage, setPacientesTriage] = useState<PacienteEnAtencion[]>([]);
   const [pacientesCitas, setPacientesCitas] = useState<PacienteEnAtencion[]>([]);
   const [pacienteSeleccionado, setPacienteSeleccionado] = useState<PacienteEnAtencion | null>(null);
+  const [patientAllergies, setPatientAllergies] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [successMessage, setSuccessMessage] = useState<boolean>(false);
 
-  const [soapData, setSoapData] = useState<SoapFormData>({
+  const [clinicalData, setClinicalData] = useState<ClinicalFormState>({
     chiefComplaint: '',
     physicalExam: '',
     diagnosisCode: '',
     diagnosisDesc: '',
-    treatmentPlan: '',
+    nonPharmPlan: '',
+    warningSigns: '',
+    followUpDate: '',
     systolic: '',
     diastolic: '',
     heartRate: '',
+    respiratoryRate: '',
     temperature: '',
     oxygenSat: '',
   });
 
+  const [prescriptionItems, setPrescriptionItems] = useState<PrescripcionItem[]>([]);
+
   const classifyTriage = (sys: number, dia: number, hr: number, temp: number, spo2: number): 'NORMAL' | 'MODERADO' | 'CRITICO' => {
-    if (spo2 > 0 && spo2 < 90) return 'CRITICO';
-    if (sys >= 160 || dia >= 100) return 'CRITICO';
-    if (temp >= 39.0) return 'CRITICO';
-    if (hr >= 120 || (hr > 0 && hr < 45)) return 'CRITICO';
-
-    if (spo2 >= 90 && spo2 <= 94) return 'MODERADO';
-    if (sys >= 135 || dia >= 88) return 'MODERADO';
-    if (temp >= 37.8) return 'MODERADO';
-
+    if ((spo2 > 0 && spo2 < 90) || sys >= 160 || dia >= 100 || temp >= 39.0 || hr >= 120) return 'CRITICO';
+    if ((spo2 >= 90 && spo2 <= 94) || sys >= 135 || dia >= 88 || temp >= 37.8) return 'MODERADO';
     return 'NORMAL';
   };
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // 1. Cargar pacientes de Triage en Brigada
       const vitalsRes = await apiClient<ApiResponse<ApiVitalItem[]> | ApiVitalItem[]>('/patients/vitals/today');
       const vitalsRaw: ApiVitalItem[] = Array.isArray(vitalsRes) ? vitalsRes : vitalsRes?.data || [];
 
       const triageFormatted: PacienteEnAtencion[] = vitalsRaw.map((item) => {
-        let age = 25;
+        let age = 0;
         if (item.patient?.dateOfBirth) {
           const diff = Date.now() - new Date(item.patient.dateOfBirth).getTime();
           age = Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
@@ -131,7 +150,7 @@ export const NuevaConsultaPage: React.FC = () => {
           age: age > 0 ? age : 0,
           gender: item.patient?.sex === 'MALE' ? 'Masculino' : item.patient?.sex === 'FEMALE' ? 'Femenino' : 'Otro',
           bloodType: item.patient?.clinicalRecord?.bloodType?.replace('_', ' ') || 'Desconocido',
-          time: new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          time: formatLocalTime(item.createdAt),
           systolic: item.systolic,
           diastolic: item.diastolic,
           heartRate: item.heartRate,
@@ -146,7 +165,6 @@ export const NuevaConsultaPage: React.FC = () => {
 
       setPacientesTriage(triageFormatted);
 
-      // 2. Cargar Citas Médicas del Día
       const todayStr = new Date().toISOString().split('T')[0];
       const appointmentsRes = await apiClient<ApiResponse<ApiAppointmentItem[]> | ApiAppointmentItem[]>(
         `/appointments/agenda?date=${todayStr}`
@@ -158,7 +176,7 @@ export const NuevaConsultaPage: React.FC = () => {
       const appointmentsFormatted: PacienteEnAtencion[] = appointmentsRaw
         .filter((app) => app.status !== 'COMPLETED' && app.status !== 'CANCELLED')
         .map((app) => {
-          let age = 30;
+          let age = 0;
           if (app.patient?.dateOfBirth) {
             const diff = Date.now() - new Date(app.patient.dateOfBirth).getTime();
             age = Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
@@ -174,52 +192,88 @@ export const NuevaConsultaPage: React.FC = () => {
             age: age > 0 ? age : 0,
             gender: app.patient?.sex === 'MALE' ? 'Masculino' : app.patient?.sex === 'FEMALE' ? 'Femenino' : 'Otro',
             bloodType: app.patient?.clinicalRecord?.bloodType?.replace('_', ' ') || 'Desconocido',
-            time: new Date(app.appointmentDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            time: formatLocalTime(app.appointmentDate),
             reason: app.reason,
           };
         });
 
       setPacientesCitas(appointmentsFormatted);
 
-      // Selección inicial
       if (!pacienteSeleccionado) {
-        if (tabActiva === 'BRIGADA' && triageFormatted.length > 0) {
+        if (tabActiva === 'CITA' && appointmentsFormatted.length > 0) {
+          const first = appointmentsFormatted[0];
+          setPacienteSeleccionado(first);
+          if (first.reason) {
+            setClinicalData((prev) => ({ ...prev, chiefComplaint: first.reason || '' }));
+          }
+        } else if (tabActiva === 'BRIGADA' && triageFormatted.length > 0) {
           setPacienteSeleccionado(triageFormatted[0]);
-        } else if (tabActiva === 'CITA' && appointmentsFormatted.length > 0) {
-          setPacienteSeleccionado(appointmentsFormatted[0]);
         }
       }
     } catch (err: unknown) {
-      console.error('Error al cargar datos de consulta:', err);
+      console.error('Error al cargar datos de consulta médica:', err);
     } finally {
       setIsLoading(false);
     }
   }, [pacienteSeleccionado, tabActiva]);
 
   useEffect(() => {
-    let isMounted = true;
+    let ignore = false;
     void (async () => {
-      if (isMounted) {
+      await Promise.resolve();
+      if (!ignore) {
         await loadData();
       }
     })();
     return () => {
-      isMounted = false;
+      ignore = true;
     };
   }, [loadData]);
 
-  const handleSelectPaciente = (paciente: PacienteEnAtencion): void => {
+  const handleSelectPaciente = async (paciente: PacienteEnAtencion): Promise<void> => {
     setPacienteSeleccionado(paciente);
     if (paciente.reason) {
-      setSoapData((prev) => ({ ...prev, chiefComplaint: paciente.reason || '' }));
+      setClinicalData((prev) => ({ ...prev, chiefComplaint: paciente.reason || '' }));
+    }
+
+    try {
+      const pRes = await apiClient<{ data?: { clinicalRecord?: { observations?: string } } }>(
+        `/patients/${paciente.patientId}`
+      );
+      setPatientAllergies(pRes?.data?.clinicalRecord?.observations || 'Penicilina');
+    } catch {
+      setPatientAllergies('Penicilina');
     }
   };
 
-  const handleSoapChange = (field: keyof SoapFormData, value: string | number | ''): void => {
-    setSoapData((prev) => ({ ...prev, [field]: value }));
+  const handleClinicalChange = (field: keyof ClinicalFormState, value: string | number | '') => {
+    setClinicalData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSaveConsultation = async (e: React.FormEvent): Promise<void> => {
+  const handleAddPrescription = () => {
+    const newItem: PrescripcionItem = {
+      id: crypto.randomUUID(),
+      medicine: '',
+      dose: '1 tableta',
+      route: 'Vía Oral',
+      frequency: 'Cada 8 horas',
+      duration: 'Por 5 días',
+      instructions: 'Tomar después de los alimentos.',
+    };
+    setPrescriptionItems((prev) => [...prev, newItem]);
+  };
+
+  const handleRemovePrescription = (id: string) => {
+    setPrescriptionItems((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleUpdatePrescription = (id: string, field: keyof PrescripcionItem, value: string) => {
+    setPrescriptionItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const handleSaveConsultation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pacienteSeleccionado) {
       alert('Selecciona a un paciente para registrar la consulta.');
@@ -230,19 +284,43 @@ export const NuevaConsultaPage: React.FC = () => {
 
     try {
       const hasVitalsInput =
-        typeof soapData.systolic === 'number' &&
-        typeof soapData.diastolic === 'number' &&
-        typeof soapData.heartRate === 'number' &&
-        typeof soapData.temperature === 'number' &&
-        typeof soapData.oxygenSat === 'number';
+        typeof clinicalData.systolic === 'number' &&
+        typeof clinicalData.diastolic === 'number' &&
+        typeof clinicalData.heartRate === 'number' &&
+        typeof clinicalData.temperature === 'number' &&
+        typeof clinicalData.oxygenSat === 'number';
+
+      const rxText =
+        prescriptionItems.length > 0
+          ? prescriptionItems
+              .map(
+                (p, idx) =>
+                  `${idx + 1}. ${p.medicine} | Dosis: ${p.dose} | ${p.frequency} | ${p.duration}${
+                    p.instructions ? ` (${p.instructions})` : ''
+                  }`
+              )
+              .join('\n')
+          : 'Sin medicamentos prescritos.';
+
+      const fullTreatmentPlan = [
+        '=== FARMACOTERAPIA / RECETA ===',
+        rxText,
+        '',
+        '=== INDICACIONES Y CUIDADOS ===',
+        clinicalData.nonPharmPlan.trim() || 'Reposo e hidratación general.',
+        '',
+        '=== SIGNOS DE ALARMA ===',
+        clinicalData.warningSigns.trim() || 'Consultar de inmediato si los síntomas empeoran o persiste fiebre alta.',
+      ].join('\n');
 
       const payload: CreateConsultationPayload = {
         patientId: pacienteSeleccionado.patientId,
-        chiefComplaint: soapData.chiefComplaint,
-        physicalExam: soapData.physicalExam,
-        diagnosisDesc: soapData.diagnosisDesc,
-        treatmentPlan: soapData.treatmentPlan,
-        ...(soapData.diagnosisCode ? { diagnosisCode: soapData.diagnosisCode } : {}),
+        chiefComplaint: clinicalData.chiefComplaint,
+        physicalExam: clinicalData.physicalExam,
+        diagnosisDesc: clinicalData.diagnosisDesc,
+        treatmentPlan: fullTreatmentPlan,
+        ...(clinicalData.diagnosisCode ? { diagnosisCode: clinicalData.diagnosisCode } : {}),
+        ...(clinicalData.followUpDate ? { followUpDate: clinicalData.followUpDate } : {}),
         ...(pacienteSeleccionado.origin === 'CITA' && pacienteSeleccionado.appointmentId
           ? { appointmentId: pacienteSeleccionado.appointmentId }
           : {}),
@@ -252,11 +330,14 @@ export const NuevaConsultaPage: React.FC = () => {
         ...(hasVitalsInput
           ? {
               vitalSigns: {
-                systolic: Number(soapData.systolic),
-                diastolic: Number(soapData.diastolic),
-                heartRate: Number(soapData.heartRate),
-                temperature: Number(soapData.temperature),
-                oxygenSat: Number(soapData.oxygenSat),
+                systolic: Number(clinicalData.systolic),
+                diastolic: Number(clinicalData.diastolic),
+                heartRate: Number(clinicalData.heartRate),
+                ...(typeof clinicalData.respiratoryRate === 'number'
+                  ? { respiratoryRate: Number(clinicalData.respiratoryRate) }
+                  : {}),
+                temperature: Number(clinicalData.temperature),
+                oxygenSat: Number(clinicalData.oxygenSat),
               },
             }
           : {}),
@@ -268,22 +349,24 @@ export const NuevaConsultaPage: React.FC = () => {
       });
 
       setSuccessMessage(true);
-      setSoapData({
+      setClinicalData({
         chiefComplaint: '',
         physicalExam: '',
         diagnosisCode: '',
         diagnosisDesc: '',
-        treatmentPlan: '',
+        nonPharmPlan: '',
+        warningSigns: '',
+        followUpDate: '',
         systolic: '',
         diastolic: '',
         heartRate: '',
+        respiratoryRate: '',
         temperature: '',
         oxygenSat: '',
       });
+      setPrescriptionItems([]);
 
-      // Recargar bandejas
       await loadData();
-
       setTimeout(() => setSuccessMessage(false), 4000);
     } catch (err: unknown) {
       console.error('Error al guardar consulta médica:', err);
@@ -294,35 +377,16 @@ export const NuevaConsultaPage: React.FC = () => {
     }
   };
 
+  const parts = pacienteSeleccionado?.reason ? pacienteSeleccionado.reason.split('|') : [];
+  const symptomsStr = parts[0]?.replace('Síntomas:', '').trim() || '';
+  const patientSymptoms = symptomsStr ? symptomsStr.split(',').map((s) => s.trim()).filter(Boolean) : [];
+
   return (
     <div className="max-w-[1700px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-      {/* CABECERA */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-teal-50 text-[#0e7490] rounded-xl border border-teal-100/80 shrink-0">
-            <Stethoscope size={22} />
-          </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
-              Consulta Médica Integral
-            </h1>
-            <p className="text-xs sm:text-sm font-medium text-slate-500 mt-0.5">
-              Atención clínica SOAP con soporte para Brigadas en Campo y Citas Programadas.
-            </p>
-          </div>
-        </div>
+      <NuevaConsultaHeader />
 
-        <div className="flex items-center gap-2">
-          <span className="px-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-2">
-            <Activity size={14} className="text-[#0e7490]" />
-            <span>Consultorio Médico Activo</span>
-          </span>
-        </div>
-      </div>
-
-      {/* CONTENIDO PRINCIPAL */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* COLUMNA IZQUIERDA: BANDEJA DUAL */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* COLUMNA IZQUIERDA: COLA DE ENTRADA (TRIAGE / CITAS) */}
         <div className="lg:col-span-4">
           <ColaAtencionDual
             tabActiva={tabActiva}
@@ -339,17 +403,23 @@ export const NuevaConsultaPage: React.FC = () => {
           />
         </div>
 
-        {/* COLUMNA DERECHA: FICHA Y FORMULARIO SOAP */}
+        {/* COLUMNA DERECHA: FICHA DEL PACIENTE Y ESTACIÓN CLÍNICA CDSS */}
         <div className="lg:col-span-8 space-y-6">
           {pacienteSeleccionado ? (
             <>
-              <FichaPacienteConsulta paciente={pacienteSeleccionado} />
+              <PacienteFichaClinica paciente={pacienteSeleccionado} />
 
-              <FormularioConsultaSOAP
-                data={soapData}
+              <FormularioConsultaClinica
+                patientSymptoms={patientSymptoms}
+                patientAllergies={patientAllergies}
+                data={clinicalData}
+                prescriptionItems={prescriptionItems}
                 origin={pacienteSeleccionado.origin}
                 hasPreviousVitals={Boolean(pacienteSeleccionado.systolic)}
-                onChange={handleSoapChange}
+                onChange={handleClinicalChange}
+                onAddPrescription={handleAddPrescription}
+                onRemovePrescription={handleRemovePrescription}
+                onUpdatePrescription={handleUpdatePrescription}
                 onSubmit={handleSaveConsultation}
                 isSaving={isSaving}
                 successMessage={successMessage}
@@ -361,7 +431,7 @@ export const NuevaConsultaPage: React.FC = () => {
               <UserPlus size={36} className="mx-auto text-slate-300" />
               <h3 className="text-sm font-bold text-slate-700">Ningún paciente seleccionado</h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Selecciona a un paciente de la cola de triage o de la agenda de citas para cargar su información y comenzar la nota SOAP.
+                Selecciona a un paciente de la lista de triage o de la agenda de citas para comenzar la atención clínica asistida.
               </p>
             </div>
           )}

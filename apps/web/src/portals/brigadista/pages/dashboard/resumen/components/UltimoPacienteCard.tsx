@@ -72,7 +72,7 @@ export const UltimoPacienteCard: React.FC<UltimoPacienteCardProps> = ({
               <User className="w-6 h-6" />
             </div>
             <h4 className="text-sm font-bold text-slate-700">No hay atenciones recientes</h4>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed max-w-[220px]">
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed max-w-55">
               Los datos del último paciente procesado aparecerán en esta sección.
             </p>
           </div>

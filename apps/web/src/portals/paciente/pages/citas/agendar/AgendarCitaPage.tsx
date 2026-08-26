@@ -1,15 +1,16 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/paciente/pages/citas/agendar/AgendarCitaPage.tsx
-// DESCRIPCIÓN: Orquestador modular del flujo de agendamiento de citas del paciente.
+// DESCRIPCIÓN: Vista de agendamiento en 2 columnas con diseño limpio y unificado.
 // =========================================================================
 
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../../../../shared/lib/apiClient';
-import { AlertCircle, Loader2, ArrowRight, FileText } from 'lucide-react';
+import { AlertCircle, Loader2, ArrowRight, CheckCircle2, Clock } from 'lucide-react';
 
 import { AgendarCitaHeader } from './components/AgendarCitaHeader';
 import { DoctorSelector, type DoctorItem } from './components/DoctorSelector';
 import { SlotPicker, type AvailableSlot } from './components/SlotPicker';
+import { SymptomSelector } from './components/SymptomSelector';
 import { CitaConfirmadaCard, type ConfirmedAppointmentData } from './components/CitaConfirmadaCard';
 
 interface ApiResponse<T> {
@@ -27,7 +28,10 @@ export const AgendarCitaPage: React.FC = () => {
   });
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
-  const [reason, setReason] = useState<string>('');
+
+  // Síntomas
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
+  const [additionalNotes, setAdditionalNotes] = useState<string>('');
 
   const [isLoadingDoctors, setIsLoadingDoctors] = useState<boolean>(false);
   const [isLoadingSlots, setIsLoadingSlots] = useState<boolean>(false);
@@ -69,7 +73,7 @@ export const AgendarCitaPage: React.FC = () => {
     };
   }, []);
 
-  // 2. Cargar slots libres para el médico y fecha seleccionados
+  // 2. Cargar slots libres cuando cambie médico o fecha
   useEffect(() => {
     if (!doctorId || !selectedDate) return;
 
@@ -107,7 +111,6 @@ export const AgendarCitaPage: React.FC = () => {
     };
   }, [doctorId, selectedDate]);
 
-  // Manejadores de cambios de estado reactivos
   const handleSelectDoctor = (id: string): void => {
     setDoctorId(id);
     setSelectedSlot(null);
@@ -118,11 +121,23 @@ export const AgendarCitaPage: React.FC = () => {
     setSelectedSlot(null);
   };
 
-  // 3. Procesar reserva de cita
+  const handleToggleSymptom = (symptom: string): void => {
+    setSelectedSymptoms((prev) =>
+      prev.includes(symptom) ? prev.filter((s) => s !== symptom) : [...prev, symptom]
+    );
+  };
+
+  // 3. Confirmar reserva
   const handleBooking = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    if (!doctorId || !selectedSlot || !reason.trim()) {
-      setErrorMessage('Por favor complete todos los campos y seleccione un horario.');
+
+    if (!doctorId || !selectedSlot) {
+      setErrorMessage('Por favor selecciona al médico y un horario disponible.');
+      return;
+    }
+
+    if (selectedSymptoms.length === 0) {
+      setErrorMessage('Por favor selecciona al menos un síntoma principal.');
       return;
     }
 
@@ -135,13 +150,20 @@ export const AgendarCitaPage: React.FC = () => {
         ? `Dr. ${doctorSelected.firstName} ${doctorSelected.lastName}`
         : 'Médico General';
 
+      const combinedReason = [
+        `Síntomas: ${selectedSymptoms.join(', ')}`,
+        additionalNotes.trim() ? `Detalles: ${additionalNotes.trim()}` : null,
+      ]
+        .filter(Boolean)
+        .join(' | ');
+
       await apiClient('/appointments', {
         method: 'POST',
         body: JSON.stringify({
           doctorId,
           appointmentDate: selectedSlot.dateTime,
           durationMinutes: 30,
-          reason: reason.trim(),
+          reason: combinedReason,
         }),
       });
 
@@ -149,7 +171,7 @@ export const AgendarCitaPage: React.FC = () => {
         doctorName,
         date: selectedDate,
         time: selectedSlot.time,
-        reason: reason.trim(),
+        reason: combinedReason,
       });
     } catch (err: unknown) {
       const msg =
@@ -162,81 +184,103 @@ export const AgendarCitaPage: React.FC = () => {
 
   const handleReset = (): void => {
     setConfirmedAppointment(null);
-    setReason('');
+    setSelectedSymptoms([]);
+    setAdditionalNotes('');
     setSelectedSlot(null);
   };
 
+  const isFormValid =
+    Boolean(doctorId) && Boolean(selectedSlot) && selectedSymptoms.length > 0 && !isSubmitting;
+
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-      {/* 1. Encabezado */}
+    <div className="max-w-[1700px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
       <AgendarCitaHeader />
 
-      {/* 2. Tarjeta de Éxito o Formulario de Reserva */}
       {confirmedAppointment ? (
-        <CitaConfirmadaCard data={confirmedAppointment} onReset={handleReset} />
+        <div className="max-w-2xl mx-auto">
+          <CitaConfirmadaCard data={confirmedAppointment} onReset={handleReset} />
+        </div>
       ) : (
-        <form onSubmit={handleBooking} className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-7 shadow-2xs space-y-6">
+        <form onSubmit={handleBooking} className="space-y-6">
           {errorMessage && (
-            <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2.5 text-rose-800 text-xs sm:text-sm font-bold">
+            <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2.5 text-rose-800 text-xs sm:text-sm font-bold">
               <AlertCircle size={16} className="text-rose-600 shrink-0" />
               <span>{errorMessage}</span>
             </div>
           )}
 
-          {/* Selector de Médico */}
-          <DoctorSelector
-            doctores={doctores}
-            selectedDoctorId={doctorId}
-            onSelectDoctor={handleSelectDoctor}
-            isLoading={isLoadingDoctors}
-          />
+          {/* ESTRUCTURA EN DOS COLUMNAS */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* COLUMNA IZQUIERDA: MÉDICO Y FECHA / HORA */}
+            <div className="lg:col-span-7 space-y-6">
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs">
+                <DoctorSelector
+                  doctores={doctores}
+                  selectedDoctorId={doctorId}
+                  onSelectDoctor={handleSelectDoctor}
+                  isLoading={isLoadingDoctors}
+                />
+              </div>
 
-          {/* Selector de Fecha y Bloques de 30 min */}
-          <SlotPicker
-            selectedDate={selectedDate}
-            onDateChange={handleDateChange}
-            minDate={todayStr}
-            slots={slots}
-            selectedSlot={selectedSlot}
-            onSelectSlot={(slot) => setSelectedSlot(slot)}
-            isLoading={isLoadingSlots}
-          />
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs">
+                <SlotPicker
+                  selectedDate={selectedDate}
+                  onDateChange={handleDateChange}
+                  minDate={todayStr}
+                  slots={slots}
+                  selectedSlot={selectedSlot}
+                  onSelectSlot={(slot) => setSelectedSlot(slot)}
+                  isLoading={isLoadingSlots}
+                />
+              </div>
+            </div>
 
-          {/* Motivo de Consulta */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-              <FileText size={14} className="text-[#0e7490]" />
-              4. Motivo Principal o Síntomas <span className="text-rose-600">*</span>
-            </label>
-            <textarea
-              rows={2}
-              required
-              placeholder="Describe brevemente tus síntomas o el motivo por el cual requieres la cita..."
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:bg-white focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 focus:outline-hidden"
-            />
-          </div>
+            {/* COLUMNA DERECHA: SÍNTOMAS Y OBSERVACIONES */}
+            <div className="lg:col-span-5 space-y-6">
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs">
+                <SymptomSelector
+                  selectedSymptoms={selectedSymptoms}
+                  onToggleSymptom={handleToggleSymptom}
+                  additionalNotes={additionalNotes}
+                  onNotesChange={setAdditionalNotes}
+                />
+              </div>
 
-          {/* Botón de Confirmación */}
-          <div className="flex justify-end pt-2">
-            <button
-              type="submit"
-              disabled={isSubmitting || !selectedSlot || !doctorId || !reason.trim()}
-              className="px-6 py-3 bg-[#0e7490] hover:bg-[#0891b2] disabled:bg-slate-300 text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer active:scale-[0.99]"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>Procesando Reserva...</span>
-                </>
-              ) : (
-                <>
-                  <span>Confirmar Cita</span>
-                  <ArrowRight size={16} />
-                </>
-              )}
-            </button>
+              {/* BARRA DE ACCIÓN Y CONFIRMACIÓN */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-2 text-xs">
+                  {selectedSlot ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 border border-teal-200 text-teal-800 font-bold">
+                      <Clock size={14} className="text-[#0e7490]" />
+                      Turno: {selectedSlot.time} hrs
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 text-xs">
+                      Selecciona fecha y hora para habilitar
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={!isFormValid}
+                  className="w-full sm:w-auto px-7 py-3 bg-[#0e7490] hover:bg-[#0891b2] disabled:bg-slate-100 disabled:text-slate-400 disabled:border disabled:border-slate-200 text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] disabled:cursor-not-allowed disabled:shadow-none"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Procesando Reserva...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={16} />
+                      <span>Confirmar Cita Médica</span>
+                      <ArrowRight size={15} />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </form>
       )}

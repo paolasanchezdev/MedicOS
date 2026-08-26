@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/routes/BrigadistaRoutes.tsx
-// DESCRIPCIÓN: Definición de rutas del Portal Brigadista con módulo de Signos Vitales conectado.
+// DESCRIPCIÓN: Definición de rutas del Portal Brigadista con Jornada Brigada conectado.
 // =========================================================================
 
 import React from 'react';
@@ -8,6 +8,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { BrigadistaLayout } from '../layout/BrigadistaLayout';
 import { ResumenBrigadistaPage } from '../pages/dashboard/resumen/ResumenBrigadistaPage';
 import { ActividadBrigadistaPage } from '../pages/dashboard/actividad/ActividadBrigadistaPage';
+import { ResumenBrigadaPage } from '../pages/brigada/resumen/ResumenBrigadaPage';
+import { JornadaBrigadaPage } from '../pages/brigada/jornada/JornadaBrigadaPage';
 import { SignosVitalesPage } from '../pages/evaluacion/signos-vitales/SignosVitalesPage';
 
 const PagePlaceholder: React.FC<{ title: string; category?: string }> = ({ title, category }) => (
@@ -38,14 +40,8 @@ export const BrigadistaRoutes: React.FC = () => {
 
         {/* Brigada */}
         <Route path="brigada" element={<Navigate to="brigada/resumen" replace />} />
-        <Route
-          path="brigada/resumen"
-          element={<PagePlaceholder title="Resumen Brigada" category="Brigada" />}
-        />
-        <Route
-          path="brigada/jornada"
-          element={<PagePlaceholder title="Jornada" category="Brigada" />}
-        />
+        <Route path="brigada/resumen" element={<ResumenBrigadaPage />} />
+        <Route path="brigada/jornada" element={<JornadaBrigadaPage />} />
         <Route
           path="brigada/pacientes"
           element={<PagePlaceholder title="Pacientes Brigada" category="Brigada" />}

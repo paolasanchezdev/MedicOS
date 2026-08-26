@@ -1,3 +1,8 @@
+// =========================================================================
+// ARCHIVO: apps/web/src/portals/paciente/routes/PacienteRoutes.tsx
+// DESCRIPCIÓN: Enrutador del Portal Paciente con Agendar Cita conectado.
+// =========================================================================
+
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Construction } from 'lucide-react';
@@ -5,6 +10,9 @@ import { Construction } from 'lucide-react';
 import { DashboardLayout } from '../pages/dashboard/DashboardLayout';
 import { ResumenPacientePage } from '../pages/dashboard/resumen/ResumenPacientePage';
 import { ActividadPacientePage as ActividadPacienteView } from '../pages/dashboard/actividad/ActividadPacientePage';
+
+// PÁGINAS REALES IMPLEMENTADAS
+import { AgendarCitaPage } from '../pages/citas/agendar/AgendarCitaPage';
 
 // COMPONENTE TEMPORAL PARA VISTAS EN DESARROLLO
 const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
@@ -23,7 +31,6 @@ const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
 
 // STUBS DE PÁGINAS PENDIENTES
 export const MisCitasPage = () => <PlaceholderPage title="Mis Citas Programadas" />;
-export const AgendarCitaPage = () => <PlaceholderPage title="Agendar Nueva Cita" />;
 export const TelemedicinaPage = () => <PlaceholderPage title="Consultas de Telemedicina" />;
 export const HistorialConsultasPage = () => <PlaceholderPage title="Historial de Consultas" />;
 export const DiagnosticosPage = () => <PlaceholderPage title="Diagnósticos Médicos" />;

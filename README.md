@@ -65,6 +65,11 @@ MedicOS/
 │   │   │   │   │   ├── brigades.schema.ts
 │   │   │   │   │   ├── brigades.service.ts
 │   │   │   │   │   └── brigadista-dashboard.service.ts
+│   │   │   │   ├── consultations/
+│   │   │   │   │   ├── consultations.controller.ts
+│   │   │   │   │   ├── consultations.routes.ts
+│   │   │   │   │   ├── consultations.schema.ts
+│   │   │   │   │   └── consultations.service.ts
 │   │   │   │   ├── medico/
 │   │   │   │   │   ├── medico-dashboard.service.ts
 │   │   │   │   │   ├── medico.controller.ts
@@ -797,11 +802,28 @@ MedicOS/
 │       │   │   │   ├── pages/
 │       │   │   │   │   ├── consultas/
 │       │   │   │   │   │   ├── agenda/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── AgendaFilters.tsx
+│       │   │   │   │   │   │   │   ├── AgendaHeader.tsx
+│       │   │   │   │   │   │   │   └── AgendaTableList.tsx
 │       │   │   │   │   │   │   └── AgendaConsultasPage.tsx
 │       │   │   │   │   │   ├── historial/
 │       │   │   │   │   │   │   └── HistorialConsultasPage.tsx
 │       │   │   │   │   │   ├── nueva/
 │       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── CarruselPasosHeader.tsx
+│       │   │   │   │   │   │   │   ├── ColaAtencionDual.tsx
+│       │   │   │   │   │   │   │   ├── FormularioConsultaClinica.tsx
+│       │   │   │   │   │   │   │   ├── NuevaConsultaHeader.tsx
+│       │   │   │   │   │   │   │   ├── PacienteFichaClinica.tsx
+│       │   │   │   │   │   │   │   ├── PasoAnamnesisExamen.tsx
+│       │   │   │   │   │   │   │   ├── PasoDiagnosticoCIE.tsx
+│       │   │   │   │   │   │   │   ├── PasoPlanCierre.tsx
+│       │   │   │   │   │   │   │   ├── PasoPrescripcionReceta.tsx
+│       │   │   │   │   │   │   │   ├── PrescripcionMedicamentos.tsx
+│       │   │   │   │   │   │   │   └── SoporteInferenciaCard.tsx
+│       │   │   │   │   │   │   ├── utils/
+│       │   │   │   │   │   │   │   └── clinicalEngine.ts
 │       │   │   │   │   │   │   └── NuevaConsultaPage.tsx
 │       │   │   │   │   │   └── seguimiento/
 │       │   │   │   │   │       └── SeguimientoConsultasPage.tsx
@@ -947,6 +969,12 @@ MedicOS/
 │       │   │       ├── pages/
 │       │   │       │   ├── citas/
 │       │   │       │   │   ├── agendar/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── AgendarCitaHeader.tsx
+│       │   │       │   │   │   │   ├── CitaConfirmadaCard.tsx
+│       │   │       │   │   │   │   ├── DoctorSelector.tsx
+│       │   │       │   │   │   │   ├── SlotPicker.tsx
+│       │   │       │   │   │   │   └── SymptomSelector.tsx
 │       │   │       │   │   │   └── AgendarCitaPage.tsx
 │       │   │       │   │   ├── mis-citas/
 │       │   │       │   │   │   └── MisCitasPage.tsx
@@ -1050,7 +1078,8 @@ MedicOS/
 │       │   │   ├── constants/
 │       │   │   ├── hooks/
 │       │   │   ├── lib/
-│       │   │   │   └── apiClient.ts
+│       │   │   │   ├── apiClient.ts
+│       │   │   │   └── dateUtils.ts
 │       │   │   ├── styles/
 │       │   │   ├── types/
 │       │   │   └── utils/
