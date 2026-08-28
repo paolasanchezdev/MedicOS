@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/medico/routes/MedicoRoutes.tsx
-// DESCRIPCIÓN: Enrutador del Portal Médico con Nueva Consulta conectada.
+// DESCRIPCIÓN: Enrutador del Portal Médico con vistas reales conectadas.
 // =========================================================================
 
 import React from 'react';
@@ -8,6 +8,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { MedicoLayout } from '../layout/MedicoLayout';
 import { ResumenMedicoPage } from '../pages/dashboard/resumen/ResumenMedicoPage';
 import { ActividadMedicoPage } from '../pages/dashboard/actividad/ActividadMedicoPage';
+import AgendaConsultasPage from '../pages/consultas/agenda/AgendaConsultasPage';
 import { NuevaConsultaPage } from '../pages/consultas/nueva/NuevaConsultaPage';
 
 const PagePlaceholder: React.FC<{ title: string; category?: string }> = ({ title, category }) => (
@@ -28,24 +29,18 @@ export const MedicoRoutes: React.FC = () => {
   return (
     <Routes>
       <Route element={<MedicoLayout />}>
-        {/* Redirección por defecto */}
-        <Route index element={<Navigate to="consultas/nueva" replace />} />
+        {/* Redirección por defecto hacia la Agenda Médica */}
+        <Route index element={<Navigate to="consultas/agenda" replace />} />
 
         {/* Dashboard */}
         <Route path="dashboard" element={<Navigate to="dashboard/resumen" replace />} />
         <Route path="dashboard/resumen" element={<ResumenMedicoPage />} />
         <Route path="dashboard/actividad" element={<ActividadMedicoPage />} />
 
-        {/* Consultas - Vista Real Conectada */}
+        {/* Consultas - Vistas Reales Conectadas */}
+        <Route path="consultas/agenda" element={<AgendaConsultasPage />} />
         <Route path="consultas/nueva" element={<NuevaConsultaPage />} />
-        <Route
-          path="consultas/agenda"
-          element={<PagePlaceholder title="Agenda de Consultas" category="Consultas" />}
-        />
-        <Route
-          path="consultas/historial"
-          element={<PagePlaceholder title="Historial de Consultas" category="Consultas" />}
-        />
+
         <Route
           path="consultas/seguimiento"
           element={<PagePlaceholder title="Seguimiento de Consultas" category="Consultas" />}
@@ -116,7 +111,7 @@ export const MedicoRoutes: React.FC = () => {
         />
 
         {/* Fallback */}
-        <Route path="*" element={<Navigate to="consultas/nueva" replace />} />
+        <Route path="*" element={<Navigate to="consultas/agenda" replace />} />
       </Route>
     </Routes>
   );
