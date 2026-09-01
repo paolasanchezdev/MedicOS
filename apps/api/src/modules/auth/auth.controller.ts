@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/auth/auth.controller.ts
-// DESCRIPCIÓN: Controlador de autenticación con soporte para cookies cross-site.
+// DESCRIPCIÓN: Controlador de autenticación con soporte para cookies cross-site,
+//              cierre de sesión y verificación de usuario activo en MedicOS.
 // =========================================================================
 
 import { Request, Response, NextFunction } from "express";
@@ -11,7 +12,7 @@ const authService = new AuthService();
 const isProduction = process.env.NODE_ENV === "production";
 
 // Configuración de cookie HttpOnly compatible con Vercel (Cross-Origin) y Localhost
-const getCookieOptions = () => ({
+export const getCookieOptions = () => ({
   httpOnly: true,
   secure: isProduction,
   sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
@@ -22,7 +23,7 @@ const getCookieOptions = () => ({
 // ==========================================
 // CONTROLADOR: Registro
 // ==========================================
-export const register = async (req: Request, res: Response, next: NextFunction) => {
+export const register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const resultado = await authService.registrarUsuario(req.body);
     
@@ -44,7 +45,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
 // ==========================================
 // CONTROLADOR: Login
 // ==========================================
-export const login = async (req: Request, res: Response, next: NextFunction) => {
+export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const resultado = await authService.iniciarSesion(req.body);
     
@@ -66,7 +67,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 // ==========================================
 // CONTROLADOR: Logout
 // ==========================================
-export const logout = async (_req: Request, res: Response, next: NextFunction) => {
+export const logout = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Destruimos la cookie 'token' en el navegador con las mismas directivas
     res.clearCookie("token", {
@@ -79,6 +80,28 @@ export const logout = async (_req: Request, res: Response, next: NextFunction) =
     res.status(200).json({
       ok: true,
       message: "Sesión cerrada correctamente.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==========================================
+// CONTROLADOR: Verificar Sesión Actual (Me)
+// ==========================================
+export const getMe = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        ok: false,
+        message: "No autenticado.",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      ok: true,
+      user: req.user,
     });
   } catch (error) {
     next(error);

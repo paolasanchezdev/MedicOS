@@ -1,4 +1,8 @@
-// apps/web/src/modules/establishments/services/establishments.service.ts
+// =========================================================================
+// ARCHIVO: apps/web/src/modules/establishments/services/establishments.service.ts
+// DESCRIPCIÓN: Servicio de consulta y gestión de establecimientos de salud con soporte de tipos estricto.
+// =========================================================================
+
 import { apiClient } from '../../../shared/lib/apiClient';
 import type {
   Establishment,
@@ -15,11 +19,9 @@ class EstablishmentsService {
   async getHospitals(filters?: EstablishmentFilters): Promise<Establishment[]> {
     const params = new URLSearchParams();
 
-    // Permite filtrar por tipo (CLINIC, HOSPITAL, HEALTH_CENTER) dinámicamente
+    // Permite filtrar por tipo dinámicamente si se especifica
     if (filters?.type) {
       params.append('type', filters.type);
-    } else {
-      params.append('type', 'HOSPITAL');
     }
 
     if (filters?.search) {
@@ -35,11 +37,20 @@ class EstablishmentsService {
       params.append('level', filters.level);
     }
 
-    const response = await apiClient<Establishment[]>(
-      `/admin/establishments?${params.toString()}`
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    const response = await apiClient<Establishment[] | { data?: Establishment[] }>(
+      `/admin/establishments${queryString}`
     );
 
-    return Array.isArray(response) ? response : [];
+    if (Array.isArray(response)) {
+      return response;
+    }
+
+    if (response && typeof response === 'object' && Array.isArray((response as { data?: Establishment[] }).data)) {
+      return (response as { data: Establishment[] }).data;
+    }
+
+    return [];
   }
 
   async createHospital(input: CreateEstablishmentInput): Promise<Establishment> {

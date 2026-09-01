@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/layout/BrigadistaSidebar.tsx
-// DESCRIPCIÓN: Sidebar para el Portal Brigadista basado en el chasis SidebarGlobal.
+// DESCRIPCIÓN: Sidebar del Portal Brigadista adaptado al flujo de trabajo territorial.
 // =========================================================================
 
 import React from 'react';
@@ -17,28 +17,31 @@ import {
   UserPlus,
   QrCode,
   FileSpreadsheet,
-  Stethoscope,
+  HeartPulse,
   PlusCircle,
   ClipboardList,
   History,
-  HeartPulse,
-  Thermometer,
-  Eye,
-  Pill,
-  FileText,
-  CheckCircle2,
-  AlertTriangle,
+  ShieldCheck,
+  Syringe,
+  Baby,
+  Apple,
+  GraduationCap,
   ClipboardCheck,
+  AlertTriangle,
+  Home,
+  CalendarCheck,
+  CheckCircle2,
+  Send,
+  Clock,
   MapPin,
   Map,
   Building2,
   RefreshCw,
-  Clock,
   Bell,
   Inbox,
-  BellRing,
   FileBarChart,
   TrendingUp,
+  FileText,
   User,
   Sliders,
   Shield
@@ -49,75 +52,81 @@ const ITEM_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>>
   'Dashboard': LayoutDashboard,
   'Brigada': Siren,
   'Pacientes': UserCheck,
-  'Consultas': Stethoscope,
-  'Evaluación Clínica': HeartPulse,
-  'Tratamientos': Pill,
+  'Atención': HeartPulse,
+  'Promoción y Prevención': ShieldCheck,
   'Seguimiento': Activity,
+  'Visitas': Home,
+  'Referencias': Send,
   'Mapa': Map,
   'Sincronización': RefreshCw,
   'Notificaciones': Bell,
   'Reportes': FileText,
   'Perfil': User,
 
-  // Sub-elementos Dashboard
+  // Dashboard
   'Resumen': LayoutDashboard,
   'Actividad': Activity,
 
-  // Sub-elementos Brigada
-  'Resumen Brigada': Siren,
+  // Brigada
+  'Resumen de Brigada': Siren,
   'Jornada': Calendar,
-  'Pacientes Brigada': Users,
+  'Pacientes de la Brigada': Users,
 
-  // Sub-elementos Pacientes
+  // Pacientes
   'Buscar Paciente': UserSearch,
   'Registrar Paciente': UserPlus,
   'Escanear QR / ID': QrCode,
-  'Expediente Paciente': FileSpreadsheet,
+  'Expediente del Paciente': FileSpreadsheet,
 
-  // Sub-elementos Consultas
-  'Nueva Consulta': PlusCircle,
-  'Consultas Pendientes': ClipboardList,
-  'Historial Consultas': History,
+  // Atención
+  'Nueva Atención': PlusCircle,
+  'Atenciones Pendientes': ClipboardList,
+  'Historial de Atenciones': History,
 
-  // Sub-elementos Evaluación Clínica
-  'Signos Vitales': Thermometer,
-  'Síntomas': Activity,
-  'Antecedentes': ClipboardList,
-  'Observaciones': Eye,
+  // Promoción y Prevención
+  'Vacunación': Syringe,
+  'Materno-Infantil': Baby,
+  'Nutrición': Apple,
+  'Educación y Prevención': GraduationCap,
 
-  // Sub-elementos Tratamientos
-  'Medicamentos': Pill,
-  'Indicaciones': FileText,
-  'Seguimiento Tratamiento': CheckCircle2,
-
-  // Sub-elementos Seguimiento
-  'Seguimiento Pacientes': UserCheck,
-  'Alertas Seguimiento': AlertTriangle,
+  // Seguimiento
+  'Pacientes en Seguimiento': UserCheck,
   'Controles': ClipboardCheck,
+  'Alertas': AlertTriangle,
 
-  // Sub-elementos Mapa
+  // Visitas
+  'Nueva Visita': PlusCircle,
+  'Visitas Programadas': CalendarCheck,
+  'Visitas Realizadas': CheckCircle2,
+
+  // Referencias
+  'Nueva Referencia': PlusCircle,
+  'Referencias Pendientes': Clock,
+  'Historial de Referencias': History,
+
+  // Mapa
   'Ubicación': MapPin,
-  'Mapa Pacientes': Map,
-  'Mapa Establecimientos': Building2,
+  'Establecimientos': Building2,
 
-  // Sub-elementos Sincronización
-  'Estado Sincronización': RefreshCw,
-  'Pendientes Sincronización': Clock,
-  'Historial Sincronización': History,
+  // Sincronización
+  'Estado': RefreshCw,
+  'Pendientes': Clock,
+  'Historial': History,
 
-  // Sub-elementos Notificaciones
-  'Centro Notificaciones': Inbox,
-  'Alertas': BellRing,
+  // Notificaciones
+  'Centro de Notificaciones': Inbox,
 
-  // Sub-elementos Reportes
-  'Reportes Brigada': FileBarChart,
-  'Reportes Consultas': FileText,
-  'Reportes Pacientes': TrendingUp,
+  // Reportes
+  'Reportes de Brigada': FileBarChart,
+  'Reportes de Pacientes': TrendingUp,
+  'Reportes de Atención': FileText,
+  'Reportes de Seguimiento': Activity,
+  'Reportes de Visitas': ClipboardCheck,
 
-  // Sub-elementos Perfil
-  'Datos Brigadista': User,
-  'Preferencias Brigadista': Sliders,
-  'Seguridad Brigadista': Shield,
+  // Perfil
+  'Mis Datos': User,
+  'Preferencias': Sliders,
+  'Seguridad': Shield,
 };
 
 interface BrigadistaSidebarProps {

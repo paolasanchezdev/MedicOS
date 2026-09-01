@@ -94,11 +94,17 @@ MedicOS/
 │   │   │   │   │   │   └── resources.service.ts
 │   │   │   │   │   ├── resources.controller.ts
 │   │   │   │   │   └── resources.routes.ts
-│   │   │   │   └── users/
-│   │   │   │       ├── users.controller.ts
-│   │   │   │       ├── users.routes.ts
-│   │   │   │       ├── users.schema.ts
-│   │   │   │       └── users.service.ts
+│   │   │   │   ├── users/
+│   │   │   │   │   ├── users.controller.ts
+│   │   │   │   │   ├── users.routes.ts
+│   │   │   │   │   ├── users.schema.ts
+│   │   │   │   │   └── users.service.ts
+│   │   │   │   └── vaccinations/
+│   │   │   │       ├── vaccinations.controller.ts
+│   │   │   │       ├── vaccinations.routes.ts
+│   │   │   │       ├── vaccinations.schema.ts
+│   │   │   │       ├── vaccinations.service.ts
+│   │   │   │       └── vaccinations.types.ts
 │   │   │   ├── routes/
 │   │   │   │   ├── health.routes.ts
 │   │   │   │   └── index.ts
@@ -169,6 +175,19 @@ MedicOS/
 │       │   │   ├── admin/
 │       │   │   │   └── types/
 │       │   │   │       └── admin-dashboard.types.ts
+│       │   │   ├── atencion/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── DetalleAtencionModal.tsx
+│       │   │   │   │   └── index.ts
+│       │   │   │   ├── hooks/
+│       │   │   │   │   ├── useAttentionHistory.ts
+│       │   │   │   │   ├── useCreateAttention.ts
+│       │   │   │   │   └── usePendingAttentions.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── atencion.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── atencion.types.ts
+│       │   │   │   └── index.ts
 │       │   │   ├── auth/
 │       │   │   │   ├── components/
 │       │   │   │   │   ├── LoginBanner.tsx
@@ -197,12 +216,19 @@ MedicOS/
 │       │   │   │   │   └── mock-brigade.ts
 │       │   │   │   ├── hooks/
 │       │   │   │   │   ├── useAdminBrigades.ts
-│       │   │   │   │   └── useBrigade.ts
+│       │   │   │   │   ├── useBrigade.ts
+│       │   │   │   │   ├── useBrigadistaActividad.ts
+│       │   │   │   │   ├── useBrigadistaDashboard.ts
+│       │   │   │   │   ├── useJornadaBrigada.ts
+│       │   │   │   │   ├── usePacientesBrigada.ts
+│       │   │   │   │   └── useResumenBrigada.ts
 │       │   │   │   ├── schemas/
 │       │   │   │   ├── services/
-│       │   │   │   │   └── brigades.service.ts
+│       │   │   │   │   ├── brigades.service.ts
+│       │   │   │   │   └── brigadista-dashboard.service.ts
 │       │   │   │   ├── types/
-│       │   │   │   │   └── brigade.types.ts
+│       │   │   │   │   ├── brigade.types.ts
+│       │   │   │   │   └── brigadista-dashboard.types.ts
 │       │   │   │   ├── utils/
 │       │   │   │   └── index.ts
 │       │   │   ├── establishments/
@@ -218,6 +244,14 @@ MedicOS/
 │       │   │   │   │   └── establishments.service.ts
 │       │   │   │   ├── types/
 │       │   │   │   │   └── establishment.types.ts
+│       │   │   │   └── index.ts
+│       │   │   ├── evaluations/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── useEvaluations.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── evaluations.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── evaluation.types.ts
 │       │   │   │   └── index.ts
 │       │   │   ├── landing/
 │       │   │   │   ├── components/
@@ -301,11 +335,23 @@ MedicOS/
 │       │   │   │   ├── context/
 │       │   │   │   ├── data/
 │       │   │   │   ├── hooks/
+│       │   │   │   │   ├── useCreatePatient.ts
+│       │   │   │   │   ├── usePatientRecord.ts
+│       │   │   │   │   └── useSearchPatients.ts
 │       │   │   │   ├── schemas/
 │       │   │   │   ├── services/
+│       │   │   │   │   └── patients.service.ts
 │       │   │   │   ├── types/
 │       │   │   │   │   └── patient.types.ts
 │       │   │   │   ├── utils/
+│       │   │   │   └── index.ts
+│       │   │   ├── references/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── useReferences.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── references.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── reference.types.ts
 │       │   │   │   └── index.ts
 │       │   │   ├── reports/
 │       │   │   │   ├── components/
@@ -349,25 +395,43 @@ MedicOS/
 │       │   │   │   ├── types/
 │       │   │   │   │   └── resource.types.ts
 │       │   │   │   └── index.ts
-│       │   │   └── users/
-│       │   │       ├── components/
-│       │   │       │   ├── CreateUserModal.tsx
-│       │   │       │   ├── DeleteUserModal.tsx
-│       │   │       │   ├── EditCredentialsModal.tsx
-│       │   │       │   ├── UserPermissionOverrideModal.tsx
-│       │   │       │   ├── UserRoleModal.tsx
-│       │   │       │   └── UserStatusModal.tsx
-│       │   │       ├── constants/
-│       │   │       │   └── user.constants.ts
-│       │   │       ├── context/
+│       │   │   ├── users/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── CreateUserModal.tsx
+│       │   │   │   │   ├── DeleteUserModal.tsx
+│       │   │   │   │   ├── EditCredentialsModal.tsx
+│       │   │   │   │   ├── UserPermissionOverrideModal.tsx
+│       │   │   │   │   ├── UserRoleModal.tsx
+│       │   │   │   │   └── UserStatusModal.tsx
+│       │   │   │   ├── constants/
+│       │   │   │   │   └── user.constants.ts
+│       │   │   │   ├── context/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── useUsers.ts
+│       │   │   │   ├── schemas/
+│       │   │   │   │   └── user.schemas.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── users.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── user.types.ts
+│       │   │   │   └── index.ts
+│       │   │   ├── vaccinations/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   ├── useCreateVaccination.ts
+│       │   │   │   │   ├── useVaccinationHistory.ts
+│       │   │   │   │   └── useVaccinationRecord.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── vaccinations.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── vaccination.types.ts
+│       │   │   │   └── index.ts
+│       │   │   └── visits/
 │       │   │       ├── hooks/
-│       │   │       │   └── useUsers.ts
-│       │   │       ├── schemas/
-│       │   │       │   └── user.schemas.ts
+│       │   │       │   └── useVisits.ts
 │       │   │       ├── services/
-│       │   │       │   └── users.service.ts
+│       │   │       │   └── visits.service.ts
 │       │   │       ├── types/
-│       │   │       │   └── user.types.ts
+│       │   │       │   └── visit.types.ts
 │       │   │       └── index.ts
 │       │   ├── portals/
 │       │   │   ├── admin/
@@ -559,6 +623,9 @@ MedicOS/
 │       │   │   │   │           │   └── UserTable.tsx
 │       │   │   │   │           └── UsuariosPage.tsx
 │       │   │   │   ├── routes/
+│       │   │   │   │   ├── notificaciones/
+│       │   │   │   │   │   └── historial/
+│       │   │   │   │   │       └── HistorialNotificacionesPage.tsx
 │       │   │   │   │   └── AdminRoutes.tsx
 │       │   │   │   └── AdminPanel.tsx
 │       │   │   ├── authority/
@@ -684,58 +751,118 @@ MedicOS/
 │       │   │   │   ├── navigation/
 │       │   │   │   │   └── brigadista.navigation.ts
 │       │   │   │   ├── pages/
+│       │   │   │   │   ├── atencion/
+│       │   │   │   │   │   ├── historial/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── HistorialAtencionesEmpty.tsx
+│       │   │   │   │   │   │   │   ├── HistorialAtencionesFiltros.tsx
+│       │   │   │   │   │   │   │   ├── HistorialAtencionesHeader.tsx
+│       │   │   │   │   │   │   │   ├── HistorialAtencionesResumen.tsx
+│       │   │   │   │   │   │   │   ├── HistorialAtencionesSkeleton.tsx
+│       │   │   │   │   │   │   │   ├── HistorialAtencionesTabla.tsx
+│       │   │   │   │   │   │   │   ├── HistorialAtencionRow.tsx
+│       │   │   │   │   │   │   │   └── index.ts
+│       │   │   │   │   │   │   ├── HistorialAtencionesPage.tsx
+│       │   │   │   │   │   │   └── index.ts
+│       │   │   │   │   │   ├── nueva/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── AtencionAccionesCard.tsx
+│       │   │   │   │   │   │   │   ├── AtencionAntecedentesCard.tsx
+│       │   │   │   │   │   │   │   ├── AtencionEducacionCard.tsx
+│       │   │   │   │   │   │   │   ├── AtencionEstadoBadge.tsx
+│       │   │   │   │   │   │   │   ├── AtencionGuardarModal.tsx
+│       │   │   │   │   │   │   │   ├── AtencionHeader.tsx
+│       │   │   │   │   │   │   │   ├── AtencionMotivoCard.tsx
+│       │   │   │   │   │   │   │   ├── AtencionNavegacion.tsx
+│       │   │   │   │   │   │   │   ├── AtencionObservacionesCard.tsx
+│       │   │   │   │   │   │   │   ├── AtencionPacienteCard.tsx
+│       │   │   │   │   │   │   │   ├── AtencionReferenciaCard.tsx
+│       │   │   │   │   │   │   │   ├── AtencionResumenCard.tsx
+│       │   │   │   │   │   │   │   ├── AtencionSeguimientoCard.tsx
+│       │   │   │   │   │   │   │   ├── AtencionSeguimientoReferenciaCard.tsx
+│       │   │   │   │   │   │   │   ├── AtencionSignosVitalesCard.tsx
+│       │   │   │   │   │   │   │   ├── AtencionSintomasCard.tsx
+│       │   │   │   │   │   │   │   ├── AtencionValoracionTabs.tsx
+│       │   │   │   │   │   │   │   └── index.ts
+│       │   │   │   │   │   │   ├── index.ts
+│       │   │   │   │   │   │   └── NuevaAtencionPage.tsx
+│       │   │   │   │   │   └── pendientes/
+│       │   │   │   │   │       ├── components/
+│       │   │   │   │   │       │   ├── AtencionesPendientesEmpty.tsx
+│       │   │   │   │   │       │   ├── AtencionesPendientesFilters.tsx
+│       │   │   │   │   │       │   ├── AtencionesPendientesHeader.tsx
+│       │   │   │   │   │       │   ├── AtencionesPendientesList.tsx
+│       │   │   │   │   │       │   ├── AtencionesPendientesSummary.tsx
+│       │   │   │   │   │       │   ├── AtencionPendienteCard.tsx
+│       │   │   │   │   │       │   ├── AtencionPendienteDetailModal.tsx
+│       │   │   │   │   │       │   ├── AtencionPendienteStatusBadge.tsx
+│       │   │   │   │   │       │   ├── AtencionSincronizacionCard.tsx
+│       │   │   │   │   │       │   └── index.ts
+│       │   │   │   │   │       ├── AtencionesPendientesPage.tsx
+│       │   │   │   │   │       └── index.ts
 │       │   │   │   │   ├── brigada/
 │       │   │   │   │   │   ├── jornada/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── index.ts
+│       │   │   │   │   │   │   │   ├── JornadaActividadesTimeline.tsx
+│       │   │   │   │   │   │   │   ├── JornadaControlCard.tsx
+│       │   │   │   │   │   │   │   ├── JornadaEquipoCard.tsx
+│       │   │   │   │   │   │   │   ├── JornadaHeader.tsx
+│       │   │   │   │   │   │   │   ├── JornadaInfoCard.tsx
+│       │   │   │   │   │   │   │   ├── JornadaRecursosCard.tsx
+│       │   │   │   │   │   │   │   └── RegistrarActividadModal.tsx
+│       │   │   │   │   │   │   ├── index.ts
 │       │   │   │   │   │   │   └── JornadaBrigadaPage.tsx
 │       │   │   │   │   │   ├── pacientes/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── index.ts
+│       │   │   │   │   │   │   │   ├── PacientesBrigadaFiltros.tsx
+│       │   │   │   │   │   │   │   ├── PacientesBrigadaHeader.tsx
+│       │   │   │   │   │   │   │   ├── PacientesBrigadaResumen.tsx
+│       │   │   │   │   │   │   │   └── PacientesBrigadaTabla.tsx
+│       │   │   │   │   │   │   ├── index.ts
 │       │   │   │   │   │   │   └── PacientesBrigadaPage.tsx
 │       │   │   │   │   │   └── resumen/
+│       │   │   │   │   │       ├── components/
+│       │   │   │   │   │       │   ├── AccionesRapidasBrigada.tsx
+│       │   │   │   │   │       │   ├── EstadoActualBrigadaCard.tsx
+│       │   │   │   │   │       │   ├── index.ts
+│       │   │   │   │   │       │   ├── MetricasBrigadaCards.tsx
+│       │   │   │   │   │       │   ├── NavegacionBrigadaCards.tsx
+│       │   │   │   │   │       │   ├── RequiereAtencionBrigadaCard.tsx
+│       │   │   │   │   │       │   └── ResumenBrigadaHeader.tsx
+│       │   │   │   │   │       ├── index.ts
 │       │   │   │   │   │       └── ResumenBrigadaPage.tsx
-│       │   │   │   │   ├── consultas/
-│       │   │   │   │   │   ├── historial/
-│       │   │   │   │   │   │   └── HistorialConsultasPage.tsx
-│       │   │   │   │   │   ├── nueva/
-│       │   │   │   │   │   │   └── NuevaConsultaPage.tsx
-│       │   │   │   │   │   └── pendientes/
-│       │   │   │   │   │       └── ConsultasPendientesPage.tsx
 │       │   │   │   │   ├── dashboard/
 │       │   │   │   │   │   ├── actividad/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── ActividadCard.tsx
+│       │   │   │   │   │   │   │   ├── ActividadFiltros.tsx
+│       │   │   │   │   │   │   │   ├── ActividadHeader.tsx
+│       │   │   │   │   │   │   │   ├── ActividadResumen.tsx
+│       │   │   │   │   │   │   │   ├── ActividadTabla.tsx
+│       │   │   │   │   │   │   │   ├── ActividadTimeline.tsx
+│       │   │   │   │   │   │   │   ├── EstadoActividadBadge.tsx
+│       │   │   │   │   │   │   │   ├── index.ts
+│       │   │   │   │   │   │   │   └── ProximaActividadCard.tsx
 │       │   │   │   │   │   │   └── ActividadBrigadistaPage.tsx
 │       │   │   │   │   │   └── resumen/
 │       │   │   │   │   │       ├── components/
-│       │   │   │   │   │       │   ├── AccionesRapidas.tsx
-│       │   │   │   │   │       │   ├── AlertasClinicasCard.tsx
-│       │   │   │   │   │       │   ├── ConsultasHoyCard.tsx
-│       │   │   │   │   │       │   ├── EstadoJornadaCard.tsx
-│       │   │   │   │   │       │   ├── PacientesAtendidosCard.tsx
-│       │   │   │   │   │       │   ├── PacientesPendientesCard.tsx
+│       │   │   │   │   │       │   ├── AccionesRapidasPromotor.tsx
+│       │   │   │   │   │       │   ├── ActividadRecientePromotor.tsx
+│       │   │   │   │   │       │   ├── AlertasRiesgoCard.tsx
+│       │   │   │   │   │       │   ├── EstadoJornadaOperativaCard.tsx
+│       │   │   │   │   │       │   ├── index.ts
 │       │   │   │   │   │       │   ├── ProximaAccionCard.tsx
-│       │   │   │   │   │       │   ├── ResumenJornadaCard.tsx
+│       │   │   │   │   │       │   ├── ResumenOperativoCard.tsx
 │       │   │   │   │   │       │   ├── SincronizacionCard.tsx
-│       │   │   │   │   │       │   ├── TarjetaBienvenidaBrigadista.tsx
-│       │   │   │   │   │       │   └── UltimoPacienteCard.tsx
+│       │   │   │   │   │       │   └── TarjetaBienvenidaPromotor.tsx
+│       │   │   │   │   │       ├── index.ts
 │       │   │   │   │   │       └── ResumenBrigadistaPage.tsx
-│       │   │   │   │   ├── evaluacion/
-│       │   │   │   │   │   ├── antecedentes/
-│       │   │   │   │   │   │   └── AntecedentesPage.tsx
-│       │   │   │   │   │   ├── observaciones/
-│       │   │   │   │   │   │   └── ObservacionesPage.tsx
-│       │   │   │   │   │   ├── signos-vitales/
-│       │   │   │   │   │   │   ├── components/
-│       │   │   │   │   │   │   │   ├── BuscadorPacienteTriage.tsx
-│       │   │   │   │   │   │   │   ├── FormularioSignosVitales.tsx
-│       │   │   │   │   │   │   │   ├── HistorialTriageTable.tsx
-│       │   │   │   │   │   │   │   ├── SemaforoTriageCard.tsx
-│       │   │   │   │   │   │   │   ├── SignosVitalesHeader.tsx
-│       │   │   │   │   │   │   │   └── SignosVitalesMetrics.tsx
-│       │   │   │   │   │   │   └── SignosVitalesPage.tsx
-│       │   │   │   │   │   └── sintomas/
-│       │   │   │   │   │       └── SintomasPage.tsx
 │       │   │   │   │   ├── mapa/
 │       │   │   │   │   │   ├── establecimientos/
 │       │   │   │   │   │   │   └── MapaEstablecimientosPage.tsx
 │       │   │   │   │   │   ├── pacientes/
-│       │   │   │   │   │   │   └── MapaPacientesPage.tsx
 │       │   │   │   │   │   └── ubicacion/
 │       │   │   │   │   │       └── UbicacionPage.tsx
 │       │   │   │   │   ├── notificaciones/
@@ -745,12 +872,49 @@ MedicOS/
 │       │   │   │   │   │       └── CentroNotificacionesPage.tsx
 │       │   │   │   │   ├── pacientes/
 │       │   │   │   │   │   ├── buscar/
-│       │   │   │   │   │   │   └── BuscarPacientePage.tsx
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── BuscadorPaciente.tsx
+│       │   │   │   │   │   │   │   ├── BuscarPacienteHeader.tsx
+│       │   │   │   │   │   │   │   ├── EscanearPacienteCard.tsx
+│       │   │   │   │   │   │   │   ├── EstadoBusqueda.tsx
+│       │   │   │   │   │   │   │   ├── index.ts
+│       │   │   │   │   │   │   │   ├── PacienteResultadoCard.tsx
+│       │   │   │   │   │   │   │   └── ResultadosPaciente.tsx
+│       │   │   │   │   │   │   ├── BuscarPacientePage.tsx
+│       │   │   │   │   │   │   └── index.ts
 │       │   │   │   │   │   ├── escanear/
 │       │   │   │   │   │   │   └── EscanearPacientePage.tsx
 │       │   │   │   │   │   ├── expediente/
-│       │   │   │   │   │   │   └── ExpedientePacientePage.tsx
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── tabs/
+│       │   │   │   │   │   │   │   │   ├── CarnetDigitalPacienteTab.tsx
+│       │   │   │   │   │   │   │   │   ├── ConsultasPacienteTab.tsx
+│       │   │   │   │   │   │   │   │   ├── DetalleConsultaModal.tsx
+│       │   │   │   │   │   │   │   │   ├── ResumenPacienteTab.tsx
+│       │   │   │   │   │   │   │   │   └── SignosVitalesPacienteTab.tsx
+│       │   │   │   │   │   │   │   ├── ExpedienteBuscador.tsx
+│       │   │   │   │   │   │   │   ├── ExpedientePacienteHeader.tsx
+│       │   │   │   │   │   │   │   ├── ExpedienteResultados.tsx
+│       │   │   │   │   │   │   │   ├── ExpedienteResumenClinico.tsx
+│       │   │   │   │   │   │   │   ├── ExpedienteTabs.tsx
+│       │   │   │   │   │   │   │   └── index.ts
+│       │   │   │   │   │   │   ├── ExpedientePacientePage.tsx
+│       │   │   │   │   │   │   └── index.ts
 │       │   │   │   │   │   └── registrar/
+│       │   │   │   │   │       ├── components/
+│       │   │   │   │   │       │   ├── CarnetDigitalPaciente.tsx
+│       │   │   │   │   │       │   ├── ConfirmacionRegistroCard.tsx
+│       │   │   │   │   │       │   ├── ContactoEmergenciaCard.tsx
+│       │   │   │   │   │       │   ├── ContactoPacienteCard.tsx
+│       │   │   │   │   │       │   ├── CuentaMedicOSCard.tsx
+│       │   │   │   │   │       │   ├── DatosIdentificacionCard.tsx
+│       │   │   │   │   │       │   ├── index.ts
+│       │   │   │   │   │       │   ├── InformacionMedicaCard.tsx
+│       │   │   │   │   │       │   ├── PacienteRegistradoCard.tsx
+│       │   │   │   │   │       │   ├── PasoIndicador.tsx
+│       │   │   │   │   │       │   ├── PasoNavegacion.tsx
+│       │   │   │   │   │       │   └── RegistrarPacienteHeader.tsx
+│       │   │   │   │   │       ├── index.ts
 │       │   │   │   │   │       └── RegistrarPacientePage.tsx
 │       │   │   │   │   ├── perfil/
 │       │   │   │   │   │   ├── datos/
@@ -759,13 +923,56 @@ MedicOS/
 │       │   │   │   │   │   │   └── PreferenciasBrigadistaPage.tsx
 │       │   │   │   │   │   └── seguridad/
 │       │   │   │   │   │       └── SeguridadBrigadistaPage.tsx
+│       │   │   │   │   ├── promocion-prevencion/
+│       │   │   │   │   │   ├── educacion-prevencion/
+│       │   │   │   │   │   ├── materno-infantil/
+│       │   │   │   │   │   ├── nutricion/
+│       │   │   │   │   │   └── vacunacion/
+│       │   │   │   │   │       ├── historial/
+│       │   │   │   │   │       │   ├── components/
+│       │   │   │   │   │       │   │   ├── HistorialVacunacionDetail.tsx
+│       │   │   │   │   │       │   │   ├── HistorialVacunacionFilters.tsx
+│       │   │   │   │   │       │   │   ├── HistorialVacunacionHeader.tsx
+│       │   │   │   │   │       │   │   ├── HistorialVacunacionList.tsx
+│       │   │   │   │   │       │   │   └── index.ts
+│       │   │   │   │   │       │   ├── HistorialVacunacionPage.tsx
+│       │   │   │   │   │       │   └── index.ts
+│       │   │   │   │   │       ├── registro/
+│       │   │   │   │   │       │   ├── components/
+│       │   │   │   │   │       │   │   ├── index.ts
+│       │   │   │   │   │       │   │   ├── VacunacionAplicacionCard.tsx
+│       │   │   │   │   │       │   │   ├── VacunacionHeader.tsx
+│       │   │   │   │   │       │   │   ├── VacunacionNavegacion.tsx
+│       │   │   │   │   │       │   │   ├── VacunacionObservacionesCard.tsx
+│       │   │   │   │   │       │   │   ├── VacunacionPacienteCard.tsx
+│       │   │   │   │   │       │   │   ├── VacunacionPasosBar.tsx
+│       │   │   │   │   │       │   │   ├── VacunacionResumenCard.tsx
+│       │   │   │   │   │       │   │   └── VacunaSeleccionCard.tsx
+│       │   │   │   │   │       │   ├── index.ts
+│       │   │   │   │   │       │   └── RegistroVacunacionPage.tsx
+│       │   │   │   │   │       └── resumen/
+│       │   │   │   │   │           ├── components/
+│       │   │   │   │   │           │   ├── index.ts
+│       │   │   │   │   │           │   ├── VacunacionAccionesRapidas.tsx
+│       │   │   │   │   │           │   ├── VacunacionCoverageCard.tsx
+│       │   │   │   │   │           │   ├── VacunacionMetricasCards.tsx
+│       │   │   │   │   │           │   ├── VacunacionPendientesCard.tsx
+│       │   │   │   │   │           │   ├── VacunacionRecentCard.tsx
+│       │   │   │   │   │           │   ├── VacunacionResumenHeader.tsx
+│       │   │   │   │   │           │   └── VacunacionSincronizacionCard.tsx
+│       │   │   │   │   │           ├── index.ts
+│       │   │   │   │   │           └── VacunacionResumenPage.tsx
+│       │   │   │   │   ├── referencias/
+│       │   │   │   │   │   ├── historial/
+│       │   │   │   │   │   ├── nueva/
+│       │   │   │   │   │   └── pendientes/
 │       │   │   │   │   ├── reportes/
+│       │   │   │   │   │   ├── atencion/
 │       │   │   │   │   │   ├── brigada/
 │       │   │   │   │   │   │   └── ReportesBrigadaPage.tsx
-│       │   │   │   │   │   ├── consultas/
-│       │   │   │   │   │   │   └── ReportesConsultasPage.tsx
-│       │   │   │   │   │   └── pacientes/
-│       │   │   │   │   │       └── ReportesPacientesPage.tsx
+│       │   │   │   │   │   ├── pacientes/
+│       │   │   │   │   │   ├── seguimiento/
+│       │   │   │   │   │   └── visitas/
 │       │   │   │   │   ├── seguimiento/
 │       │   │   │   │   │   ├── alertas/
 │       │   │   │   │   │   │   └── AlertasSeguimientoPage.tsx
@@ -780,13 +987,10 @@ MedicOS/
 │       │   │   │   │   │   │   └── HistorialSincronizacionPage.tsx
 │       │   │   │   │   │   └── pendientes/
 │       │   │   │   │   │       └── PendientesSincronizacionPage.tsx
-│       │   │   │   │   └── tratamientos/
-│       │   │   │   │       ├── indicaciones/
-│       │   │   │   │       │   └── IndicacionesPage.tsx
-│       │   │   │   │       ├── medicamentos/
-│       │   │   │   │       │   └── MedicamentosPage.tsx
-│       │   │   │   │       └── seguimiento/
-│       │   │   │   │           └── SeguimientoTratamientoPage.tsx
+│       │   │   │   │   └── visitas/
+│       │   │   │   │       ├── nueva/
+│       │   │   │   │       ├── programadas/
+│       │   │   │   │       └── realizadas/
 │       │   │   │   ├── routes/
 │       │   │   │   │   └── BrigadistaRoutes.tsx
 │       │   │   │   ├── BrigadistaPanel.tsx
@@ -1076,6 +1280,8 @@ MedicOS/
 │       │   │   │   │   └── SidebarGlobal.tsx
 │       │   │   │   └── UnderConstruction.tsx
 │       │   │   ├── constants/
+│       │   │   ├── data/
+│       │   │   │   └── elSalvadorTerritory.ts
 │       │   │   ├── hooks/
 │       │   │   ├── lib/
 │       │   │   │   ├── apiClient.ts

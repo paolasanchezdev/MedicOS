@@ -1,28 +1,33 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/middleware/validate.middleware.ts
-// DESCRIPCIÓN: Middleware universal de validación con Zod para MedicOS.
+// DESCRIPCIÓN: Middleware universal de validación de esquemas Zod con soporte
+//              para esquemas planos, envueltos y con refinamiento (.refine).
 // =========================================================================
 
 import { Request, Response, NextFunction } from 'express';
-import { ZodSchema, ZodError, ZodObject } from 'zod';
+import { ZodSchema, ZodError, ZodObject, ZodEffects, ZodTypeAny } from 'zod';
 import { AppError } from './error.middleware.js';
 
-export const validate = (schema: ZodSchema) => {
-  return async (req: Request, _res: Response, next: NextFunction) => {
+export const validate = (schema: ZodSchema<unknown>) => {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      let parsed: any;
+      // Desenvolver el esquema subyacente si contiene ZodEffects (.refine / .transform)
+      let targetSchema: ZodTypeAny = schema;
+      while (targetSchema instanceof ZodEffects) {
+        targetSchema = targetSchema.innerType();
+      }
 
-      // Verificamos si el esquema utiliza el formato envuelto ({ body, query, params })
-      const isWrappedSchema = 
-        schema instanceof ZodObject && 
-        ('body' in schema.shape || 'query' in schema.shape || 'params' in schema.shape);
+      // Verificar si el esquema valida estructura compuesta ({ body, query, params })
+      const isWrappedSchema =
+        targetSchema instanceof ZodObject &&
+        ('body' in targetSchema.shape || 'query' in targetSchema.shape || 'params' in targetSchema.shape);
 
       if (isWrappedSchema) {
-        parsed = await (schema as ZodObject<any>).parseAsync({
+        const parsed = (await schema.parseAsync({
           body: req.body,
           query: req.query,
           params: req.params,
-        });
+        })) as { body?: unknown; query?: Record<string, unknown>; params?: Record<string, unknown> };
 
         if (parsed.body !== undefined) {
           req.body = parsed.body;
@@ -34,8 +39,8 @@ export const validate = (schema: ZodSchema) => {
           req.params = parsed.params as Record<string, string>;
         }
       } else {
-        // Esquema plano (ej. validación directa de req.body)
-        parsed = await schema.parseAsync(req.body);
+        // Validación de esquema plano directamente sobre el cuerpo de la petición (req.body)
+        const parsed = await schema.parseAsync(req.body);
         req.body = parsed;
       }
 
@@ -43,7 +48,12 @@ export const validate = (schema: ZodSchema) => {
     } catch (error) {
       if (error instanceof ZodError) {
         const firstErrorMessage = error.issues[0]?.message || 'Datos de entrada inválidos.';
-        return next(new AppError(firstErrorMessage, 400));
+        const validationDetails = error.issues.map((issue) => ({
+          field: issue.path.join('.'),
+          message: issue.message,
+        }));
+
+        return next(new AppError(firstErrorMessage, 400, true, validationDetails));
       }
       next(error);
     }

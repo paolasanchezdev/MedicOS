@@ -1,30 +1,8 @@
-```bash
 #!/usr/bin/env bash
 
 # ============================================================
-# MedicOS - Launcher
+# MedicOS - Launcher Robusto y Resiliente
 # Sistema Inteligente para Brigadas Médicas Comunitarias
-#
-# Estructura:
-#   MedicOS/
-#   ├── apps/
-#   │   ├── api/
-#   │   └── web/
-#   ├── packages/
-#   ├── docker-compose.yml
-#   ├── package.json
-#   ├── turbo.json
-#   └── run.sh
-#
-# Funciones:
-#   1. Verificar requisitos
-#   2. Levantar PostgreSQL mediante Docker
-#   3. Instalar dependencias
-#   4. Configurar variables de entorno
-#   5. Generar Prisma Client
-#   6. Aplicar migraciones
-#   7. Crear administrador inicial si no existe
-#   8. Levantar API + Frontend mediante Turbo
 # ============================================================
 
 set -Eeuo pipefail
@@ -41,25 +19,16 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # ============================================================
-# CONFIGURACIÓN
+# CONFIGURACIÓN DE RUTAS Y PUERTOS
 # ============================================================
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 API_DIR="$PROJECT_DIR/apps/api"
 WEB_DIR="$PROJECT_DIR/apps/web"
-
 ENV_FILE="$API_DIR/.env"
-
-DB_CONTAINER="medicos_db"
-DB_NAME="medicos_db"
-DB_USER="postgres"
-DB_PASSWORD="postgres"
 
 API_PORT=3000
 WEB_PORT=5173
-
-DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}?schema=public"
 
 # ============================================================
 # FUNCIONES AUXILIARES
@@ -87,7 +56,6 @@ command_exists() {
 
 port_in_use() {
     local port="$1"
-
     if command_exists lsof; then
         lsof -Pi :"$port" -sTCP:LISTEN -t >/dev/null 2>&1
     elif command_exists ss; then
@@ -99,8 +67,7 @@ port_in_use() {
 
 cleanup() {
     echo ""
-    echo -e "${YELLOW}🛑 Deteniendo MedicOS...${NC}"
-    echo -e "${CYAN}PostgreSQL permanecerá ejecutándose en Docker.${NC}"
+    echo -e "${YELLOW}🛑 Deteniendo MedicOS de forma segura...${NC}"
     echo ""
 }
 
@@ -112,22 +79,18 @@ trap cleanup INT TERM
 
 clear
 
-echo -e "${BLUE}"
-echo "============================================================"
-echo "                 MedicOS Launcher v1.0"
-echo "============================================================"
-echo -e "${NC}"
-
-echo -e "${CYAN}"
-echo " Sistema Inteligente para Brigadas Médicas Comunitarias"
-echo "============================================================"
-echo -e "${NC}"
+echo -e "${BLUE}============================================================${NC}"
+echo -e "${BLUE}                 MedicOS Launcher v2.0                      ${NC}"
+echo -e "${BLUE}============================================================${NC}"
+echo -e "${CYAN} Sistema Inteligente para Brigadas Médicas Comunitarias     ${NC}"
+echo -e "${BLUE}============================================================${NC}"
 
 # ============================================================
-# 1. COMPROBAR DIRECTORIO
+# 1. COMPROBAR ESTRUCTURA DEL PROYECTO
 # ============================================================
 
-echo -e "${YELLOW}[1/8] Verificando proyecto...${NC}"
+echo ""
+echo -e "${YELLOW}[1/7] Verificando estructura del proyecto...${NC}"
 
 cd "$PROJECT_DIR"
 
@@ -136,437 +99,171 @@ if [ ! -f "$PROJECT_DIR/package.json" ]; then
     exit 1
 fi
 
-if [ ! -d "$API_DIR" ]; then
-    print_error "No se encontró apps/api."
+if [ ! -d "$API_DIR" ] || [ ! -d "$WEB_DIR" ]; then
+    print_error "No se encontró el directorio apps/api o apps/web."
     exit 1
 fi
 
-if [ ! -d "$WEB_DIR" ]; then
-    print_error "No se encontró apps/web."
-    exit 1
-fi
-
-if [ ! -f "$PROJECT_DIR/docker-compose.yml" ]; then
-    print_error "No se encontró docker-compose.yml."
-    exit 1
-fi
-
-print_success "Estructura de MedicOS detectada."
+print_success "Estructura Monorepo detectada."
 
 # ============================================================
-# 2. VERIFICAR NODE / NPM / DOCKER
+# 2. VERIFICAR REQUISITOS DEL ENTORNO
 # ============================================================
 
 echo ""
-echo -e "${YELLOW}[2/8] Verificando requisitos del sistema...${NC}"
+echo -e "${YELLOW}[2/7] Verificando requisitos del sistema...${NC}"
 
 if ! command_exists node; then
     print_error "Node.js no está instalado."
-    echo "Instala Node.js 20 LTS o superior."
     exit 1
 fi
-
 print_success "Node.js $(node -v) detectado."
 
 if ! command_exists npm; then
     print_error "npm no está instalado."
     exit 1
 fi
-
 print_success "npm $(npm -v) detectado."
 
-if ! command_exists docker; then
-    print_error "Docker no está instalado."
-    echo "Instala Docker antes de ejecutar MedicOS."
-    exit 1
-fi
-
-print_success "Docker $(docker --version | awk '{print $3}' | tr -d ',') detectado."
-
-if ! docker info >/dev/null 2>&1; then
-    print_error "Docker está instalado pero el servicio no está disponible."
-    echo ""
-    echo "Intenta iniciar Docker con:"
-    echo "  sudo systemctl start docker"
-    exit 1
-fi
-
-print_success "Servicio Docker disponible."
-
 # ============================================================
-# 3. VERIFICAR PUERTOS
+# 3. VERIFICAR VARIABLES DE ENTORNO (NO DESTRUCTIVO)
 # ============================================================
 
 echo ""
-echo -e "${YELLOW}[3/8] Verificando puertos...${NC}"
-
-if port_in_use "$API_PORT"; then
-    print_warning "El puerto $API_PORT ya está ocupado."
-
-    echo ""
-    echo "MedicOS necesita el puerto $API_PORT para la API."
-    echo "Proceso que utiliza el puerto:"
-
-    if command_exists lsof; then
-        lsof -Pi :"$API_PORT" -sTCP:LISTEN || true
-    fi
-
-    echo ""
-    read -r -p "¿Deseas continuar de todos modos? [s/N]: " CONTINUE
-
-    if [[ ! "$CONTINUE" =~ ^[SsYy]$ ]]; then
-        exit 1
-    fi
-else
-    print_success "Puerto $API_PORT disponible."
-fi
-
-if port_in_use "$WEB_PORT"; then
-    print_warning "El puerto $WEB_PORT ya está ocupado."
-
-    echo ""
-    echo "MedicOS necesita el puerto $WEB_PORT para el frontend."
-
-    if command_exists lsof; then
-        lsof -Pi :"$WEB_PORT" -sTCP:LISTEN || true
-    fi
-
-    echo ""
-    read -r -p "¿Deseas continuar de todos modos? [s/N]: " CONTINUE
-
-    if [[ ! "$CONTINUE" =~ ^[SsYy]$ ]]; then
-        exit 1
-    fi
-else
-    print_success "Puerto $WEB_PORT disponible."
-fi
-
-# ============================================================
-# 4. INSTALAR DEPENDENCIAS
-# ============================================================
-
-echo ""
-echo -e "${YELLOW}[4/8] Verificando dependencias del proyecto...${NC}"
-
-if [ ! -d "$PROJECT_DIR/node_modules" ]; then
-    print_info "Instalando dependencias del monorepo..."
-
-    npm install
-
-    print_success "Dependencias instaladas."
-else
-    print_success "Dependencias del monorepo ya instaladas."
-fi
-
-# ============================================================
-# 5. CONFIGURAR VARIABLES DE ENTORNO
-# ============================================================
-
-echo ""
-echo -e "${YELLOW}[5/8] Configurando variables de entorno...${NC}"
+echo -e "${YELLOW}[3/7] Verificando variables de entorno...${NC}"
 
 if [ ! -f "$ENV_FILE" ]; then
-
     if [ -f "$API_DIR/.env.example" ]; then
-
         cp "$API_DIR/.env.example" "$ENV_FILE"
-
-        print_info "Se creó apps/api/.env desde .env.example."
-
-    elif [ -f "$PROJECT_DIR/.env.example" ]; then
-
-        cp "$PROJECT_DIR/.env.example" "$ENV_FILE"
-
-        print_info "Se creó apps/api/.env desde .env.example."
-
+        print_info "Se creó apps/api/.env a partir de .env.example."
     else
-
-        print_info "Creando apps/api/.env..."
-
+        print_info "Creando apps/api/.env inicial..."
         cat > "$ENV_FILE" <<EOF
-DATABASE_URL="${DATABASE_URL}"
 PORT=${API_PORT}
-JWT_SECRET="medicos-development-secret-change-in-production"
+DATABASE_URL="postgresql://medicos_app:MedicosDB_2026_Secure@localhost:5432/medicos_db?schema=public"
+JWT_SECRET="f9a8b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0"
 EOF
+    fi
+else
+    print_success "Archivo apps/api/.env existente preservado (sin sobreescrituras)."
+fi
 
+# ============================================================
+# 4. VERIFICAR ESTADO DE POSTGRESQL (NATIVO O DOCKER)
+# ============================================================
+
+echo ""
+echo -e "${YELLOW}[4/7] Verificando motor de base de datos PostgreSQL...${NC}"
+
+if port_in_use 5432; then
+    print_success "PostgreSQL detectado y activo en el puerto 5432."
+else
+    print_info "PostgreSQL no responde en el puerto 5432. Intentando iniciar servicio nativo..."
+    if command_exists systemctl; then
+        sudo systemctl start postgresql || true
     fi
 
-else
-
-    print_success "apps/api/.env ya existe."
-
-fi
-
-# ============================================================
-# ASEGURAR DATABASE_URL
-# ============================================================
-
-if grep -q "^DATABASE_URL=" "$ENV_FILE"; then
-
-    sed -i "s|^DATABASE_URL=.*|DATABASE_URL=\"${DATABASE_URL}\"|" "$ENV_FILE"
-
-else
-
-    echo "DATABASE_URL=\"${DATABASE_URL}\"" >> "$ENV_FILE"
-
-fi
-
-# Asegurar puerto de API si no existe
-
-if grep -q "^PORT=" "$ENV_FILE"; then
-
-    sed -i "s|^PORT=.*|PORT=${API_PORT}|" "$ENV_FILE"
-
-else
-
-    echo "PORT=${API_PORT}" >> "$ENV_FILE"
-
-fi
-
-print_success "Variables de entorno configuradas."
-
-# ============================================================
-# 6. LEVANTAR POSTGRESQL
-# ============================================================
-
-echo ""
-echo -e "${YELLOW}[6/8] Preparando PostgreSQL...${NC}"
-
-cd "$PROJECT_DIR"
-
-if docker compose version >/dev/null 2>&1; then
-
-    print_info "Iniciando PostgreSQL con Docker Compose..."
-
-    docker compose up -d
-
-else
-
-    print_error "Docker Compose no está disponible."
-    exit 1
-
-fi
-
-echo ""
-echo -e "${CYAN}⏳ Esperando a que PostgreSQL esté listo...${NC}"
-
-MAX_RETRIES=30
-RETRY_COUNT=0
-
-until docker exec "$DB_CONTAINER" pg_isready \
-    -U "$DB_USER" \
-    -d "$DB_NAME" >/dev/null 2>&1
-do
-
-    RETRY_COUNT=$((RETRY_COUNT + 1))
-
-    if [ "$RETRY_COUNT" -ge "$MAX_RETRIES" ]; then
-
-        echo ""
-
-        print_error "PostgreSQL no respondió a tiempo."
-
-        echo ""
-        echo "Estado del contenedor:"
-        docker ps -a --filter "name=$DB_CONTAINER"
-
-        echo ""
-        echo "Logs:"
-        docker logs "$DB_CONTAINER" --tail 50 || true
-
-        exit 1
+    if ! port_in_use 5432; then
+        if command_exists docker && [ -f "$PROJECT_DIR/docker-compose.yml" ]; then
+            print_info "Iniciando PostgreSQL mediante Docker Compose..."
+            docker compose up -d
+        else
+            print_error "No se pudo iniciar PostgreSQL ni en sistema nativo ni en Docker."
+            exit 1
+        fi
     fi
-
-    echo -n "."
-    sleep 1
-
-done
-
-echo ""
-
-print_success "PostgreSQL está listo."
-
-# ============================================================
-# 7. PRISMA + BASE DE DATOS + ADMIN
-# ============================================================
-
-echo ""
-echo -e "${YELLOW}[7/8] Preparando base de datos MedicOS...${NC}"
-
-cd "$PROJECT_DIR"
-
-# ------------------------------------------------------------
-# Prisma Generate
-# ------------------------------------------------------------
-
-echo -e "${CYAN}⚙ Generando Prisma Client...${NC}"
-
-if npm --prefix "$API_DIR" run prisma:generate >/dev/null 2>&1; then
-
-    print_success "Prisma Client generado."
-
-else
-
-    print_warning "El script prisma:generate no está definido."
-    print_info "Intentando ejecutar Prisma directamente..."
-
-    (
-        cd "$API_DIR"
-        npx prisma generate
-    )
-
-    print_success "Prisma Client generado."
-
-fi
-
-# ------------------------------------------------------------
-# Base de datos
-# ------------------------------------------------------------
-
-echo ""
-echo -e "${CYAN}⚙ Aplicando estructura de base de datos...${NC}"
-
-if npm --prefix "$API_DIR" run prisma:migrate:deploy >/dev/null 2>&1; then
-
-    print_success "Migraciones Prisma aplicadas."
-
-elif npm --prefix "$API_DIR" run prisma:push >/dev/null 2>&1; then
-
-    print_success "Esquema Prisma sincronizado."
-
-else
-
-    print_warning "No se encontraron scripts Prisma configurados."
-    print_info "Ejecutando Prisma directamente..."
-
-    (
-        cd "$API_DIR"
-        npx prisma migrate deploy
-    ) || (
-        cd "$API_DIR"
-        npx prisma db push
-    )
-
-    print_success "Base de datos preparada."
-
 fi
 
 # ============================================================
-# CREAR ADMINISTRADOR INICIAL
+# 5. INSTALACIÓN DE DEPENDENCIAS
 # ============================================================
 
 echo ""
-echo -e "${CYAN}🔐 Verificando administrador inicial...${NC}"
+echo -e "${YELLOW}[5/7] Verificando dependencias del monorepo...${NC}"
 
-ADMIN_EXISTS=$(
+if [ ! -d "$PROJECT_DIR/node_modules" ]; then
+    print_info "Instalando dependencias generales..."
+    npm install
+    print_success "Dependencias instaladas."
+else
+    print_success "Dependencias ya instaladas."
+fi
+
+# ============================================================
+# 6. GENERAR Y SINCRONIZAR BASE DE DATOS
+# ============================================================
+
+echo ""
+echo -e "${YELLOW}[6/7] Sincronizando esquema de base de datos...${NC}"
+
+(
+    cd "$API_DIR"
+    echo -e "${CYAN}⚙ Generando cliente de Prisma...${NC}"
+    npx prisma generate
+
+    echo -e "${CYAN}⚙ Sincronizando modelos con PostgreSQL (db push)...${NC}"
+    npx prisma db push --skip-generate
+)
+print_success "Base de datos sincronizada con el modelo Prisma actual."
+
+# ============================================================
+# 7. VERIFICACIÓN DE DATOS / SEMBRADO DE RESPALDO
+# ============================================================
+
+echo ""
+echo -e "${YELLOW}[7/7] Verificando datos del sistema...${NC}"
+
+USER_COUNT=$(
     cd "$API_DIR" && \
     npx tsx -e "
         import { PrismaClient } from '@prisma/client';
         import { PrismaPg } from '@prisma/adapter-pg';
         import pg from 'pg';
+        import dotenv from 'dotenv';
+        dotenv.config();
 
-        const pool = new pg.Pool({
-          connectionString: process.env.DATABASE_URL
-        });
-
+        const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
         const adapter = new PrismaPg(pool);
         const prisma = new PrismaClient({ adapter });
 
-        const run = async () => {
-          const admin = await prisma.user.findFirst({
-            where: {
-              role: 'ADMIN',
-              deletedAt: null
-            },
-            select: {
-              id: true
+        async function check() {
+            try {
+                const count = await prisma.user.count();
+                console.log(count);
+            } catch {
+                console.log('0');
+            } finally {
+                await prisma.\$disconnect();
+                await pool.end();
             }
-          });
-
-          console.log(admin ? 'EXISTS' : 'MISSING');
-
-          await prisma.\$disconnect();
-          await pool.end();
-        };
-
-        run().catch(async () => {
-          await prisma.\$disconnect();
-          await pool.end();
-          process.exit(1);
-        });
+        }
+        check();
     " 2>/dev/null
-) || ADMIN_EXISTS="MISSING"
+) || USER_COUNT="0"
 
-if [ "$ADMIN_EXISTS" = "EXISTS" ]; then
-
-    print_success "Administrador existente detectado."
-    echo "No es necesario crear otro usuario."
-
+if [ "$USER_COUNT" -eq "0" ]; then
+    print_warning "La base de datos está vacía. Ejecutando sembrado maestro de datos..."
+    (
+        cd "$API_DIR"
+        npx tsx prisma/seed.ts
+    )
+    print_success "Catálogo oficial, brigadas y usuarios sembrados exitosamente."
 else
-
-    echo ""
-    echo -e "${BLUE}"
-    echo "=========================================="
-    echo "     CONFIGURACIÓN INICIAL DE MedicOS"
-    echo "=========================================="
-    echo -e "${NC}"
-
-    echo "No se encontró un administrador."
-    echo "Crea el administrador inicial del sistema."
-    echo ""
-
-    cd "$API_DIR"
-
-    if [ ! -f "$API_DIR/src/scripts/create-admin.ts" ]; then
-        print_error "No se encontró:"
-        echo "$API_DIR/src/scripts/create-admin.ts"
-        exit 1
-    fi
-
-    npx tsx src/scripts/create-admin.ts
-
-    echo ""
-
-    print_success "Administrador inicial configurado."
-
+    print_success "Datos existentes detectados (${USER_COUNT} usuarios registrados)."
 fi
 
 # ============================================================
-# 8. INICIAR MEDICOS
+# INICIO DEL ENTORNO DE DESARROLLO
 # ============================================================
 
 echo ""
-echo -e "${YELLOW}[8/8] Iniciando ecosistema MedicOS...${NC}"
-
-cd "$PROJECT_DIR"
-
-echo ""
-echo -e "${GREEN}"
-echo "============================================================"
-echo "                 🚀 MedicOS ESTÁ LISTO"
-echo "============================================================"
-echo -e "${NC}"
-
-echo -e " 🐘 PostgreSQL: ${GREEN}http://localhost:5432${NC}"
-echo -e " 🔧 Backend API: ${CYAN}http://localhost:${API_PORT}${NC}"
+echo -e "${GREEN}============================================================${NC}"
+echo -e "${GREEN}                 🚀 MedicOS ESTÁ LISTO                      ${NC}"
+echo -e "${GREEN}============================================================${NC}"
+echo -e " 🐘 PostgreSQL:   ${GREEN}localhost:5432/medicos_db${NC}"
+echo -e " 🔧 API Backend:  ${CYAN}http://localhost:${API_PORT}${NC}"
 echo -e " 🌐 Frontend Web: ${CYAN}http://localhost:${WEB_PORT}${NC}"
-
-echo ""
-echo -e "${GREEN}============================================================${NC}"
-echo -e "${GREEN}              Sistema iniciado correctamente${NC}"
 echo -e "${GREEN}============================================================${NC}"
 echo ""
-
-echo -e "${YELLOW}Para acceder a MedicOS:${NC}"
-echo -e "  ${CYAN}http://localhost:${WEB_PORT}${NC}"
-echo ""
-
-echo -e "${YELLOW}Presiona Ctrl+C para detener API y Frontend.${NC}"
-echo ""
-
-# ============================================================
-# ARRANCAR TURBO
-# ============================================================
 
 npm run dev
-```

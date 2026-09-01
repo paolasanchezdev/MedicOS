@@ -1,98 +1,116 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/brigada/resumen/components/ResumenBrigadaHeader.tsx
-// DESCRIPCIÓN: Encabezado ejecutivo optimizado con clases semánticas de Tailwind del Design System.
+// DESCRIPCIÓN: Cabecera institucional de la brigada con diseño oficial Admin y enfoque territorial.
 // =========================================================================
 
 import React from 'react';
-import { Calendar, Clock, MapPin, RefreshCw, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ShieldCheck, RefreshCw, Calendar, MapPin } from 'lucide-react';
 
 interface ResumenBrigadaHeaderProps {
-  nombreBrigada: string;
-  comunidad: string;
-  fecha: string;
-  estado: 'ACTIVA' | 'EN_PAUSA' | 'FINALIZADA';
-  horaInicio: string;
+  nombreBrigada?: string;
+  comunidad?: string;
+  fecha?: string;
+  enCurso?: boolean;
   onRefresh: () => void;
-  isRefreshing: boolean;
+  isRefreshing?: boolean;
 }
 
 export const ResumenBrigadaHeader: React.FC<ResumenBrigadaHeaderProps> = ({
-  nombreBrigada,
-  comunidad,
+  nombreBrigada = 'Brigada Comunitaria #12',
+  comunidad = 'Comunidad El Centro, San Miguel Tepezontes',
   fecha,
-  estado,
-  horaInicio,
+  enCurso = true,
   onRefresh,
-  isRefreshing,
+  isRefreshing = false,
 }) => {
-  const estadoConfig = {
-    ACTIVA: {
-      label: 'Jornada Activa',
-      badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200/80',
-      dotClass: 'bg-emerald-500 animate-pulse',
-    },
-    EN_PAUSA: {
-      label: 'Jornada en Pausa',
-      badgeClass: 'bg-amber-50 text-amber-800 border-amber-200/80',
-      dotClass: 'bg-amber-500',
-    },
-    FINALIZADA: {
-      label: 'Jornada Finalizada',
-      badgeClass: 'bg-slate-100 text-slate-700 border-slate-200/80',
-      dotClass: 'bg-slate-400',
-    },
-  };
-
-  const currentStatus = estadoConfig[estado] || estadoConfig.ACTIVA;
+  const fechaHoy =
+    fecha ||
+    (() => {
+      const f = new Date().toLocaleDateString('es-SV', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+      return f.charAt(0).toUpperCase() + f.slice(1);
+    })();
 
   return (
-    <div className="bg-medicos-surface border border-medicos-soft-border rounded-2xl p-6 sm:p-8 shadow-xs relative overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-      {/* Barra lateral institucional */}
-      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-medicos-teal" />
-
-      <div className="space-y-3 pl-2 sm:pl-0">
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <span className={`px-3 py-1 border text-xs font-semibold rounded-lg flex items-center gap-1.5 ${currentStatus.badgeClass}`}>
-            <span className={`w-2 h-2 rounded-full ${currentStatus.dotClass}`} />
-            {currentStatus.label}
-          </span>
-          <span className="text-xs font-medium text-medicos-muted bg-medicos-canvas border border-medicos-soft-border/60 px-3 py-1 rounded-lg flex items-center gap-1.5">
-            <Calendar size={13} className="text-medicos-teal" /> {fecha}
-          </span>
-          <span className="text-xs font-medium text-medicos-muted bg-medicos-canvas border border-medicos-soft-border/60 px-3 py-1 rounded-lg flex items-center gap-1.5">
-            <Clock size={13} className="text-medicos-teal" /> Inicio: {horaInicio}
-          </span>
-        </div>
-
-        <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-medicos-dark-blue tracking-tight">
-            {nombreBrigada}
-          </h1>
-          <div className="flex items-center gap-2 text-xs sm:text-sm text-medicos-muted font-medium">
-            <MapPin size={15} className="text-medicos-teal shrink-0" />
-            <span>Localidad / Comunidad: <strong className="text-medicos-dark-blue font-semibold">{comunidad}</strong></span>
-          </div>
-        </div>
+    <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-[#2B7A78] via-[#236866] to-[#1B5250] p-6 sm:p-7 text-white shadow-sm border border-teal-700/50">
+      {/* Resplandor y patrón decorativo de fondo tipo onda médica */}
+      <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-teal-400/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute right-10 top-1/2 -translate-y-1/2 opacity-10 pointer-events-none hidden lg:block">
+        <svg
+          width="200"
+          height="100"
+          viewBox="0 0 200 100"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M10 50H50L62 15L78 85L92 35L102 60L112 50H190"
+            stroke="white"
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </div>
 
-      <div className="flex items-center gap-3 flex-wrap shrink-0">
+      {/* Contenido Principal */}
+      <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+        <div className="space-y-2">
+          {/* Badges de Contexto y Estado */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-teal-100 shadow-2xs">
+              <ShieldCheck className="w-3.5 h-3.5 text-teal-200" />
+              <span>Resumen de Brigada &bull; Control Territorial</span>
+            </div>
+
+            <span
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                enCurso
+                  ? 'bg-emerald-500/20 text-emerald-100 border border-emerald-400/30'
+                  : 'bg-white/10 text-white/70 border border-white/20'
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  enCurso ? 'bg-emerald-400 animate-pulse' : 'bg-slate-300'
+                }`}
+              />
+              {enCurso ? 'En Curso' : 'Finalizada'}
+            </span>
+          </div>
+
+          {/* Título de la Brigada */}
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            {nombreBrigada}
+          </h1>
+
+          {/* Ubicación y Fecha */}
+          <div className="flex items-center gap-3 text-xs sm:text-sm text-teal-100/90 font-medium flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <MapPin className="w-4 h-4 text-teal-200 shrink-0" />
+              <span>{comunidad}</span>
+            </div>
+            <span className="text-teal-200/40">&bull;</span>
+            <div className="flex items-center gap-1.5">
+              <Calendar className="w-4 h-4 text-teal-200 shrink-0" />
+              <span>{fechaHoy}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Botón de Actualizar */}
         <button
           onClick={onRefresh}
           disabled={isRefreshing}
-          className="px-4 py-2.5 bg-medicos-surface border border-medicos-soft-border hover:bg-medicos-canvas text-medicos-dark-blue font-semibold text-xs rounded-xl transition-all shadow-2xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-teal-50 text-[#1B5250] text-xs sm:text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all duration-200 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed shrink-0 cursor-pointer"
         >
-          <RefreshCw size={14} className={isRefreshing ? 'animate-spin text-medicos-teal' : 'text-medicos-muted'} />
-          <span>Actualizar</span>
+          <RefreshCw className={`w-4 h-4 text-[#2B7A78] ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span>{isRefreshing ? 'Actualizando...' : 'Actualizar métricas'}</span>
         </button>
-
-        <Link
-          to="/brigadista/brigada/jornada"
-          className="px-4 py-2.5 bg-medicos-teal hover:bg-[#186a76] text-white font-semibold text-xs rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
-        >
-          <span>Ver Jornada Activa</span>
-          <ArrowRight size={14} />
-        </Link>
       </div>
     </div>
   );

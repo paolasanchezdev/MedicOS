@@ -16,7 +16,13 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "medicos": "sh ./run.sh"
+    "medicos": "bash ./run.sh",
+    "db:generate": "npm --prefix apps/api run db:generate",
+    "db:push": "npm --prefix apps/api run db:push",
+    "db:seed": "npm --prefix apps/api run db:seed",
+    "db:setup": "npm --prefix apps/api run db:setup",
+    "db:dump": "pg_dump -U medicos_app -h localhost -d medicos_db -F c -b -v -f medicos_backup.dump",
+    "db:restore": "pg_restore -U medicos_app -h localhost -d medicos_db --clean --if-exists medicos_backup.dump"
   },
   "devDependencies": {
     "turbo": "^2.10.9"

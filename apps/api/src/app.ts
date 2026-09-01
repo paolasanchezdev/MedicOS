@@ -1,10 +1,12 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/app.ts
-// DESCRIPCIÓN: Configuración principal de Express, CORS y Middlewares.
+// DESCRIPCIÓN: Configuración principal de Express, CORS, Seguridad y Middlewares.
 // =========================================================================
 
 import express from "express";
 import cors, { CorsOptions } from "cors";
+import helmet from "helmet";
+import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit"; 
 import routes from "./routes/index.js";
@@ -12,13 +14,29 @@ import { errorHandler, AppError } from "./middleware/error.middleware.js";
 
 const app = express();
 
-// 🌐 Habilitar proxy reverso (Render / Vercel) para rate limiting e IP real
+// 🌐 Habilitar proxy reverso (Render / Vercel / Nginx) para rate limiting e IP real
 app.set("trust proxy", 1);
+
+// ==========================================
+// SEGURIDAD DE CABECERAS HTTP (HELMET)
+// ==========================================
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  })
+);
+
+// ==========================================
+// REGISTRO DE PETICIONES (LOGGING)
+// ==========================================
+if (process.env.NODE_ENV !== "test") {
+  app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
+}
 
 // ==========================================
 // CONFIGURACIÓN DE CORS MULTI-ORIGEN
 // ==========================================
-
 const allowedOrigins: string[] = [
   "http://localhost:5173",
   "http://localhost:3000",
@@ -29,7 +47,7 @@ const allowedOrigins: string[] = [
 
 const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
-    // Permitir peticiones sin origen (ej. Postman, scripts del servidor, Health checks)
+    // Permitir peticiones sin origen (Postman, scripts locales, health checks internos)
     if (!origin) {
       return callback(null, true);
     }
@@ -53,13 +71,19 @@ const corsOptions: CorsOptions = {
 app.use(cors(corsOptions));
 
 // ==========================================
-// CONFIGURACIÓN DE PROTECCIÓN ANTI-DOS
+// PARSERS DE CUERPO Y COOKIES
 // ==========================================
+// Límite de payload a 10kb para mitigar saturación de memoria RAM
+app.use(express.json({ limit: "10kb" }));
+app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+app.use(cookieParser());
 
-// 1. Limitador general para la API (Máx 100 peticiones en 15 min por IP)
+// ==========================================
+// CONFIGURACIÓN DE PROTECCIÓN ANTI-DOS (RATE LIMITERS)
+// ==========================================
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: process.env.NODE_ENV === "development" ? 1000 : 100,
   message: {
     ok: false,
     message: "Demasiadas peticiones desde esta dirección IP. Intenta de nuevo en 15 minutos.",
@@ -68,10 +92,9 @@ const generalLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// 2. Limitador estricto para Autenticación (Máx 15 intentos en 15 min por IP)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 15,
+  max: process.env.NODE_ENV === "development" ? 100 : 15,
   message: {
     ok: false,
     message: "Demasiados intentos de autenticación. Por seguridad, inténtalo en 15 minutos.",
@@ -80,41 +103,40 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// 🔒 Límite de Payload a 10kb (Evita saturar la memoria RAM con JSONs gigantes)
-app.use(express.json({ limit: "10kb" }));
-
-// Middleware para parsear req.cookies
-app.use(cookieParser());
-
 // ==========================================
-// RUTAS Y RATE LIMITERS
+// RUTAS Y CONTROL DE TRÁFICO
 // ==========================================
-
-// Límite estricto para /api/auth y /auth
 app.use("/api/auth", authLimiter);
 app.use("/auth", authLimiter);
-
-// Límite general para toda la /api
 app.use("/api", generalLimiter);
 
-// Rutas principales (montadas en /api y en la raíz para compatibilidad total)
-app.use("/api", routes);
-app.use("/", routes);
-
-// Ruta de prueba de error operacional
-app.get("/api/test-error", (_req, _res, next) => {
-  next(new AppError("Prueba de error operacional en MedicOS", 400));
-});
-
+// Endpoint de verificación raíz
 app.get("/", (_req, res) => {
   res.json({
     name: "MedicOS API",
     version: "1.0.0",
     status: "running",
+    timestamp: new Date().toISOString(),
   });
 });
 
-// Manejador global de errores (siempre al final)
+// Endpoint de prueba de error operacional
+app.get("/api/test-error", (_req, _res, next) => {
+  next(new AppError("Prueba de error operacional en MedicOS", 400));
+});
+
+// Montaje principal de rutas API
+app.use("/api", routes);
+app.use("/", routes);
+
+// Captura de rutas no encontradas (404)
+app.use("*", (req, _res, next) => {
+  next(new AppError(`No se encontró la ruta ${req.originalUrl} en el servidor`, 404));
+});
+
+// ==========================================
+// MANEJADOR GLOBAL DE ERRORES
+// ==========================================
 app.use(errorHandler);
 
 export default app;

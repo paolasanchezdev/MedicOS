@@ -1,46 +1,78 @@
 // =========================================================================
-// ARCHIVO: apps/api/src/schemas/auth.schema.ts
+// ARCHIVO: apps/api/src/modules/auth/auth.schema.ts
+// DESCRIPCIÓN: Esquemas de validación Zod con inferencia de tipos y
+//              soporte multi-formato para autenticación en MedicOS.
 // =========================================================================
 
 import { z } from "zod";
 
-// 1. Esquema para el Login
-export const loginSchema = z.object({
-  email: z
-    .string({ message: "El correo electrónico es obligatorio." })
-    .email("El formato del correo electrónico no es válido."),
-  password: z
-    .string({ message: "La contraseña es obligatoria." })
-    .min(1, "La contraseña no puede estar vacía."),
-}).passthrough();
+// =========================================================================
+// 1. ESQUEMA DE LOGIN
+// =========================================================================
+export const loginSchema = z
+  .object({
+    email: z
+      .string({ required_error: "El correo electrónico es obligatorio." })
+      .trim()
+      .toLowerCase()
+      .email("El formato del correo electrónico no es válido."),
+    password: z
+      .string({ required_error: "La contraseña es obligatoria." })
+      .min(1, "La contraseña no puede estar vacía."),
+    turnstileToken: z.string().optional(),
+    turnstile_token: z.string().optional(),
+    "cf-turnstile-response": z.string().optional(),
+  })
+  .passthrough();
 
-// 2. Esquema para el Registro
-export const registerSchema = z.object({
-  email: z
-    .string({ message: "El correo electrónico es obligatorio." })
-    .email("Ingrese un correo electrónico válido."),
-  password: z
-    .string({ message: "La contraseña es obligatoria." })
-    .min(6, "La contraseña debe tener al menos 6 caracteres."),
-  
-  // Nombres y Apellidos (Soporte completo para campos individuales y combinados)
-  primerNombre: z.string().optional(),
-  segundoNombre: z.string().optional(),
-  primerApellido: z.string().optional(),
-  segundoApellido: z.string().optional(),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  nombre: z.string().optional(),
-  apellido: z.string().optional(),
+export type LoginInput = z.infer<typeof loginSchema>;
 
-  // Datos de contacto e identificación
-  telefono: z.string().optional(),
-  phone: z.string().optional(),
-  dui: z.string().optional(),
-  role: z.string().optional(),
+// =========================================================================
+// 2. ESQUEMA DE REGISTRO
+// =========================================================================
+export const registerSchema = z
+  .object({
+    email: z
+      .string({ required_error: "El correo electrónico es obligatorio." })
+      .trim()
+      .toLowerCase()
+      .email("Ingrese un correo electrónico válido."),
+    password: z
+      .string({ required_error: "La contraseña es obligatoria." })
+      .min(6, "La contraseña debe tener al menos 6 caracteres."),
 
-  // Tokens anti-bot de Cloudflare Turnstile
-  turnstileToken: z.string().optional(),
-  turnstile_token: z.string().optional(),
-  "cf-turnstile-response": z.string().optional(),
-}).passthrough(); // 👈 .passthrough() permite que ningún campo del payload sea filtrado
+    // Campos de nombres (formatos compuestos o directos)
+    primerNombre: z.string().trim().optional(),
+    segundoNombre: z.string().trim().optional(),
+    primerApellido: z.string().trim().optional(),
+    segundoApellido: z.string().trim().optional(),
+    firstName: z.string().trim().optional(),
+    lastName: z.string().trim().optional(),
+    nombre: z.string().trim().optional(),
+    apellido: z.string().trim().optional(),
+
+    // Contacto e identificación
+    telefono: z.string().trim().optional(),
+    phone: z.string().trim().optional(),
+    dui: z.string().trim().optional(),
+    role: z.string().trim().optional(),
+
+    // Tokens anti-bot de Cloudflare Turnstile
+    turnstileToken: z.string().optional(),
+    turnstile_token: z.string().optional(),
+    "cf-turnstile-response": z.string().optional(),
+  })
+  .passthrough()
+  .refine(
+    (data) => {
+      const hasFirst = Boolean(data.primerNombre || data.firstName || data.nombre);
+      const hasLast = Boolean(data.primerApellido || data.lastName || data.apellido);
+      return hasFirst && hasLast;
+    },
+    {
+      message: "Debe proporcionar al menos un nombre y un apellido válidos.",
+      path: ["firstName"],
+    }
+  );
+
+export type RegisterInput = z.infer<typeof registerSchema>;

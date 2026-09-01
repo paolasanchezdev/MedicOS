@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/consultations/consultations.controller.ts
-// DESCRIPCIÓN: Controlador HTTP para creación y consulta del historial SOAP.
+// DESCRIPCIÓN: Controlador HTTP para creación, listado general y detalle del historial SOAP.
 // =========================================================================
 
 import { Request, Response } from 'express';
@@ -8,6 +8,37 @@ import { consultationsService, type CreateConsultationDTO } from './consultation
 import { createConsultationSchema } from './consultations.schema.js';
 
 export class ConsultationsController {
+  async getAll(req: Request, res: Response): Promise<void> {
+    try {
+      const {
+        search,
+        startDate,
+        endDate,
+        category,
+        status,
+        brigadeId,
+        page,
+        limit,
+      } = req.query;
+
+      const result = await consultationsService.getAllConsultations({
+        search: search ? String(search) : undefined,
+        startDate: startDate ? String(startDate) : undefined,
+        endDate: endDate ? String(endDate) : undefined,
+        category: category ? String(category) : undefined,
+        status: status ? String(status) : undefined,
+        brigadeId: brigadeId ? String(brigadeId) : undefined,
+        page: page ? parseInt(String(page), 10) : undefined,
+        limit: limit ? parseInt(String(limit), 10) : undefined,
+      });
+
+      res.json({ success: true, data: result });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Error al obtener historial de atenciones';
+      res.status(500).json({ success: false, error: msg });
+    }
+  }
+
   async create(req: Request, res: Response): Promise<void> {
     try {
       const parsedBody = createConsultationSchema.parse(req.body);

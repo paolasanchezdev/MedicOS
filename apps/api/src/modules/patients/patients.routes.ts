@@ -1,19 +1,39 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/patients/patients.routes.ts
-// DESCRIPCIÓN: Rutas protegidas para Pacientes y Signos Vitales.
+// DESCRIPCIÓN: Rutas protegidas para Pacientes, Signos Vitales y Validaciones.
 // =========================================================================
 
 import { Router } from 'express';
 import { patientsController } from './patients.controller.js';
 import { checkAuth, checkRole } from '../../middleware/auth.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
-import { patientIdParamSchema, createPatientSchema } from './patients.schema.js';
+import {
+  patientIdParamSchema,
+  createPatientSchema,
+  checkDuiQuerySchema,
+  checkEmailQuerySchema,
+} from './patients.schema.js';
 
 const router = Router();
 
 router.use(checkAuth);
 
-// 1. Rutas Estáticas de Signos Vitales (Antes de /:id para evitar colisiones)
+// 1. Verificación previa de disponibilidad de DUI y Email (evita colisiones con /:id)
+router.get(
+  '/check-dui',
+  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA'),
+  validate(checkDuiQuerySchema),
+  patientsController.checkDui
+);
+
+router.get(
+  '/check-email',
+  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA'),
+  validate(checkEmailQuerySchema),
+  patientsController.checkEmail
+);
+
+// 2. Rutas Estáticas de Signos Vitales
 router.get(
   '/vitals/today',
   checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'AUTHORITY'),
@@ -25,7 +45,7 @@ router.post(
   patientsController.createVitalSigns
 );
 
-// 2. Listado general y creación de Pacientes
+// 3. Listado general y creación de Pacientes
 router.get(
   '/',
   checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'AUTHORITY'),
@@ -38,7 +58,7 @@ router.post(
   patientsController.createPatient
 );
 
-// 3. Rutas de Dashboard de Paciente
+// 4. Rutas de Dashboard de Paciente
 router.get(
   '/resumen',
   checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'),
@@ -60,7 +80,7 @@ router.get(
   patientsController.getPatientActivity
 );
 
-// 4. Rutas parametrizadas por ID
+// 5. Rutas parametrizadas por ID
 router.get(
   '/:id/actividad',
   checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'),

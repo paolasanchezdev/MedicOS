@@ -1,20 +1,30 @@
-// apps/api/src/services/base.service.ts
-import { prisma } from "../config/prisma.js"; // <-- Clave: extensión .js
-import { PrismaClient } from "@prisma/client";
+// =========================================================================
+// ARCHIVO: apps/api/src/services/base.service.ts
+// DESCRIPCIÓN: Clase base para servicios de negocio en MedicOS con soporte
+//              para inyección de dependencias y clientes transaccionales.
+// =========================================================================
 
-export class BaseService {
-  protected db: PrismaClient;
+import { prisma } from "../config/prisma.js";
+import { PrismaClient, Prisma } from "@prisma/client";
 
-  // Si no se le inyecta un cliente diferente, por defecto utiliza tu instancia global
-  constructor(databaseClient: PrismaClient = prisma) {
+export type DbClient = PrismaClient | Prisma.TransactionClient;
+
+export abstract class BaseService {
+  protected db: DbClient;
+
+  constructor(databaseClient: DbClient = prisma) {
     this.db = databaseClient;
   }
 
-  // Método de prueba para verificar que la base de datos responde
-  async verificarConexionDB() {
-    // Hace una consulta rápida a la tabla "user" que configuraste ayer
-    return await this.db.user.findMany({
-      take: 1,
-    });
+  /**
+   * Comprueba la conectividad directa con PostgreSQL mediante una consulta mínima.
+   */
+  async verificarConexionDB(): Promise<boolean> {
+    try {
+      await (this.db as PrismaClient).$queryRaw`SELECT 1`;
+      return true;
+    } catch {
+      return false;
+    }
   }
 }

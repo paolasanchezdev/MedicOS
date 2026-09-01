@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/config/prisma.ts
-// DESCRIPCIÓN: Instancia Singleton de Prisma Client con adaptador Driver Pg.
+// DESCRIPCIÓN: Instancia Singleton de Prisma Client con adaptador Driver Pg
+//              y configuración de resiliencia TCP para conexiones en reposo.
 // =========================================================================
 
 import 'dotenv/config';
@@ -15,18 +16,20 @@ const globalForPrisma = globalThis as unknown as {
   pgPool: pg.Pool | undefined;
 };
 
-// Se Mantiene un pool único de conexiones
-const pool =
+// Se mantiene un pool único de conexiones con Keep-Alive y reciclaje de sockets
+export const pool =
   globalForPrisma.pgPool ??
   new pg.Pool({
     connectionString,
     max: 10,
-    idleTimeoutMillis: 30000,
+    idleTimeoutMillis: 10000,
     connectionTimeoutMillis: 5000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
   });
 
 pool.on('error', (err) => {
-  console.error('❌ Error no esperado en el pool de PostgreSQL:', err.message);
+  console.error('❌ Error en el pool de PostgreSQL (socket reciclado):', err.message);
 });
 
 const adapter = new PrismaPg(pool);

@@ -1,82 +1,218 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/dashboard/actividad/ActividadBrigadistaPage.tsx
-// DESCRIPCIÓN: Vista del Registro de Actividad Operativa del Brigadista.
+// DESCRIPCIÓN: Centro Operativo de Despacho y Bitácora del Brigadista con estilo Admin.
 // =========================================================================
 
-import React from 'react';
-import { Activity, Clock, Filter, CheckCircle2, RefreshCw } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useBrigadistaActividad } from '../../../../../modules/brigades';
+import { Database, RefreshCw } from 'lucide-react';
+
+import {
+  ActividadHeader,
+  ActividadResumen,
+  ActividadFiltros,
+  ActividadTimeline,
+  ProximaActividadCard,
+  ActividadTabla,
+  ActividadCard,
+} from './components';
+import type { ActividadItemOperativa } from '../../../../../modules/brigades';
 
 export const ActividadBrigadistaPage: React.FC = () => {
-  return (
-    <div className="space-y-6">
-      {/* Encabezado */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Historial de Actividad</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Registro cronológico de acciones y eventos realizados en el dispositivo local.
+  const navigate = useNavigate();
+  const tablaRef = useRef<HTMLDivElement>(null);
+
+  // Estados de Filtros
+  const [busqueda, setBusqueda] = useState<string>('');
+  const [tipoSeleccionado, setTipoSeleccionado] = useState<string>('');
+  const [estadoSeleccionado, setEstadoSeleccionado] = useState<string>('');
+  const [temporalidad, setTemporalidad] = useState<'HOY' | 'JORNADA' | 'TODAS'>('HOY');
+  const [fechaInicio, setFechaInicio] = useState<string>('');
+  const [fechaFin, setFechaFin] = useState<string>('');
+
+  // Hook conectado con parámetros de consulta hacia PostgreSQL
+  const { data, loading, error, refreshing, refresh } = useBrigadistaActividad({
+    search: busqueda,
+    tipo: tipoSeleccionado,
+    estado: estadoSeleccionado,
+    temporalidad,
+    startDate: fechaInicio,
+    endDate: fechaFin,
+  });
+
+  // Estado del Modal de Detalle
+  const [actividadSeleccionada, setActividadSeleccionada] = useState<ActividadItemOperativa | null>(null);
+
+  const rawActividades = data?.actividades;
+
+  // Filtrado reactivo adicional en memoria
+  const actividadesFiltradas = useMemo(() => {
+    if (!rawActividades) return [];
+
+    return rawActividades.filter((act) => {
+      if (busqueda) {
+        const query = busqueda.toLowerCase();
+        const coincideSujeto = act.sujeto.toLowerCase().includes(query);
+        const coincideTitulo = act.titulo.toLowerCase().includes(query);
+        const coincideComunidad = act.comunidad.toLowerCase().includes(query);
+        const coincideResultado = act.resultado.toLowerCase().includes(query);
+        if (!coincideSujeto && !coincideTitulo && !coincideComunidad && !coincideResultado) {
+          return false;
+        }
+      }
+
+      if (tipoSeleccionado && act.tipo !== tipoSeleccionado) {
+        return false;
+      }
+
+      if (estadoSeleccionado && act.estado !== estadoSeleccionado) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [rawActividades, busqueda, tipoSeleccionado, estadoSeleccionado]);
+
+  const hasActiveFilters = Boolean(
+    busqueda || tipoSeleccionado || estadoSeleccionado || fechaInicio || fechaFin || temporalidad !== 'HOY'
+  );
+
+  const handleLimpiarFiltros = () => {
+    setBusqueda('');
+    setTipoSeleccionado('');
+    setEstadoSeleccionado('');
+    setFechaInicio('');
+    setFechaFin('');
+    setTemporalidad('HOY');
+  };
+
+  const handleScrollToTabla = () => {
+    tablaRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  if (loading) {
+    return (
+      <div className="w-full p-6 space-y-6 animate-pulse max-w-[1700px] mx-auto">
+        <div className="h-32 bg-slate-200/60 rounded-2xl" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="h-28 bg-white rounded-2xl border border-slate-200/80" />
+          <div className="h-28 bg-white rounded-2xl border border-slate-200/80" />
+          <div className="h-28 bg-white rounded-2xl border border-slate-200/80" />
+          <div className="h-28 bg-white rounded-2xl border border-slate-200/80" />
+          <div className="h-28 bg-white rounded-2xl border border-slate-200/80" />
+        </div>
+        <div className="h-24 bg-white rounded-2xl border border-slate-200/80" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-7 h-96 bg-white rounded-2xl border border-slate-200/80" />
+          <div className="lg:col-span-5 h-96 bg-white rounded-2xl border border-slate-200/80" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="p-8 max-w-lg mx-auto text-center my-12 bg-white rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+        <div className="w-12 h-12 bg-teal-50 text-[#2B7A78] rounded-2xl flex items-center justify-center mx-auto border border-teal-100 shadow-xs">
+          <Database className="w-6 h-6" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold text-slate-900">Sin conexión con la Base de Datos</h2>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            {error || 'No se pudo sincronizar la bitácora operacional de actividades del brigadista.'}
           </p>
         </div>
         <button
           type="button"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-700 border border-slate-200 rounded-xl font-medium text-sm hover:bg-slate-50 transition-colors shadow-2xs self-start sm:self-auto"
+          onClick={() => void refresh()}
+          disabled={refreshing}
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2B7A78] hover:bg-[#236866] text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
         >
-          <Filter className="w-4 h-4 text-[#3f8880]" />
-          <span>Filtrar Actividad</span>
+          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+          <span>Reintentar Conexión</span>
         </button>
       </div>
+    );
+  }
 
-      {/* Timeline de Actividades */}
-      <div className="p-6 bg-white rounded-2xl border border-slate-200/80 shadow-2xs">
-        <div className="relative border-l-2 border-slate-100 pl-6 space-y-6">
-          {[
-            {
-              time: '11:20 AM',
-              title: 'Sincronización de registros offline',
-              description: 'Se enviaron 5 expedientes guardados localmente al servidor central.',
-              icon: RefreshCw,
-              color: 'text-blue-600 bg-blue-50',
-            },
-            {
-              time: '10:45 AM',
-              title: 'Toma de signos vitales registrada',
-              description: 'Paciente: María del Carmen López - PA: 120/80, FC: 72 bpm, Temp: 36.5°C.',
-              icon: Activity,
-              color: 'text-teal-600 bg-teal-50',
-            },
-            {
-              time: '10:00 AM',
-              title: 'Nuevo paciente registrado',
-              description: 'Se creó la ficha clínica preliminar para José Roberto Hernández.',
-              icon: CheckCircle2,
-              color: 'text-emerald-600 bg-emerald-50',
-            },
-            {
-              time: '08:30 AM',
-              title: 'Inicio de jornada operativa',
-              description: 'Apertura de turno en Brigada San Miguel Tepezontes.',
-              icon: Clock,
-              color: 'text-purple-600 bg-purple-50',
-            },
-          ].map((item, idx) => {
-            const Icon = item.icon;
-            return (
-              <div key={idx} className="relative group">
-                <div className={`absolute -left-8.75 top-0 w-8 h-8 rounded-full ${item.color} flex items-center justify-center ring-4 ring-white`}>
-                  <Icon className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-slate-800">{item.title}</h3>
-                    <span className="text-xs text-slate-400">• {item.time}</span>
-                  </div>
-                  <p className="text-sm text-slate-600 mt-1">{item.description}</p>
-                </div>
-              </div>
-            );
-          })}
+  return (
+    <div className="w-full p-6 space-y-6 max-w-[1700px] mx-auto animate-in fade-in duration-200">
+      {/* 1. Encabezado de Identificación con Banner Oficial Teal */}
+      <ActividadHeader
+        nombreJornada={data.contexto.nombreJornada}
+        territorio={data.contexto.territorio}
+        fecha={data.contexto.fecha}
+        jornadaActiva={data.contexto.jornadaActiva}
+        onNuevaActividad={() => navigate('/brigadista/pacientes/registrar')}
+        onRefresh={() => void refresh()}
+        isRefreshing={refreshing}
+      />
+
+      {/* 2. Resumen de Operación (5 Indicadores Reales desde PostgreSQL) */}
+      <ActividadResumen
+        visitas={data.metricas.visitas}
+        personas={data.metricas.personas}
+        evaluaciones={data.metricas.evaluaciones}
+        riesgos={data.metricas.riesgos}
+        referencias={data.metricas.referencias}
+      />
+
+      {/* 3. Barra de Búsqueda y Filtros de Operación */}
+      <ActividadFiltros
+        busqueda={busqueda}
+        setBusqueda={setBusqueda}
+        tipoSeleccionado={tipoSeleccionado}
+        setTipoSeleccionado={setTipoSeleccionado}
+        estadoSeleccionado={estadoSeleccionado}
+        setEstadoSeleccionado={setEstadoSeleccionado}
+        temporalidad={temporalidad}
+        setTemporalidad={setTemporalidad}
+        fechaInicio={fechaInicio}
+        setFechaInicio={setFechaInicio}
+        fechaFin={fechaFin}
+        setFechaFin={setFechaFin}
+        onLimpiar={handleLimpiarFiltros}
+        hasActiveFilters={hasActiveFilters}
+      />
+
+      {/* 4. Cuadrícula Balanceada: Últimos Movimientos y Próxima Actividad */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div className="lg:col-span-7 flex flex-col">
+          <ActividadTimeline
+            actividades={actividadesFiltradas}
+            onSeleccionarActividad={(act) => setActividadSeleccionada(act)}
+            onVerTodas={handleScrollToTabla}
+          />
+        </div>
+
+        <div className="lg:col-span-5 flex flex-col justify-between">
+          <ProximaActividadCard
+            proximaActividad={data.proximaActividad}
+            seguimientosAtrasados={data.atencionInmediata.seguimientosAtrasados}
+            referenciasPendientes={data.atencionInmediata.referenciasPendientes}
+            pendientesSync={data.atencionInmediata.pendientesSync}
+            onVerDetalleProxima={() => {
+              const primera = data.actividades[0];
+              if (primera) setActividadSeleccionada(primera);
+            }}
+          />
         </div>
       </div>
+
+      {/* 5. Tabla de Registro Completo de Actividades Reales */}
+      <div ref={tablaRef}>
+        <ActividadTabla
+          actividades={actividadesFiltradas}
+          onSeleccionarActividad={(act) => setActividadSeleccionada(act)}
+        />
+      </div>
+
+      {/* Modal de Detalle Operativo */}
+      <ActividadCard
+        actividad={actividadSeleccionada}
+        onClose={() => setActividadSeleccionada(null)}
+      />
     </div>
   );
 };

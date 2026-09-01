@@ -8,10 +8,12 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "db:generate": "prisma generate",
+    "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "db:setup": "prisma migrate dev && prisma db seed"
+    "db:setup": "prisma db push && prisma db seed",
+    "db:reset": "prisma migrate reset --force"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

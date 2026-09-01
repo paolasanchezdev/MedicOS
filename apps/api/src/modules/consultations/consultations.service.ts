@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/consultations/consultations.service.ts
-// DESCRIPCIÓN: Servicio de consultas SOAP con soporte dual (Brigada / Cita).
+// DESCRIPCIÓN: Servicio de consultas SOAP y atenciones comunitarias con soporte multirrol y listado general.
 // =========================================================================
 
 import { prisma } from '../../config/prisma.js';
@@ -32,8 +32,18 @@ export interface CreateConsultationDTO {
   originDeviceId?: string | null | undefined;
 }
 
+export interface GetAllConsultationsFilters {
+  search?: string | undefined;
+  startDate?: string | undefined;
+  endDate?: string | undefined;
+  category?: string | undefined;
+  status?: string | undefined;
+  brigadeId?: string | undefined;
+  page?: number | undefined;
+  limit?: number | undefined;
+}
+
 export class ConsultationsService extends BaseService {
-  // Asegurar que el paciente cuente con expediente clínico base
   private async ensureClinicalRecord(patientId: string): Promise<string> {
     const record = await prisma.clinicalRecord.findUnique({
       where: { patientId },
@@ -53,7 +63,7 @@ export class ConsultationsService extends BaseService {
     return newRecord.id;
   }
 
-  // 1. Crear Consulta Médica (Transaccional)
+  // 1. Crear Consulta Médica / Atención Comunitaria
   async createConsultation(data: CreateConsultationDTO) {
     const {
       patientId,
@@ -71,16 +81,20 @@ export class ConsultationsService extends BaseService {
       originDeviceId,
     } = data;
 
-    // Validar existencia de paciente y médico
     const [patient, doctor] = await Promise.all([
       prisma.patient.findFirst({ where: { id: patientId, deletedAt: null } }),
-      prisma.user.findFirst({ where: { id: doctorId, role: 'DOCTOR', deletedAt: null } }),
+      prisma.user.findFirst({
+        where: {
+          id: doctorId,
+          role: { in: ['DOCTOR', 'BRIGADISTA', 'ADMIN'] },
+          deletedAt: null,
+        },
+      }),
     ]);
 
     if (!patient) throw new Error('El paciente especificado no existe.');
-    if (!doctor) throw new Error('El médico especificado no existe o no tiene permisos.');
+    if (!doctor) throw new Error('El usuario responsable no existe o no tiene permisos para registrar la atención.');
 
-    // Validar contexto de origen
     if (appointmentId) {
       const db = prisma as any;
       const appointment = await db.appointment.findFirst({
@@ -101,7 +115,6 @@ export class ConsultationsService extends BaseService {
     const parsedFollowUp = followUpDate ? new Date(followUpDate) : null;
 
     return prisma.$transaction(async (tx: any) => {
-      // A. Crear Consulta SOAP
       const consultation = await tx.consultation.create({
         data: {
           patientId,
@@ -123,7 +136,6 @@ export class ConsultationsService extends BaseService {
         },
       });
 
-      // B. Registrar signos vitales si fueron medidos en la consulta
       if (vitalSigns) {
         await tx.vitalSigns.create({
           data: {
@@ -142,7 +154,6 @@ export class ConsultationsService extends BaseService {
         });
       }
 
-      // C. Si proviene de cita, marcar la cita como completada
       if (appointmentId) {
         await tx.appointment.update({
           where: { id: appointmentId },
@@ -174,7 +185,117 @@ export class ConsultationsService extends BaseService {
     });
   }
 
-  // 2. Historial de Consultas de un Paciente
+  // 2. Historial General de Atenciones y Consultas con Filtros
+  async getAllConsultations(filters: GetAllConsultationsFilters = {}) {
+    const {
+      search,
+      startDate,
+      endDate,
+      category,
+      status,
+      brigadeId,
+      page = 1,
+      limit = 50,
+    } = filters;
+
+    const where: any = {
+      deletedAt: null,
+    };
+
+    if (brigadeId) {
+      where.brigadeId = brigadeId;
+    }
+
+    if (status && status !== 'ALL') {
+      where.status = status;
+    }
+
+    if (category && category !== 'ALL') {
+      where.OR = [
+        { chiefComplaint: { contains: category, mode: 'insensitive' } },
+        { diagnosisDesc: { contains: category, mode: 'insensitive' } },
+      ];
+    }
+
+    if (startDate || endDate) {
+      where.consultationDate = {};
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        where.consultationDate.gte = start;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        where.consultationDate.lte = end;
+      }
+    }
+
+    if (search && search.trim()) {
+      const cleanSearch = search.trim();
+      where.patient = {
+        deletedAt: null,
+        OR: [
+          { firstName: { contains: cleanSearch, mode: 'insensitive' } },
+          { lastName: { contains: cleanSearch, mode: 'insensitive' } },
+          { dui: { contains: cleanSearch, mode: 'insensitive' } },
+        ],
+      };
+    }
+
+    const skip = (Math.max(1, page) - 1) * limit;
+
+    const [total, items] = await Promise.all([
+      prisma.consultation.count({ where }),
+      prisma.consultation.findMany({
+        where,
+        include: {
+          patient: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              dui: true,
+              phone: true,
+              address: true,
+              dateOfBirth: true,
+              sex: true,
+            },
+          },
+          doctor: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              role: true,
+            },
+          },
+          brigade: {
+            select: {
+              id: true,
+              name: true,
+              department: true,
+              municipality: true,
+            },
+          },
+          vitalSigns: true,
+        },
+        orderBy: { consultationDate: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    return {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      items,
+    };
+  }
+
+  // 3. Historial de Consultas de un Paciente
   async getConsultationsByPatient(patientId: string) {
     const db = prisma as any;
     return db.consultation.findMany({
@@ -210,7 +331,7 @@ export class ConsultationsService extends BaseService {
     });
   }
 
-  // 3. Obtener Consulta por ID
+  // 4. Obtener Consulta por ID
   async getConsultationById(id: string) {
     const db = prisma as any;
     const consultation = await db.consultation.findFirst({

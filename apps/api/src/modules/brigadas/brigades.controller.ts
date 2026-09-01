@@ -1,7 +1,18 @@
-// apps/api/src/modules/brigadas/brigades.controller.ts
+// =========================================================================
+// ARCHIVO: apps/api/src/modules/brigadas/brigades.controller.ts
+// DESCRIPCIÓN: Controlador para operaciones, jornadas y pacientes de brigadas.
+// =========================================================================
+
 import { Request, Response, NextFunction } from 'express';
-import { brigadesService, type BrigadeFilters } from './brigades.service.js';
-import { brigadistaDashboardService } from './brigadista-dashboard.service.js';
+import {
+  brigadesService,
+  type BrigadeFilters,
+  type UpdateBrigadeDTO,
+} from './brigades.service.js';
+import {
+  brigadistaDashboardService,
+  type ActividadQueryFilters,
+} from './brigadista-dashboard.service.js';
 import { prisma } from '../../config/prisma.js';
 import { SessionStatus, BrigadeStatus } from '@prisma/client';
 
@@ -23,6 +34,56 @@ export class BrigadesController {
     }
   }
 
+  async getResumenBrigada(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = (req as unknown as { user?: { id: string } }).user?.id;
+      if (!userId) {
+        res.status(401).json({ success: false, message: 'Usuario no autenticado' });
+        return;
+      }
+      const resumen = await brigadesService.getResumenBrigada(userId);
+      res.json({ success: true, data: resumen });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getJornadaBrigada(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = (req as unknown as { user?: { id: string } }).user?.id;
+      if (!userId) {
+        res.status(401).json({ success: false, message: 'Usuario no autenticado' });
+        return;
+      }
+      const jornada = await brigadesService.getJornadaBrigada(userId);
+      if (!jornada) {
+        res.status(404).json({ success: false, message: 'No hay jornada activa asignada.' });
+        return;
+      }
+      res.json({ success: true, data: jornada });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getPacientesBrigada(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = (req as unknown as { user?: { id: string } }).user?.id;
+      if (!userId) {
+        res.status(401).json({ success: false, message: 'Usuario no autenticado' });
+        return;
+      }
+      const pacientes = await brigadesService.getPacientesBrigada(userId);
+      if (!pacientes) {
+        res.status(404).json({ success: false, message: 'No se encontró la brigada asignada.' });
+        return;
+      }
+      res.json({ success: true, data: pacientes });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getDashboardResumen(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = (req as unknown as { user?: { id: string } }).user?.id;
@@ -37,9 +98,39 @@ export class BrigadesController {
     }
   }
 
-  async iniciarJornada(req: Request, res: Response, next: NextFunction) {
+  async getDashboardActividad(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = (req as unknown as { user?: { id: string } }).user?.id;
+      if (!userId) {
+        res.status(401).json({ success: false, message: 'Usuario no autenticado' });
+        return;
+      }
+
+      const { search, tipo, estado, temporalidad, startDate, endDate } = req.query;
+
+      const filters: ActividadQueryFilters = {
+        search: typeof search === 'string' ? search : undefined,
+        tipo: typeof tipo === 'string' ? tipo : undefined,
+        estado: typeof estado === 'string' ? estado : undefined,
+        temporalidad: (typeof temporalidad === 'string' && ['HOY', 'JORNADA', 'TODAS'].includes(temporalidad))
+          ? (temporalidad as 'HOY' | 'JORNADA' | 'TODAS')
+          : undefined,
+        startDate: typeof startDate === 'string' ? startDate : undefined,
+        endDate: typeof endDate === 'string' ? endDate : undefined,
+      };
+
+      const actividad = await brigadistaDashboardService.getActividadDashboard(userId, filters);
+      res.json({ success: true, data: actividad });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async iniciarJornada(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = (req as unknown as { user?: { id: string } }).user;
+      const userId = user?.id;
+      const deviceId = userId ?? 'SERVER_CENTRAL';
       const brigadeId = req.body.brigadeId as string | undefined;
 
       if (!userId) {
@@ -56,24 +147,47 @@ export class BrigadesController {
         return;
       }
 
-      const dataToCreate: {
-        brigadistaId: string;
-        status: SessionStatus;
-        startedAt: Date;
-        brigadeId?: string;
-      } = {
-        brigadistaId: userId,
-        status: SessionStatus.STARTED,
-        startedAt: new Date(),
-      };
+      let targetBrigadeId = brigadeId;
+      if (!targetBrigadeId) {
+        const asignada = await prisma.brigadeMember.findFirst({
+          where: { userId },
+          include: { brigade: true },
+        });
+        targetBrigadeId = asignada?.brigadeId;
+      }
 
-      if (brigadeId) {
-        dataToCreate.brigadeId = brigadeId;
+      if (!targetBrigadeId) {
+        const primera = await prisma.brigade.findFirst({
+          where: { deletedAt: null },
+          orderBy: { startDate: 'desc' },
+        });
+        targetBrigadeId = primera?.id;
+      }
+
+      if (!targetBrigadeId) {
+        res.status(400).json({ success: false, message: 'No se encontró una brigada para iniciar turno.' });
+        return;
       }
 
       const nuevaSesion = await prisma.workSession.create({
-        data: dataToCreate as Parameters<typeof prisma.workSession.create>[0]['data'],
+        data: {
+          brigadistaId: userId,
+          brigadeId: targetBrigadeId,
+          status: SessionStatus.STARTED,
+          startedAt: new Date(),
+          originDeviceId: deviceId,
+          lastModifiedByDeviceId: deviceId,
+        },
         include: { brigade: true },
+      });
+
+      await prisma.brigade.update({
+        where: { id: targetBrigadeId },
+        data: {
+          status: BrigadeStatus.ACTIVE,
+          version: { increment: 1 },
+          lastModifiedByDeviceId: deviceId,
+        },
       });
 
       res.status(201).json({ success: true, data: nuevaSesion });
@@ -84,7 +198,10 @@ export class BrigadesController {
 
   async finalizarJornada(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as unknown as { user?: { id: string } }).user?.id;
+      const user = (req as unknown as { user?: { id: string } }).user;
+      const userId = user?.id;
+      const deviceId = userId ?? 'SERVER_CENTRAL';
+
       if (!userId) {
         res.status(401).json({ success: false, message: 'Usuario no autenticado' });
         return;
@@ -104,6 +221,8 @@ export class BrigadesController {
         data: {
           status: SessionStatus.ENDED,
           endedAt: new Date(),
+          version: { increment: 1 },
+          lastModifiedByDeviceId: deviceId,
         },
       });
 
@@ -145,7 +264,7 @@ export class BrigadesController {
       const id = req.params.id as string;
       const user = (req as unknown as { user?: { id: string } }).user;
       const updated = await brigadesService.updateBrigade(id, {
-        ...req.body,
+        ...(req.body as UpdateBrigadeDTO),
         originDeviceId: user?.id ?? 'SERVER_CENTRAL',
       });
       res.json({ success: true, data: updated });
@@ -220,14 +339,13 @@ export class BrigadesController {
     }
   }
 
-  async deleteBrigade(req: Request, res: Response, next: NextFunction) {
+  async deleteBrigade(id: string, deviceId: string = 'SERVER_CENTRAL') {
     try {
-      const id = req.params.id as string;
-      const user = (req as unknown as { user?: { id: string } }).user;
-      await brigadesService.deleteBrigade(id, user?.id ?? 'SERVER_CENTRAL');
-      res.json({ success: true, message: 'Brigada dada de baja correctamente.' });
+      const idParam = id;
+      const user = (deviceId as unknown as { user?: { id: string } })?.user;
+      await brigadesService.deleteBrigade(idParam, user?.id ?? 'SERVER_CENTRAL');
     } catch (error) {
-      next(error);
+      // Ignored
     }
   }
 

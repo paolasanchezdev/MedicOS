@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/patients/patients.controller.ts
-// DESCRIPCIÓN: Controlador para endpoints de Pacientes y Signos Vitales.
+// DESCRIPCIÓN: Controlador para endpoints de Pacientes, Signos Vitales y Validación.
 // =========================================================================
 
 import { Request, Response } from 'express';
@@ -13,6 +13,26 @@ export class PatientsController {
       const search = (req.query.search as string) || (req.query.q as string) || '';
       const patients = await patientsService.getAllPatients(search);
       return res.json({ success: true, data: patients });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  async checkDui(req: Request, res: Response) {
+    try {
+      const dui = (req.query.dui as string) || '';
+      const result = await patientsService.checkDuiAvailability(dui);
+      return res.json({ success: true, ...result });
+    } catch (error: any) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  async checkEmail(req: Request, res: Response) {
+    try {
+      const email = (req.query.email as string) || '';
+      const result = await patientsService.checkEmailAvailability(email);
+      return res.json({ success: true, ...result });
     } catch (error: any) {
       return res.status(500).json({ success: false, error: error.message });
     }
