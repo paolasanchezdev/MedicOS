@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/brigadas/brigades.service.ts
-// DESCRIPCIÓN: Servicio para gestión, resumen, jornada y padrón de pacientes 100% PostgreSQL con exclusión de eliminados lógicos.
+// DESCRIPCIÓN: Servicio para gestión, resumen, jornada y padrón de pacientes
+//              100% PostgreSQL con exclusión de eliminados lógicos y registros web.
 // =========================================================================
 
 import { prisma } from '../../config/prisma.js';
@@ -38,6 +39,8 @@ export interface BrigadeFilters {
   department?: string | undefined;
   status?: BrigadeStatus | 'ALL' | undefined;
 }
+
+const DISPOSITIVOS_WEB_EXCLUIDOS = ['WEB_PORTAL', 'WEB_PORTAL_BACKFILL'];
 
 const brigadeJornadaInclude = {
   leader: true,
@@ -92,7 +95,7 @@ function esReferenciaMedica(consulta: { treatmentPlan: string; diagnosisDesc: st
 
 export class BrigadesService extends BaseService {
   /**
-   * Obtiene el padrón de pacientes vinculados a la brigada excluyendo pacientes eliminados lógicamente o inactivos
+   * Obtiene el padrón de pacientes vinculados a la brigada excluyendo eliminados lógicamente y cuentas web no atendidas
    */
   async getPacientesBrigada(userId: string) {
     const ahora = new Date();
@@ -142,14 +145,29 @@ export class BrigadesService extends BaseService {
 
     const enCurso = brigada.status === BrigadeStatus.ACTIVE || Boolean(sesionActiva);
 
-    // Filtrar estrictamente pacientes activos y no eliminados
+    // Solo pacientes censados en terreno o que tengan consultas registradas en esta brigada
     const pacientes = await prisma.patient.findMany({
       where: { 
         deletedAt: null,
         user: {
           status: UserStatus.ACTIVE,
           deletedAt: null,
-        }
+        },
+        OR: [
+          {
+            consultations: {
+              some: {
+                brigadeId: brigada.id,
+                deletedAt: null,
+              },
+            },
+          },
+          {
+            originDeviceId: {
+              notIn: DISPOSITIVOS_WEB_EXCLUIDOS,
+            },
+          },
+        ],
       },
       include: {
         vitalSigns: {
@@ -398,7 +416,11 @@ export class BrigadesService extends BaseService {
       prisma.vitalSigns.findMany({
         where: { 
           deletedAt: null,
-          patient: { deletedAt: null, user: { status: UserStatus.ACTIVE, deletedAt: null } }
+          patient: {
+            deletedAt: null,
+            user: { status: UserStatus.ACTIVE, deletedAt: null },
+            originDeviceId: { notIn: DISPOSITIVOS_WEB_EXCLUIDOS },
+          },
         },
         include: { patient: true },
         orderBy: { createdAt: 'desc' },
@@ -407,7 +429,8 @@ export class BrigadesService extends BaseService {
       prisma.patient.findMany({
         where: { 
           deletedAt: null,
-          user: { status: UserStatus.ACTIVE, deletedAt: null }
+          user: { status: UserStatus.ACTIVE, deletedAt: null },
+          originDeviceId: { notIn: DISPOSITIVOS_WEB_EXCLUIDOS },
         },
         orderBy: { createdAt: 'desc' },
         take: 15,
@@ -415,7 +438,8 @@ export class BrigadesService extends BaseService {
       prisma.consultation.findMany({
         where: { 
           deletedAt: null,
-          patient: { deletedAt: null, user: { status: UserStatus.ACTIVE, deletedAt: null } }
+          brigadeId: brigada.id,
+          patient: { deletedAt: null, user: { status: UserStatus.ACTIVE, deletedAt: null } },
         },
         include: { patient: true, doctor: true },
         orderBy: { createdAt: 'desc' },
@@ -637,7 +661,7 @@ export class BrigadesService extends BaseService {
   }
 
   /**
-   * Resumen colectivo de la Brigada Médica excluyendo pacientes eliminados lógicamente
+   * Resumen colectivo de la Brigada Médica excluyendo pacientes eliminados lógicamente y registros web
    */
   async getResumenBrigada(userId: string) {
     const ahora = new Date();
@@ -729,7 +753,11 @@ export class BrigadesService extends BaseService {
       prisma.vitalSigns.findMany({
         where: { 
           deletedAt: null,
-          patient: { deletedAt: null, user: { status: UserStatus.ACTIVE, deletedAt: null } }
+          patient: {
+            deletedAt: null,
+            user: { status: UserStatus.ACTIVE, deletedAt: null },
+            originDeviceId: { notIn: DISPOSITIVOS_WEB_EXCLUIDOS },
+          },
         },
         include: { patient: true },
         orderBy: { createdAt: 'desc' },
@@ -737,7 +765,22 @@ export class BrigadesService extends BaseService {
       prisma.patient.findMany({
         where: { 
           deletedAt: null,
-          user: { status: UserStatus.ACTIVE, deletedAt: null }
+          user: { status: UserStatus.ACTIVE, deletedAt: null },
+          OR: [
+            {
+              consultations: {
+                some: {
+                  brigadeId: brigada.id,
+                  deletedAt: null,
+                },
+              },
+            },
+            {
+              originDeviceId: {
+                notIn: DISPOSITIVOS_WEB_EXCLUIDOS,
+              },
+            },
+          ],
         },
         include: {
           vitalSigns: { where: { deletedAt: null } },
@@ -748,7 +791,8 @@ export class BrigadesService extends BaseService {
       prisma.consultation.findMany({
         where: { 
           deletedAt: null,
-          patient: { deletedAt: null, user: { status: UserStatus.ACTIVE, deletedAt: null } }
+          brigadeId: brigada.id,
+          patient: { deletedAt: null, user: { status: UserStatus.ACTIVE, deletedAt: null } },
         },
         orderBy: { createdAt: 'desc' },
       }),
