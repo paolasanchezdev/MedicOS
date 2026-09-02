@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/pacientes/expediente/components/ExpedienteResumenClinico.tsx
-// DESCRIPCIÓN: Cabecera médica con métricas e información clínica esencial (Estilo Admin MedicOS).
+// DESCRIPCIÓN: Cabecera médica con métricas e información clínica esencial sin datos simulados.
 // =========================================================================
 
 import React from 'react';
@@ -9,6 +9,32 @@ import type { PatientHistoryData } from '../../../../../../modules/patients';
 
 interface ExpedienteResumenClinicoProps {
   historyData: PatientHistoryData;
+}
+
+function isPlaceholderDate(d?: string | Date): boolean {
+  if (!d) return true;
+  try {
+    const dateObj = typeof d === 'string' ? new Date(d) : d;
+    if (isNaN(dateObj.getTime())) return true;
+    const iso = dateObj.toISOString();
+    return iso.startsWith('2000-01-01') || iso.startsWith('1999-12-31');
+  } catch {
+    return true;
+  }
+}
+
+function calculateAge(dateString?: string | Date): string {
+  if (!dateString || isPlaceholderDate(dateString)) return 'Edad sin registrar';
+  try {
+    const dob = new Date(dateString);
+    if (isNaN(dob.getTime())) return 'Edad sin registrar';
+    const diffMs = Date.now() - dob.getTime();
+    const ageDt = new Date(diffMs);
+    const age = Math.abs(ageDt.getUTCFullYear() - 1970);
+    return `${age} años`;
+  } catch {
+    return 'Edad sin registrar';
+  }
 }
 
 function formatBloodType(bt?: string): string {
@@ -27,20 +53,6 @@ function formatBloodType(bt?: string): string {
   return map[bt] || bt;
 }
 
-function calculateAge(dateString?: string | Date): string {
-  if (!dateString) return '';
-  try {
-    const dob = new Date(dateString);
-    if (isNaN(dob.getTime())) return '';
-    const diffMs = Date.now() - dob.getTime();
-    const ageDt = new Date(diffMs);
-    const age = Math.abs(ageDt.getUTCFullYear() - 1970);
-    return `${age} años`;
-  } catch {
-    return '';
-  }
-}
-
 export const ExpedienteResumenClinico: React.FC<ExpedienteResumenClinicoProps> = ({ historyData }) => {
   const { patient, consultations, standaloneVitalSigns } = historyData;
   const fullName = `${patient.firstName} ${patient.lastName}`.trim();
@@ -49,7 +61,8 @@ export const ExpedienteResumenClinico: React.FC<ExpedienteResumenClinicoProps> =
 
   const clinicalRecord = patient.clinicalRecord;
   const bloodTypeFormatted = formatBloodType(clinicalRecord?.bloodType);
-  const allergies = clinicalRecord?.observations || 'Paciente no reporta alergias medicamentosas.';
+  const hasAllergiesRecord = Boolean(clinicalRecord?.observations?.trim());
+  const allergies = hasAllergiesRecord ? clinicalRecord!.observations! : 'Sin registrar';
   const lastVital = standaloneVitalSigns[0] || consultations[0]?.vitalSigns?.[0];
 
   return (
@@ -76,7 +89,7 @@ export const ExpedienteResumenClinico: React.FC<ExpedienteResumenClinicoProps> =
               <span>&bull;</span>
               <span>{calculateAge(patient.dateOfBirth)}</span>
               <span>&bull;</span>
-              <span>{patient.sex === 'MALE' ? 'Masculino' : patient.sex === 'FEMALE' ? 'Femenino' : 'Otro'}</span>
+              <span>{patient.sex === 'MALE' ? 'Masculino' : patient.sex === 'FEMALE' ? 'Femenino' : 'Sin especificar'}</span>
             </div>
           </div>
         </div>
@@ -92,7 +105,7 @@ export const ExpedienteResumenClinico: React.FC<ExpedienteResumenClinicoProps> =
         </div>
       </div>
 
-      {/* 4 Tarjetas de Métricas Clínicas (Estructura idéntica a TarjetaUsuarios / TarjetaPacientes) */}
+      {/* 4 Tarjetas de Métricas Clínicas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 1. Grupo Sanguíneo */}
         <div className="group bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/70 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between">
@@ -114,7 +127,9 @@ export const ExpedienteResumenClinico: React.FC<ExpedienteResumenClinicoProps> =
           </div>
 
           <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 font-medium">
-            Factor registrado en ficha
+            {clinicalRecord?.bloodType && clinicalRecord.bloodType !== 'UNKNOWN'
+              ? 'Factor registrado en ficha'
+              : 'Pendiente de determinación'}
           </div>
         </div>
 
@@ -131,14 +146,14 @@ export const ExpedienteResumenClinico: React.FC<ExpedienteResumenClinicoProps> =
             </div>
 
             <div className="mt-4">
-              <p className="text-sm font-bold text-slate-900 line-clamp-2 leading-snug" title={allergies}>
+              <p className={`text-sm font-bold line-clamp-2 leading-snug ${hasAllergiesRecord ? 'text-slate-900' : 'text-slate-500 italic'}`} title={allergies}>
                 {allergies}
               </p>
             </div>
           </div>
 
           <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 font-medium">
-            Antecedente farmacológico
+            {hasAllergiesRecord ? 'Antecedente farmacológico registrado' : 'Pendiente de anamnesis'}
           </div>
         </div>
 
@@ -190,7 +205,7 @@ export const ExpedienteResumenClinico: React.FC<ExpedienteResumenClinicoProps> =
           </div>
 
           <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 font-medium">
-            {patient.emergencyRelation || 'Contacto de referencia'}
+            {patient.emergencyRelation ? `Vínculo: ${patient.emergencyRelation}` : 'Contacto de referencia no asignado'}
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/pacientes/expediente/components/tabs/ResumenPacienteTab.tsx
-// DESCRIPCIÓN: Pestaña de información estructurada con protección total contra nulos en consultas y brigadas.
+// DESCRIPCIÓN: Pestaña de información estructurada con protección contra nulos y sin datos simulados.
 // =========================================================================
 
 import React from 'react';
@@ -11,18 +11,30 @@ interface ResumenPacienteTabProps {
   historyData: PatientHistoryData;
 }
 
-function formatDate(d?: string | Date): string {
-  if (!d) return '—';
+function isPlaceholderDate(d?: string | Date): boolean {
+  if (!d) return true;
   try {
     const dateObj = typeof d === 'string' ? new Date(d) : d;
-    if (isNaN(dateObj.getTime())) return String(d);
+    if (isNaN(dateObj.getTime())) return true;
+    const iso = dateObj.toISOString();
+    return iso.startsWith('2000-01-01') || iso.startsWith('1999-12-31');
+  } catch {
+    return true;
+  }
+}
+
+function formatDate(d?: string | Date): string {
+  if (!d || isPlaceholderDate(d)) return 'Sin registrar';
+  try {
+    const dateObj = typeof d === 'string' ? new Date(d) : d;
+    if (isNaN(dateObj.getTime())) return 'Sin registrar';
     return dateObj.toLocaleDateString('es-SV', {
       day: '2-digit',
       month: 'long',
       year: 'numeric',
     });
   } catch {
-    return String(d);
+    return 'Sin registrar';
   }
 }
 
@@ -35,6 +47,11 @@ export const ResumenPacienteTab: React.FC<ResumenPacienteTabProps> = ({ historyD
     : 'Personal de Salud Comunitario';
 
   const nombreBrigada = lastConsultation?.brigade?.name || 'Atención Comunitaria en Terreno';
+
+  const direccionLimpia =
+    patient?.address && !patient.address.toLowerCase().includes('pendiente')
+      ? patient.address
+      : 'Sin registrar';
 
   return (
     <div className="space-y-4">
@@ -87,9 +104,9 @@ export const ResumenPacienteTab: React.FC<ResumenPacienteTabProps> = ({ historyD
                 <span className="font-medium">Dirección / Comunidad</span>
                 <span
                   className="font-medium text-slate-800 bg-white px-2.5 py-1 rounded-lg border border-slate-200/60 shadow-2xs max-w-55 truncate"
-                  title={patient?.address || ''}
+                  title={direccionLimpia}
                 >
-                  {patient?.address || 'No registrada'}
+                  {direccionLimpia}
                 </span>
               </div>
             </div>
@@ -121,7 +138,7 @@ export const ResumenPacienteTab: React.FC<ResumenPacienteTabProps> = ({ historyD
               <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50/70 border border-slate-100 text-slate-600">
                 <span className="font-medium">Parentesco / Vínculo</span>
                 <span className="font-medium text-slate-800 bg-white px-2.5 py-1 rounded-lg border border-slate-200/60 shadow-2xs">
-                  {patient?.emergencyRelation || 'Familiar'}
+                  {patient?.emergencyRelation || 'No asignado'}
                 </span>
               </div>
 
