@@ -1,10 +1,11 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/brigadas/brigadista-dashboard.service.ts
-// DESCRIPCIÓN: Servicio para agregación de métricas, resumen y actividad operacional del Brigadista con exclusión de eliminados lógicos.
+// DESCRIPCIÓN: Servicio para agregación de métricas, resumen y actividad operacional
+//              del Brigadista con exclusión de eliminados lógicos y registros web.
 // =========================================================================
 
 import { prisma } from '../../config/prisma.js';
-import { BrigadeStatus, SessionStatus, QueueStatus, Prisma, UserStatus } from '@prisma/client';
+import { BrigadeStatus, SessionStatus, QueueStatus, Prisma } from '@prisma/client';
 
 export interface ActividadQueryFilters {
   search?: string | undefined;
@@ -14,6 +15,9 @@ export interface ActividadQueryFilters {
   startDate?: string | undefined;
   endDate?: string | undefined;
 }
+
+// Canales que NO corresponden a trabajo físico de campo por un brigadista
+const DISPOSITIVOS_WEB_EXCLUIDOS = ['WEB_PORTAL', 'WEB_PORTAL_BACKFILL'];
 
 export class BrigadistaDashboardService {
   /**
@@ -43,10 +47,6 @@ export class BrigadistaDashboardService {
         deletedAt: null,
         patient: {
           deletedAt: null,
-          user: {
-            status: UserStatus.ACTIVE,
-            deletedAt: null,
-          },
         },
       },
       include: {
@@ -67,6 +67,7 @@ export class BrigadistaDashboardService {
         vs.oxygenSat <= 90
     );
 
+    // Solo pacientes empadronados físicamente en campo (excluye registros de autoservicio web)
     const pacientesRegistradosHoy = await prisma.patient.findMany({
       where: {
         createdAt: {
@@ -74,9 +75,8 @@ export class BrigadistaDashboardService {
           lte: finHoy,
         },
         deletedAt: null,
-        user: {
-          status: UserStatus.ACTIVE,
-          deletedAt: null,
+        originDeviceId: {
+          notIn: DISPOSITIVOS_WEB_EXCLUIDOS,
         },
       },
       include: {
@@ -111,7 +111,7 @@ export class BrigadistaDashboardService {
           }),
           paciente: `${proximoPacienteRaw.firstName} ${proximoPacienteRaw.lastName}`,
           dui: proximoPacienteRaw.dui || 'Sin DUI registrado',
-          motivo: 'Pendiente de toma de signos vitales (Triaje inicial)',
+          motivo: 'Pendiente de toma de signos vitales (Triaje inicial en terreno)',
         }
       : null;
 
@@ -163,7 +163,7 @@ export class BrigadistaDashboardService {
       id: p.id,
       nombre: `${p.firstName} ${p.lastName}`,
       tipo: 'triaje' as const,
-      detalle: 'Esperando registro de constantes vitales',
+      detalle: 'Esperando registro de constantes vitales en brigada',
       hora: new Date(p.createdAt).toLocaleTimeString([], {
         hour: '2-digit',
         minute: '2-digit',
@@ -295,14 +295,16 @@ export class BrigadistaDashboardService {
       deletedAt: null,
       patient: {
         deletedAt: null,
-        user: { status: UserStatus.ACTIVE, deletedAt: null }
       }
     };
     if (dateFilter) vitalSignsWhere.createdAt = dateFilter;
 
+    // Se excluyen explícitamente los pacientes que se auto-registraron vía web o backfill
     const patientWhere: Prisma.PatientWhereInput = { 
       deletedAt: null,
-      user: { status: UserStatus.ACTIVE, deletedAt: null }
+      originDeviceId: {
+        notIn: DISPOSITIVOS_WEB_EXCLUIDOS,
+      },
     };
     if (dateFilter) patientWhere.createdAt = dateFilter;
 
@@ -313,7 +315,6 @@ export class BrigadistaDashboardService {
       deletedAt: null,
       patient: {
         deletedAt: null,
-        user: { status: UserStatus.ACTIVE, deletedAt: null }
       }
     };
     if (dateFilter) consultationWhere.createdAt = dateFilter;
@@ -321,7 +322,7 @@ export class BrigadistaDashboardService {
     const workSessionWhere: Prisma.WorkSessionWhereInput = { brigadistaId };
     if (dateFilter) workSessionWhere.startedAt = dateFilter;
 
-    const [evaluaciones, pacientes, consultasBrigada, outboxPendientes, sesiones] = await Promise.all([
+    const [evaluaciones, pacientesCampo, consultasBrigada, outboxPendientes, sesiones] = await Promise.all([
       prisma.vitalSigns.findMany({
         where: vitalSignsWhere,
         include: { patient: true },
@@ -359,8 +360,8 @@ export class BrigadistaDashboardService {
         vs.temperature >= 38.0 ||
         vs.oxygenSat <= 90
     );
-    const totalPersonas = pacientes.length;
-    const totalVisitas = Math.max(sesiones.length, Math.ceil(totalPersonas / 2));
+    const totalPersonas = pacientesCampo.length;
+    const totalVisitas = Math.max(sesiones.length, totalPersonas);
     const totalReferencias = consultasBrigada.length;
 
     type ItemOperativo = {
@@ -383,6 +384,7 @@ export class BrigadistaDashboardService {
 
     const eventosReales: ItemOperativo[] = [];
 
+    // 1. Jornadas y Turnos Reales del Brigadista
     sesiones.forEach((s) => {
       eventosReales.push({
         id: `sesion-${s.id}`,
@@ -400,6 +402,7 @@ export class BrigadistaDashboardService {
       });
     });
 
+    // 2. Evaluaciones de Signos Vitales Tomadas
     evaluaciones.forEach((vs) => {
       const tieneRiesgo =
         vs.systolic >= 140 ||
@@ -432,23 +435,25 @@ export class BrigadistaDashboardService {
       });
     });
 
-    pacientes.forEach((p) => {
+    // 3. Personas Empadronadas en Campo (Excluyendo Auto-registros Web)
+    pacientesCampo.forEach((p) => {
       eventosReales.push({
         id: `pat-${p.id}`,
         hora: new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         fecha: new Date(p.createdAt).toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' }),
-        titulo: 'Registro de Persona en Padrón',
+        titulo: 'Empadronamiento en Campo',
         tipo: 'VISITA_DOMICILIARIA',
         estado: 'COMPLETADA',
         sujeto: `${p.firstName} ${p.lastName}`,
         comunidad: p.address || territorioNombre,
-        resultado: 'Ficha territorial inicial creada',
+        resultado: 'Ficha territorial inicial creada en terreno',
         detalles: `DUI: ${p.dui || 'No especificado'} | Tel: ${p.phone || 'No registrado'}.`,
         sincronizado: p.syncStatus === 'SYNCED',
         rawDate: p.createdAt,
       });
     });
 
+    // 4. Consultas y Referencias de la Brigada
     consultasBrigada.forEach((c) => {
       eventosReales.push({
         id: `con-${c.id}`,
@@ -469,14 +474,15 @@ export class BrigadistaDashboardService {
 
     eventosReales.sort((a, b) => b.rawDate.getTime() - a.rawDate.getTime());
 
-    const pacienteSinTriaje = pacientes.find((p) => p.vitalSigns.length === 0);
-    const proximaActividad = pacienteSinTriaje
+    // Próxima Actividad: Solo si hay un paciente censado en campo que requiera toma de signos
+    const pacienteCampoSinTriaje = pacientesCampo.find((p) => p.vitalSigns.length === 0);
+    const proximaActividad = pacienteCampoSinTriaje
       ? {
           tipo: 'Evaluación de Signos Vitales',
-          sujeto: `${pacienteSinTriaje.firstName} ${pacienteSinTriaje.lastName}`,
-          hora: new Date(pacienteSinTriaje.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          territorio: pacienteSinTriaje.address || territorioNombre,
-          motivo: 'Persona registrada pendiente de toma de constantes físicas iniciales.',
+          sujeto: `${pacienteCampoSinTriaje.firstName} ${pacienteCampoSinTriaje.lastName}`,
+          hora: new Date(pacienteCampoSinTriaje.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          territorio: pacienteCampoSinTriaje.address || territorioNombre,
+          motivo: 'Persona empadronada en campo pendiente de toma de constantes físicas iniciales.',
           rutaEjecucion: '/brigadista/evaluacion/signos-vitales',
         }
       : {
@@ -484,7 +490,7 @@ export class BrigadistaDashboardService {
           sujeto: 'Sector Asignado',
           hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           territorio: territorioNombre,
-          motivo: 'Continuar empadronamiento territorial e identificación de personas.',
+          motivo: 'Continuar empadronamiento territorial e identificación comunitaria en terreno.',
           rutaEjecucion: '/brigadista/pacientes/registrar',
         };
 
