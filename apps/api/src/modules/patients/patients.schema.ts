@@ -77,4 +77,41 @@ export const createPatientSchema = z.object({
   }),
 });
 
+export const updatePatientProfileSchema = z.object({
+  body: z.object({
+    dateOfBirth: z.string().min(1, 'La fecha de nacimiento es obligatoria'),
+    dui: z
+      .string()
+      .trim()
+      .regex(/^\d{8}-\d{1}$/, 'El formato del DUI debe ser 00000000-0')
+      .optional()
+      .nullable()
+      .or(z.literal('')),
+    sex: z.enum(['MALE', 'FEMALE', 'OTHER']).default('OTHER'),
+    phone: z.string().trim().optional().nullable(),
+    address: z.string().trim().min(3, 'La dirección o comunidad es obligatoria'),
+    municipality: z.string().trim().optional().nullable(),
+    department: z.string().trim().optional().nullable(),
+    bloodType: z
+      .enum([
+        'A_POSITIVE',
+        'A_NEGATIVE',
+        'B_POSITIVE',
+        'B_NEGATIVE',
+        'O_POSITIVE',
+        'O_NEGATIVE',
+        'AB_POSITIVE',
+        'AB_NEGATIVE',
+        'UNKNOWN',
+      ])
+      .optional()
+      .default('UNKNOWN'),
+    allergies: z.string().trim().optional().nullable(),
+    emergencyName: z.string().trim().optional().nullable(),
+    emergencyPhone: z.string().trim().optional().nullable(),
+    emergencyRelation: z.string().trim().optional().nullable(),
+  }),
+});
+
 export type CreatePatientInput = z.infer<typeof createPatientSchema>['body'];
+export type UpdatePatientProfileInput = z.infer<typeof updatePatientProfileSchema>['body'];

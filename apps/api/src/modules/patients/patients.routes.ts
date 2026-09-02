@@ -10,6 +10,7 @@ import { validate } from '../../middleware/validate.middleware.js';
 import {
   patientIdParamSchema,
   createPatientSchema,
+  updatePatientProfileSchema,
   checkDuiQuerySchema,
   checkEmailQuerySchema,
 } from './patients.schema.js';
@@ -18,17 +19,17 @@ const router = Router();
 
 router.use(checkAuth);
 
-// 1. Verificación previa de disponibilidad de DUI y Email (evita colisiones con /:id)
+// 1. Verificación previa de disponibilidad de DUI y Email
 router.get(
   '/check-dui',
-  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA'),
+  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'),
   validate(checkDuiQuerySchema),
   patientsController.checkDui
 );
 
 router.get(
   '/check-email',
-  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA'),
+  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'),
   validate(checkEmailQuerySchema),
   patientsController.checkEmail
 );
@@ -45,7 +46,15 @@ router.post(
   patientsController.createVitalSigns
 );
 
-// 3. Listado general y creación de Pacientes
+// 3. Completado y actualización de Perfil Clínico del Paciente
+router.put(
+  '/perfil',
+  checkRole('PATIENT', 'ADMIN', 'DOCTOR'),
+  validate(updatePatientProfileSchema),
+  patientsController.updateProfile
+);
+
+// 4. Listado general y creación de Pacientes
 router.get(
   '/',
   checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'AUTHORITY'),
@@ -58,7 +67,7 @@ router.post(
   patientsController.createPatient
 );
 
-// 4. Rutas de Dashboard de Paciente
+// 5. Rutas de Dashboard de Paciente
 router.get(
   '/resumen',
   checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'),
@@ -80,7 +89,7 @@ router.get(
   patientsController.getPatientActivity
 );
 
-// 5. Rutas parametrizadas por ID
+// 6. Rutas parametrizadas por ID
 router.get(
   '/:id/actividad',
   checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'),

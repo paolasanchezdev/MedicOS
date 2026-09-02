@@ -1,6 +1,7 @@
 // =========================================================================
-// ARCHIVO: apps/api/src/modules/patients/patients.service.ts[cite: 1]
-// DESCRIPCIÓN: Servicio de gestión de pacientes con exclusión de cuentas inhabilitadas o inactivas
+// ARCHIVO: apps/api/src/modules/patients/patients.service.ts
+// DESCRIPCIÓN: Servicio de gestión de pacientes con soporte de actualización de perfil
+//              y completado de expediente clínico en MedicOS.
 // =========================================================================
 
 import { prisma } from '../../config/prisma.js';
@@ -9,38 +10,42 @@ import { BloodType, Role, UserStatus, SyncStatus, Prisma } from '@prisma/client'
 import bcrypt from 'bcryptjs';
 
 export interface CreatePatientDTO {
-  // Identificación
   firstName: string;
   lastName: string;
   dateOfBirth: string | Date;
   dui?: string | null;
   sex?: 'MALE' | 'FEMALE' | 'OTHER';
-
-  // Cuenta de Acceso MedicOS
   email: string;
   password: string;
-
-  // Contacto
   phone?: string | null;
   address: string;
   municipality?: string | null;
   department?: string | null;
-
-  // Información Médica Inicial
   bloodType?: BloodType;
   allergies?: string | null;
   chronicDiseases?: string | null;
   disabilities?: string | null;
   familyHistory?: string | null;
   surgicalHistory?: string | null;
-
-  // Contacto de Emergencia
   emergencyName?: string | null;
   emergencyPhone?: string | null;
   emergencyRelation?: string | null;
-
-  // Metadatos de Dispositivo
   originDeviceId?: string;
+}
+
+export interface UpdatePatientProfileDTO {
+  dateOfBirth: string | Date;
+  dui?: string | null;
+  sex?: 'MALE' | 'FEMALE' | 'OTHER';
+  phone?: string | null;
+  address: string;
+  municipality?: string | null;
+  department?: string | null;
+  bloodType?: BloodType;
+  allergies?: string | null;
+  emergencyName?: string | null;
+  emergencyPhone?: string | null;
+  emergencyRelation?: string | null;
 }
 
 export interface CreateVitalSignsDTO {
@@ -118,9 +123,6 @@ export class PatientsService extends BaseService {
     return patientByUser ? patientByUser.id : null;
   }
 
-  /**
-   * Verifica si un DUI ya se encuentra registrado en el sistema
-   */
   async checkDuiAvailability(dui: string): Promise<{ available: boolean; patientName?: string }> {
     const cleanDui = dui.trim();
     if (!cleanDui) return { available: true };
@@ -148,9 +150,6 @@ export class PatientsService extends BaseService {
     return { available: true };
   }
 
-  /**
-   * Verifica si un correo electrónico ya está registrado como usuario activo
-   */
   async checkEmailAvailability(email: string): Promise<{ available: boolean }> {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) return { available: true };
@@ -166,9 +165,6 @@ export class PatientsService extends BaseService {
     return { available: !existing };
   }
 
-  /**
-   * Registra atómicamente un nuevo Paciente junto a su Cuenta de Usuario y su Expediente Clínico inicial
-   */
   async createPatient(data: CreatePatientDTO) {
     const deviceId = data.originDeviceId || 'SERVER_CENTRAL';
     const emailNormalizado = data.email.trim().toLowerCase();
@@ -282,8 +278,89 @@ export class PatientsService extends BaseService {
   }
 
   /**
-   * Búsqueda integral de pacientes excluyendo aquellos cuyas cuentas estén inhabilitadas o inactivas
+   * Actualiza el perfil clínico y completa el expediente del paciente desde el Onboarding
    */
+  async updatePatientProfile(identifier: string, data: UpdatePatientProfileDTO) {
+    const resolvedId = await this.resolvePatientId(identifier);
+    if (!resolvedId) {
+      throw new Error('No se encontró un expediente asociado a este usuario.');
+    }
+
+    const cleanDui = data.dui?.trim() || null;
+    if (cleanDui) {
+      const duiExistente = await prisma.patient.findFirst({
+        where: {
+          dui: cleanDui,
+          id: { not: resolvedId },
+          deletedAt: null,
+        },
+      });
+      if (duiExistente) {
+        throw new Error(`El DUI ${cleanDui} ya está asociado a otro expediente.`);
+      }
+    }
+
+    const partesDireccion = [
+      data.address.trim(),
+      data.municipality?.trim(),
+      data.department?.trim(),
+    ].filter(Boolean);
+    const direccionCompleta = partesDireccion.join(', ');
+
+    return prisma.$transaction(async (tx) => {
+      const updatedPatient = await tx.patient.update({
+        where: { id: resolvedId },
+        data: {
+          dateOfBirth: new Date(data.dateOfBirth),
+          dui: cleanDui,
+          sex: data.sex || 'OTHER',
+          phone: data.phone?.trim() || null,
+          address: direccionCompleta,
+          emergencyName: data.emergencyName?.trim() || null,
+          emergencyPhone: data.emergencyPhone?.trim() || null,
+          emergencyRelation: data.emergencyRelation?.trim() || null,
+          version: { increment: 1 },
+          lastModifiedByDeviceId: 'WEB_PORTAL',
+        },
+      });
+
+      if (updatedPatient.userId && data.phone?.trim()) {
+        await tx.user.update({
+          where: { id: updatedPatient.userId },
+          data: { phone: data.phone.trim() },
+        });
+      }
+
+      const clinicalUpdateData: Prisma.ClinicalRecordUpdateInput = {
+        bloodType: data.bloodType || BloodType.UNKNOWN,
+        version: { increment: 1 },
+        lastModifiedByDeviceId: 'WEB_PORTAL',
+      };
+
+      if (data.allergies !== undefined) {
+        clinicalUpdateData.observations = data.allergies?.trim()
+          ? `Alergias: ${data.allergies.trim()}`
+          : null;
+      }
+
+      await tx.clinicalRecord.upsert({
+        where: { patientId: resolvedId },
+        create: {
+          patientId: resolvedId,
+          bloodType: data.bloodType || BloodType.UNKNOWN,
+          observations: data.allergies?.trim() ? `Alergias: ${data.allergies.trim()}` : null,
+          syncStatus: SyncStatus.SYNCED,
+          version: 1,
+          originDeviceId: 'WEB_PORTAL',
+          lastModifiedByDeviceId: 'WEB_PORTAL',
+        },
+        update: clinicalUpdateData,
+      });
+
+      return updatedPatient;
+    });
+  }
+
   async getAllPatients(search?: string) {
     const todosLosPacientes = await prisma.patient.findMany({
       where: {

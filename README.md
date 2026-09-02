@@ -1163,6 +1163,13 @@ MedicOS/
 │       │   │   │   └── MedicoPanel.tsx
 │       │   │   └── paciente/
 │       │   │       ├── components/
+│       │   │       │   ├── onboarding/
+│       │   │       │   │   ├── BienvenidaOnboardingModal.tsx
+│       │   │       │   │   ├── index.ts
+│       │   │       │   │   ├── OnboardingCarnetPreview.tsx
+│       │   │       │   │   ├── OnboardingPaso1.tsx
+│       │   │       │   │   ├── OnboardingPaso2.tsx
+│       │   │       │   │   └── OnboardingSuccess.tsx
 │       │   │       │   ├── PacienteHeader.tsx
 │       │   │       │   └── PacienteSidebar.tsx
 │       │   │       ├── layout/
@@ -1271,6 +1278,10 @@ MedicOS/
 │       │   ├── services/
 │       │   ├── shared/
 │       │   │   ├── components/
+│       │   │   │   ├── carnet/
+│       │   │   │   │   ├── CarnetDigitalPaciente.tsx
+│       │   │   │   │   ├── index.ts
+│       │   │   │   │   └── OnboardingCarnetPreview.tsx
 │       │   │   │   ├── header/
 │       │   │   │   │   ├── BuscadorHeader.tsx
 │       │   │   │   │   ├── HeaderGlobal.tsx

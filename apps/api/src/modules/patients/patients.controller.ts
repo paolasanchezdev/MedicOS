@@ -115,6 +115,20 @@ export class PatientsController {
     }
   }
 
+  async updateProfile(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+      }
+
+      const updated = await patientsService.updatePatientProfile(userId, req.body);
+      return res.json({ success: true, data: updated });
+    } catch (error: any) {
+      return res.status(400).json({ success: false, error: error.message });
+    }
+  }
+
   async createVitalSigns(req: Request, res: Response) {
     try {
       const patientId = req.params.id || req.body.patientId;

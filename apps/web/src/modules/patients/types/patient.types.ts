@@ -16,6 +16,36 @@ export type BloodType =
 
 export type Sex = 'MALE' | 'FEMALE' | 'OTHER';
 
+export interface UpdatePatientProfileDto {
+  dateOfBirth: string;
+  dui?: string | null;
+  sex?: Sex;
+  phone?: string | null;
+  address: string;
+  municipality?: string | null;
+  department?: string | null;
+  bloodType?: string;
+  allergies?: string | null;
+  emergencyName?: string | null;
+  emergencyPhone?: string | null;
+  emergencyRelation?: string | null;
+}
+
+export interface OnboardingFormData {
+  dateOfBirth: string;
+  dui: string;
+  sex: Sex;
+  phone: string;
+  department: string;
+  municipality: string;
+  address: string;
+  bloodType: string;
+  allergies: string;
+  emergencyName: string;
+  emergencyPhone: string;
+  emergencyRelation: string;
+}
+
 export interface CreatePatientDto {
   // Identificación
   firstName: string;

@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/modules/patients/services/patients.service.ts
-// DESCRIPCIÓN: Servicio cliente HTTP para gestión, validación, registro e historial de pacientes.
+// DESCRIPCIÓN: Servicio cliente HTTP para gestión, validación, registro,
+//              onboarding e historial de pacientes en MedicOS.
 // =========================================================================
 
 import { apiClient } from '../../../shared/lib/apiClient';
@@ -12,6 +13,7 @@ import type {
   CheckEmailResult,
   PatientHistoryData,
   PatientHistoryResponse,
+  UpdatePatientProfileDto,
 } from '../types/patient.types';
 
 interface PatientsResponse {
@@ -68,6 +70,17 @@ export const patientsService = {
   async createPatient(data: CreatePatientDto): Promise<CreatedPatientResult> {
     const res = await apiClient<CreatePatientApiResponse>('/patients', {
       method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
+
+  /**
+   * Actualiza el perfil clínico y completa el expediente del paciente desde el Onboarding
+   */
+  async updateProfile(data: UpdatePatientProfileDto): Promise<PatientRecord> {
+    const res = await apiClient<SinglePatientResponse>('/patients/perfil', {
+      method: 'PUT',
       body: JSON.stringify(data),
     });
     return res.data;
