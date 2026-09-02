@@ -1,11 +1,13 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/auth/auth.service.ts
 // DESCRIPCIÓN: Servicio de lógica de negocio para autenticación, hashing
-//              seguro de contraseñas y emisión de tokens JWT en MedicOS.
+//              seguro de contraseñas, emisión de tokens JWT y vinculación
+//              atómica de expedientes clínicos en MedicOS.
 // =========================================================================
 
 import { BaseService } from "../../services/base.service.js";
 import { AppError } from "../../middleware/error.middleware.js";
+import { PrismaClient, Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
@@ -21,6 +23,11 @@ export interface RegisterDTO {
   lastName?: string;
   phone?: string;
   role?: string;
+  dui?: string;
+  address?: string;
+  direccion?: string;
+  dateOfBirth?: string | Date;
+  fechaNacimiento?: string | Date;
 }
 
 export interface LoginDTO {
@@ -62,6 +69,11 @@ export class AuthService extends BaseService {
       lastName,
       phone,
       role,
+      dui,
+      address,
+      direccion,
+      dateOfBirth,
+      fechaNacimiento,
     } = datosUsuario;
 
     const normalizedEmail = email?.trim().toLowerCase();
@@ -75,6 +87,17 @@ export class AuthService extends BaseService {
       : lastName?.trim();
 
     const finalPhone = (telefono || phone)?.trim() || null;
+    const finalDui = dui?.trim() ? dui.trim() : null;
+    const finalAddress = (address || direccion)?.trim() || "Dirección pendiente de registrar";
+
+    let finalDateOfBirth = new Date("2000-01-01T00:00:00.000Z");
+    const rawDob = dateOfBirth || fechaNacimiento;
+    if (rawDob) {
+      const parsedDate = new Date(rawDob);
+      if (!isNaN(parsedDate.getTime())) {
+        finalDateOfBirth = parsedDate;
+      }
+    }
 
     if (!normalizedEmail || !password || !finalFirstName || !finalLastName) {
       throw new AppError(
@@ -91,30 +114,68 @@ export class AuthService extends BaseService {
       throw new AppError("Este correo electrónico ya está registrado.", 409);
     }
 
+    if (finalDui) {
+      const pacienteDuiExistente = await this.db.patient.findUnique({
+        where: { dui: finalDui },
+      });
+
+      if (pacienteDuiExistente) {
+        throw new AppError("El DUI ingresado ya está asociado a otro expediente clínico.", 409);
+      }
+    }
+
     const salt = await bcrypt.genSalt(10);
     const hashContrasena = await bcrypt.hash(password, salt);
+    const assignedRole = (role ? role.toUpperCase() : "PATIENT");
 
-    const nuevoUsuario = await this.db.user.create({
-      data: {
-        email: normalizedEmail,
-        passwordHash: hashContrasena,
-        firstName: finalFirstName,
-        lastName: finalLastName,
-        phone: finalPhone,
-        role: (role ? role.toUpperCase() : "PATIENT") as any, 
-        status: "ACTIVE" as any,
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        role: true,
-        status: true,
-        createdAt: true,
-      },
-    });
+    const runCreation = async (tx: Prisma.TransactionClient): Promise<UserResponse> => {
+      const user = await tx.user.create({
+        data: {
+          email: normalizedEmail,
+          passwordHash: hashContrasena,
+          firstName: finalFirstName,
+          lastName: finalLastName,
+          phone: finalPhone,
+          role: assignedRole as any,
+          status: "ACTIVE" as any,
+        },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+          role: true,
+          status: true,
+          createdAt: true,
+        },
+      });
+
+      if (assignedRole === "PATIENT") {
+        await tx.patient.create({
+          data: {
+            userId: user.id,
+            firstName: finalFirstName,
+            lastName: finalLastName,
+            dateOfBirth: finalDateOfBirth,
+            address: finalAddress,
+            phone: finalPhone,
+            dui: finalDui,
+            sex: "OTHER" as any,
+            syncStatus: "SYNCED" as any,
+            version: 1,
+            originDeviceId: "WEB_PORTAL",
+            lastModifiedByDeviceId: "WEB_PORTAL",
+          },
+        });
+      }
+
+      return user;
+    };
+
+    const nuevoUsuario = "$transaction" in this.db
+      ? await (this.db as PrismaClient).$transaction(async (tx: Prisma.TransactionClient) => runCreation(tx))
+      : await runCreation(this.db as Prisma.TransactionClient);
 
     const secret = process.env.JWT_SECRET;
     if (!secret) {

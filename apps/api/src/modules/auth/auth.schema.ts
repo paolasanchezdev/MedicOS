@@ -57,6 +57,12 @@ export const registerSchema = z
     dui: z.string().trim().optional(),
     role: z.string().trim().optional(),
 
+    // Datos clínicos iniciales para expediente territorial
+    address: z.string().trim().optional(),
+    direccion: z.string().trim().optional(),
+    dateOfBirth: z.string().trim().optional(),
+    fechaNacimiento: z.string().trim().optional(),
+
     // Tokens anti-bot de Cloudflare Turnstile
     turnstileToken: z.string().optional(),
     turnstile_token: z.string().optional(),
