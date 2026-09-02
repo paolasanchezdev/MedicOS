@@ -268,10 +268,10 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
 
   const datosPaciente = useMemo<PacienteCarnetData>(() => {
     const p = paciente || {};
-    
+
     let nombreFinal = edicionManual.nombres || p.nombres || p.firstName || '';
     let apellidoFinal = edicionManual.apellidos || p.apellidos || p.lastName || '';
-    
+
     if (!nombreFinal && !apellidoFinal && p.fullName) {
       const partes = p.fullName.trim().split(/\s+/);
       if (partes.length >= 2) {
@@ -282,7 +282,8 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
       }
     }
 
-    const duiFinal = edicionManual.dui !== undefined ? edicionManual.dui : (p.dui || '');
+    const rawDui = edicionManual.dui !== undefined ? edicionManual.dui : p.dui;
+    const duiFinal = rawDui ?? '';
     const cleanDui = duiFinal.replace(/[^0-9]/g, '');
     const expedienteFinal = edicionManual.expediente || p.expediente || p.id || (cleanDui ? `EXP-2026-${cleanDui.slice(-4)}` : 'EXP-2026-0001');
 
@@ -565,7 +566,7 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="relative w-72 h-72 rounded-full overflow-hidden border-4 border-teal-500 shadow-inner bg-black mb-4">
               <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
             </div>
@@ -633,7 +634,7 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
 
       {/* 3. DOCUMENTO OFICIAL DE EMISIÓN DE CARNET MEDICOS (Solo para Impresión / Guardar como PDF) */}
       <div id="hoja-oficial-medicos" className="hidden print:block w-full max-w-[210mm] mx-auto bg-white text-slate-800 p-8">
-        
+
         {/* Encabezado Institucional MedicOS */}
         <div className="border-b-2 border-[#00838F] pb-4 mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -809,7 +810,7 @@ const CarnetFrontCard: React.FC<{ paciente: PacienteCarnetData; qrMatrix: boolea
 
   return (
     <div className="w-full h-full bg-[#F3F9FA] flex flex-col justify-between p-3.5 sm:p-4 text-slate-800 select-none relative overflow-hidden font-sans">
-      
+
       {/* 1. Header Blanco */}
       <div className="bg-white rounded-2xl px-4 py-2 flex items-center justify-between shadow-xs border border-slate-100">
         <div className="flex items-center gap-2.5">
@@ -1025,7 +1026,7 @@ const CarnetBackCard: React.FC<{ paciente: PacienteCarnetData }> = ({ paciente }
 
   return (
     <div className="w-full h-full bg-[#F3F9FA] flex flex-col justify-between p-3.5 sm:p-4 text-slate-800 select-none relative overflow-hidden font-sans">
-      
+
       {/* 1. Header Blanco */}
       <div className="bg-white rounded-2xl px-4 py-2 flex items-center justify-between shadow-xs border border-slate-100">
         <div className="flex items-center gap-2.5">

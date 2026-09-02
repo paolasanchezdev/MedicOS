@@ -4,14 +4,17 @@
 // =========================================================================
 
 export { EstadoActividadBadge, TipoActividadBadge } from './EstadoActividadBadge';
-export type { TipoActividadOperativa, EstadoActividadOperativa } from './EstadoActividadBadge';
-
 export { ActividadHeader } from './ActividadHeader';
 export { ActividadResumen } from './ActividadResumen';
 export { ActividadFiltros } from './ActividadFiltros';
 export { ActividadTimeline } from './ActividadTimeline';
-export type { ActividadItemOperativa } from './ActividadTimeline';
-
 export { ProximaActividadCard } from './ProximaActividadCard';
 export { ActividadCard } from './ActividadCard';
 export { ActividadTabla } from './ActividadTabla';
+
+// Exportación directa de tipos desde la capa de dominio de brigadas
+export type {
+  TipoActividadOperativa,
+  EstadoActividadOperativa,
+  ActividadItemOperativa,
+} from '../../../../../../modules/brigades';

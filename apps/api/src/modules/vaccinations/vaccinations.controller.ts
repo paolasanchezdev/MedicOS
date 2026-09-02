@@ -6,7 +6,7 @@
 import { Request, Response } from 'express';
 import { vaccinationsService } from './vaccinations.service.js';
 import { createVaccinationSchema } from './vaccinations.schema.js';
-import type { CreateVaccinationDTO } from './vaccinations.types.js';
+import type { CreateVaccinationDTO, GetAllVaccinationsFilters } from './vaccinations.types.js';
 
 export class VaccinationsController {
   // GET /vaccinations/catalog
@@ -95,16 +95,18 @@ export class VaccinationsController {
         limit,
       } = req.query;
 
-      const result = await vaccinationsService.getAllVaccinations({
-        patientId: patientId ? String(patientId) : undefined,
-        vaccineCode: vaccineCode ? String(vaccineCode) : undefined,
-        brigadeId: brigadeId ? String(brigadeId) : undefined,
-        startDate: startDate ? String(startDate) : undefined,
-        endDate: endDate ? String(endDate) : undefined,
-        search: search ? String(search) : undefined,
-        page: page ? parseInt(String(page), 10) : undefined,
-        limit: limit ? parseInt(String(limit), 10) : undefined,
-      });
+      const filters: GetAllVaccinationsFilters = {};
+
+      if (patientId) filters.patientId = String(patientId);
+      if (vaccineCode) filters.vaccineCode = String(vaccineCode);
+      if (brigadeId) filters.brigadeId = String(brigadeId);
+      if (startDate) filters.startDate = String(startDate);
+      if (endDate) filters.endDate = String(endDate);
+      if (search) filters.search = String(search);
+      if (page) filters.page = parseInt(String(page), 10);
+      if (limit) filters.limit = parseInt(String(limit), 10);
+
+      const result = await vaccinationsService.getAllVaccinations(filters);
 
       res.json({ success: true, data: result });
     } catch (error: unknown) {
@@ -117,9 +119,10 @@ export class VaccinationsController {
   async getSummary(req: Request, res: Response): Promise<void> {
     try {
       const { brigadeId } = req.query;
-      const summary = await vaccinationsService.getVaccinationSummary(
-        brigadeId ? String(brigadeId) : undefined
-      );
+      const summary = brigadeId
+        ? await vaccinationsService.getVaccinationSummary(String(brigadeId))
+        : await vaccinationsService.getVaccinationSummary();
+
       res.json({ success: true, data: summary });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Error al consultar resumen de vacunación';

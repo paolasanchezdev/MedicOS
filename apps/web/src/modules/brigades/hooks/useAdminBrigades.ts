@@ -1,4 +1,9 @@
-// apps/web/src/modules/brigades/hooks/useAdminBrigades.ts
+// =========================================================================
+// ARCHIVO: apps/web/src/modules/brigades/hooks/useAdminBrigades.ts
+// DESCRIPCIÓN: Hook para la gestión administrativa de brigadas territoriales
+//              y asignación de personal médico y operativo en MedicOS.
+// =========================================================================
+
 import { useState, useEffect, useCallback } from 'react';
 import { brigadesApiService } from '../services/brigades.service';
 import type {
@@ -28,7 +33,7 @@ export const useAdminBrigades = () => {
       setError(null);
       const [brigadesData, personnelData] = await Promise.all([
         brigadesApiService.getBrigades(filters),
-        brigadesApiService.getEligiblePersonnel(),
+        brigadesApiService.getPersonnel(),
       ]);
       setBrigades(brigadesData);
       setPersonnel(personnelData);
@@ -48,7 +53,7 @@ export const useAdminBrigades = () => {
         setError(null);
         const [brigadesData, personnelData] = await Promise.all([
           brigadesApiService.getBrigades(filters),
-          brigadesApiService.getEligiblePersonnel(),
+          brigadesApiService.getPersonnel(),
         ]);
         if (active) {
           setBrigades(brigadesData);
