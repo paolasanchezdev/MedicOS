@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/modules/patients/types/patient.types.ts
-// DESCRIPCIÓN: Tipos de datos para el dominio de pacientes, historial clínico y registro.
+// DESCRIPCIÓN: Tipos de datos para el dominio de pacientes con soporte de
+//              distrito separado y expediente clínico ampliado.
 // =========================================================================
 
 export type BloodType =
@@ -26,6 +27,9 @@ export interface UpdatePatientProfileDto {
   department?: string | null;
   bloodType?: string;
   allergies?: string | null;
+  chronicDiseases?: string | null;
+  medication?: string | null;
+  observations?: string | null;
   emergencyName?: string | null;
   emergencyPhone?: string | null;
   emergencyRelation?: string | null;
@@ -38,42 +42,37 @@ export interface OnboardingFormData {
   phone: string;
   department: string;
   municipality: string;
+  district: string;
   address: string;
   bloodType: string;
   allergies: string;
+  chronicDiseases: string;
+  medication: string;
+  observations: string;
   emergencyName: string;
   emergencyPhone: string;
   emergencyRelation: string;
 }
 
 export interface CreatePatientDto {
-  // Identificación
   firstName: string;
   lastName: string;
   dateOfBirth: string;
   dui?: string | null;
   sex: Sex;
-
-  // Cuenta de Acceso MedicOS
   email: string;
   password: string;
-
-  // Contacto y Ubicación Territorial
   phone?: string | null;
   address: string;
   district?: string | null;
   municipality?: string | null;
   department?: string | null;
-
-  // Información Médica Inicial
   bloodType?: BloodType;
   allergies?: string | null;
   chronicDiseases?: string | null;
   disabilities?: string | null;
   familyHistory?: string | null;
   surgicalHistory?: string | null;
-
-  // Contacto de Emergencia
   emergencyName?: string | null;
   emergencyPhone?: string | null;
   emergencyRelation?: string | null;

@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/consultations/consultations.service.ts
-// DESCRIPCIÓN: Servicio de consultas SOAP y atenciones comunitarias con soporte multirrol y listado general.
+// DESCRIPCIÓN: Servicio de consultas SOAP y atenciones comunitarias con creación
+//              automática de diagnósticos formales en la tabla Diagnosis.
 // =========================================================================
 
 import { prisma } from '../../config/prisma.js';
@@ -63,7 +64,7 @@ export class ConsultationsService extends BaseService {
     return newRecord.id;
   }
 
-  // 1. Crear Consulta Médica / Atención Comunitaria
+  // 1. Crear Consulta Médica / Atención Comunitaria (SOAP)
   async createConsultation(data: CreateConsultationDTO) {
     const {
       patientId,
@@ -136,6 +137,22 @@ export class ConsultationsService extends BaseService {
         },
       });
 
+      // Crear automáticamente el registro formal en la tabla Diagnosis
+      if (diagnosisDesc && diagnosisDesc.trim()) {
+        await tx.diagnosis.create({
+          data: {
+            patientId,
+            consultationId: consultation.id,
+            code: diagnosisCode || null,
+            description: diagnosisDesc.trim(),
+            status: 'ACTIVE',
+            diagnosedAt: consultation.consultationDate,
+            originDeviceId: deviceId,
+            lastModifiedByDeviceId: deviceId,
+          },
+        });
+      }
+
       if (vitalSigns) {
         await tx.vitalSigns.create({
           data: {
@@ -180,6 +197,7 @@ export class ConsultationsService extends BaseService {
           vitalSigns: true,
           brigade: true,
           appointment: true,
+          diagnoses: true,
         },
       });
     });
@@ -279,6 +297,7 @@ export class ConsultationsService extends BaseService {
             },
           },
           vitalSigns: true,
+          diagnoses: true,
         },
         orderBy: { consultationDate: 'desc' },
         skip,
@@ -295,7 +314,7 @@ export class ConsultationsService extends BaseService {
     };
   }
 
-  // 3. Historial de Consultas de un Paciente
+  // 3. Historial de Consultas de un Paciente por ID clínico
   async getConsultationsByPatient(patientId: string) {
     const db = prisma as any;
     return db.consultation.findMany({
@@ -309,14 +328,23 @@ export class ConsultationsService extends BaseService {
             id: true,
             firstName: true,
             lastName: true,
+            email: true,
           },
         },
-        vitalSigns: true,
+        vitalSigns: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+        },
+        diagnoses: {
+          where: { deletedAt: null },
+          orderBy: { diagnosedAt: 'desc' },
+        },
         brigade: {
           select: {
             id: true,
             name: true,
             department: true,
+            municipality: true,
           },
         },
         appointment: {
@@ -324,6 +352,7 @@ export class ConsultationsService extends BaseService {
             id: true,
             appointmentDate: true,
             reason: true,
+            status: true,
           },
         },
       },
@@ -331,14 +360,35 @@ export class ConsultationsService extends BaseService {
     });
   }
 
-  // 4. Obtener Consulta por ID
-  async getConsultationById(id: string) {
+  // 4. Historial de Consultas del Paciente Autenticado
+  async getConsultationsForUser(userId: string) {
+    const patient = await prisma.patient.findFirst({
+      where: { userId, deletedAt: null },
+      select: { id: true },
+    });
+
+    if (!patient) {
+      return [];
+    }
+
+    return this.getConsultationsByPatient(patient.id);
+  }
+
+  // 5. Obtener Consulta por ID con verificación estricta de autorización
+  async getConsultationById(id: string, requestingUser?: { id: string; role: string }) {
     const db = prisma as any;
     const consultation = await db.consultation.findFirst({
       where: { id, deletedAt: null },
       include: {
         patient: {
-          include: {
+          select: {
+            id: true,
+            userId: true,
+            firstName: true,
+            lastName: true,
+            dui: true,
+            dateOfBirth: true,
+            sex: true,
             clinicalRecord: true,
           },
         },
@@ -350,14 +400,41 @@ export class ConsultationsService extends BaseService {
             email: true,
           },
         },
-        vitalSigns: true,
-        brigade: true,
-        appointment: true,
+        vitalSigns: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+        },
+        diagnoses: {
+          where: { deletedAt: null },
+          orderBy: { diagnosedAt: 'desc' },
+        },
+        brigade: {
+          select: {
+            id: true,
+            name: true,
+            department: true,
+            municipality: true,
+          },
+        },
+        appointment: {
+          select: {
+            id: true,
+            appointmentDate: true,
+            reason: true,
+            status: true,
+          },
+        },
       },
     });
 
     if (!consultation) {
       throw new Error('Consulta médica no encontrada.');
+    }
+
+    if (requestingUser && requestingUser.role === 'PATIENT') {
+      if (!consultation.patient || consultation.patient.userId !== requestingUser.id) {
+        throw new Error('FORBIDDEN_CONSULTATION_ACCESS');
+      }
     }
 
     return consultation;

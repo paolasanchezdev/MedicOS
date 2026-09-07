@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/patients/patients.schema.ts
-// DESCRIPCIÓN: Esquemas Zod para validación de entrada de pacientes y cuentas.
+// DESCRIPCIÓN: Esquemas Zod para validación de entrada de pacientes, cuentas y perfil clínico.
 // =========================================================================
 
 import { z } from 'zod';
@@ -79,6 +79,7 @@ export const createPatientSchema = z.object({
 
 export const updatePatientProfileSchema = z.object({
   body: z.object({
+    // Paso 1: Identificación y Nacimiento
     dateOfBirth: z.string().min(1, 'La fecha de nacimiento es obligatoria'),
     dui: z
       .string()
@@ -89,9 +90,16 @@ export const updatePatientProfileSchema = z.object({
       .or(z.literal('')),
     sex: z.enum(['MALE', 'FEMALE', 'OTHER']).default('OTHER'),
     phone: z.string().trim().optional().nullable(),
+
+    // Paso 2: Ubicación y Contacto de Urgencia
     address: z.string().trim().min(3, 'La dirección o comunidad es obligatoria'),
     municipality: z.string().trim().optional().nullable(),
     department: z.string().trim().optional().nullable(),
+    emergencyName: z.string().trim().optional().nullable(),
+    emergencyPhone: z.string().trim().optional().nullable(),
+    emergencyRelation: z.string().trim().optional().nullable(),
+
+    // Paso 3: Información Médica y Antecedentes
     bloodType: z
       .enum([
         'A_POSITIVE',
@@ -107,9 +115,9 @@ export const updatePatientProfileSchema = z.object({
       .optional()
       .default('UNKNOWN'),
     allergies: z.string().trim().optional().nullable(),
-    emergencyName: z.string().trim().optional().nullable(),
-    emergencyPhone: z.string().trim().optional().nullable(),
-    emergencyRelation: z.string().trim().optional().nullable(),
+    chronicDiseases: z.string().trim().optional().nullable(),
+    medication: z.string().trim().optional().nullable(),
+    observations: z.string().trim().optional().nullable(),
   }),
 });
 

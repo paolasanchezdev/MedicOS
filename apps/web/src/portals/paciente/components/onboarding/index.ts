@@ -1,10 +1,10 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/paciente/components/onboarding/index.ts
-// DESCRIPCIÓN: Punto de entrada para los componentes visuales de onboarding.
+// DESCRIPCIÓN: Barrel export de componentes de Onboarding.
 // =========================================================================
 
-export * from './OnboardingCarnetPreview';
+export * from './BienvenidaOnboardingModal';
 export * from './OnboardingPaso1';
 export * from './OnboardingPaso2';
+export * from './OnboardingPaso3';
 export * from './OnboardingSuccess';
-export * from './BienvenidaOnboardingModal';

@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/consultations/consultations.controller.ts
-// DESCRIPCIÓN: Controlador HTTP para creación, listado general y detalle del historial SOAP.
+// DESCRIPCIÓN: Controlador HTTP para creación, listado general, detalle SOAP
+//              y consulta segura del expediente del paciente autenticado.
 // =========================================================================
 
 import { Request, Response } from 'express';
@@ -93,6 +94,22 @@ export class ConsultationsController {
     }
   }
 
+  async getMyConsultations(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Usuario no autenticado en el sistema.' });
+        return;
+      }
+
+      const consultations = await consultationsService.getConsultationsForUser(userId);
+      res.json({ success: true, data: consultations });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Error al consultar tu historial médico';
+      res.status(500).json({ success: false, error: msg });
+    }
+  }
+
   async getById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
@@ -101,10 +118,21 @@ export class ConsultationsController {
         return;
       }
 
-      const consultation = await consultationsService.getConsultationById(id);
+      const requestingUser = req.user
+        ? { id: req.user.id, role: req.user.role }
+        : undefined;
+
+      const consultation = await consultationsService.getConsultationById(id, requestingUser);
       res.json({ success: true, data: consultation });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Error al obtener la consulta';
+      if (msg === 'FORBIDDEN_CONSULTATION_ACCESS') {
+        res.status(403).json({
+          success: false,
+          error: 'No tienes autorización para acceder a esta consulta médica.',
+        });
+        return;
+      }
       res.status(404).json({ success: false, error: msg });
     }
   }

@@ -1,7 +1,8 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/vaccinations/vaccinations.service.ts
 // DESCRIPCIÓN: Servicio de negocio con catálogo oficial Esquema MINSAL 2026,
-//              persistencia en PostgreSQL (Prisma), auditoría y métricas reales.
+//              persistencia en PostgreSQL (Prisma), resolución User/Patient,
+//              auditoría y métricas reales.
 // =========================================================================
 
 import { prisma } from '../../config/prisma.js';
@@ -503,15 +504,23 @@ export class VaccinationsService extends BaseService {
       originDeviceId,
     } = data;
 
+    // Resolver si se recibió Patient.id o User.id
     const patient = await prisma.patient.findFirst({
-      where: { id: patientId, deletedAt: null },
+      where: {
+        OR: [
+          { id: patientId },
+          { userId: patientId },
+        ],
+        deletedAt: null,
+      },
     });
 
     if (!patient) {
       throw new Error('El paciente especificado no existe o fue dado de baja.');
     }
 
-    const clinicalRecordId = await this.ensureClinicalRecord(patientId);
+    const effectivePatientId = patient.id;
+    const clinicalRecordId = await this.ensureClinicalRecord(effectivePatientId);
     const deviceId = originDeviceId || 'SERVER_CENTRAL';
     const finalDate = administeredAt ? new Date(administeredAt) : new Date();
 
@@ -530,7 +539,7 @@ export class VaccinationsService extends BaseService {
 
     const consultation = await prisma.consultation.create({
       data: {
-        patientId,
+        patientId: effectivePatientId,
         doctorId: responsibleDoctorId,
         clinicalRecordId,
         chiefComplaint,
@@ -570,7 +579,7 @@ export class VaccinationsService extends BaseService {
             vaccineName,
             doseNumber,
             lotNumber,
-            patientId,
+            patientId: effectivePatientId,
           },
         },
       });
@@ -581,11 +590,55 @@ export class VaccinationsService extends BaseService {
     return this.mapConsultationToVaccinationRecord(consultation);
   }
 
-  // 3. Historial de Vacunación de un Paciente
-  async getVaccinationsByPatient(patientId: string): Promise<VaccinationRecord[]> {
+  // 3. Historial de Vacunación de un Paciente (Resolución automática de Patient.id y User.id)
+  async getVaccinationsByPatient(patientIdOrUserId: string): Promise<VaccinationRecord[]> {
+    // 1. Buscar si el ID corresponde a un Patient (directo o por userId vinculado)
+    let patient = await prisma.patient.findFirst({
+      where: {
+        OR: [
+          { id: patientIdOrUserId },
+          { userId: patientIdOrUserId },
+        ],
+        deletedAt: null,
+      },
+    });
+
+    // 2. Si no se encontró por ID directo, verificar si el ID corresponde a un User existente
+    if (!patient) {
+      const user = await prisma.user.findUnique({
+        where: { id: patientIdOrUserId },
+      });
+
+      if (user) {
+        // Enlazar al paciente con los mismos datos de identidad registrados por el brigadista
+        patient = await prisma.patient.findFirst({
+          where: {
+            deletedAt: null,
+            OR: [
+              { userId: user.id },
+              {
+                firstName: { equals: user.firstName, mode: 'insensitive' },
+                lastName: { equals: user.lastName, mode: 'insensitive' },
+              },
+            ],
+          },
+        });
+
+        // Persistir el vínculo en la base de datos para futuras consultas inmediatas
+        if (patient && !patient.userId) {
+          await prisma.patient.update({
+            where: { id: patient.id },
+            data: { userId: user.id },
+          });
+        }
+      }
+    }
+
+    const targetPatientId = patient ? patient.id : patientIdOrUserId;
+
     const consultations = await prisma.consultation.findMany({
       where: {
-        patientId,
+        patientId: targetPatientId,
         deletedAt: null,
         chiefComplaint: { contains: '[VACUNACION]' },
       },
@@ -636,7 +689,19 @@ export class VaccinationsService extends BaseService {
       chiefComplaint: { contains: '[VACUNACION]' },
     };
 
-    if (patientId) where.patientId = patientId;
+    if (patientId) {
+      const patient = await prisma.patient.findFirst({
+        where: {
+          OR: [
+            { id: patientId },
+            { userId: patientId },
+          ],
+          deletedAt: null,
+        },
+      });
+      where.patientId = patient ? patient.id : patientId;
+    }
+
     if (brigadeId && brigadeId !== 'ALL') where.brigadeId = brigadeId;
 
     if (vaccineCode && vaccineCode !== 'ALL') {

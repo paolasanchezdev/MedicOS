@@ -1,3 +1,4 @@
+// Apps/web/src/core/context/AuthTypes.ts
 export interface User {
   id: string;
   email: string;

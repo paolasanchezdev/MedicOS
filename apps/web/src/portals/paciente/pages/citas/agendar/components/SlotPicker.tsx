@@ -1,10 +1,11 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/paciente/pages/citas/agendar/components/SlotPicker.tsx
-// DESCRIPCIÓN: Selector de fecha y bloques horarios (mañana / tarde).
+// DESCRIPCIÓN: Selector de fecha y bloques horarios (mañana / tarde) alineado
+//              con la paleta visual y diseño institucional de MedicOS.
 // =========================================================================
 
 import React, { useMemo } from 'react';
-import { Calendar as CalendarIcon, Loader2, Sun, Moon } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, Sun, Moon, Clock } from 'lucide-react';
 
 export interface AvailableSlot {
   time: string;
@@ -44,15 +45,38 @@ export const SlotPicker: React.FC<SlotPickerProps> = ({
     });
   }, [slots]);
 
+  const formattedDateLabel = useMemo(() => {
+    if (!selectedDate) return '';
+    try {
+      const dateObj = new Date(`${selectedDate}T00:00:00`);
+      const raw = dateObj.toLocaleDateString('es-SV', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+      return raw.charAt(0).toUpperCase() + raw.slice(1);
+    } catch {
+      return selectedDate;
+    }
+  }, [selectedDate]);
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-2.5">
-        <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-          <CalendarIcon size={15} className="text-[#0e7490]" />
-          2. Fecha y Horario de Atención <span className="text-rose-600">*</span>
-        </label>
-        <span className="text-[11px] font-medium text-slate-500">
-          Turnos estándar de 30 minutos
+      {/* Cabecera del Paso */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-200/80 pb-3">
+        <div>
+          <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+            <CalendarIcon className="w-4 h-4 text-[#2B7A78]" />
+            2. Fecha y Horario de Consulta <span className="text-rose-500">*</span>
+          </label>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Selecciona el día y turno disponible para tu atención médica.
+          </p>
+        </div>
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200/80 self-start sm:self-auto">
+          <Clock className="w-3.5 h-3.5 text-slate-500" />
+          Turnos estándar de 30 min
         </span>
       </div>
 
@@ -64,36 +88,34 @@ export const SlotPicker: React.FC<SlotPickerProps> = ({
             min={minDate}
             value={selectedDate}
             onChange={(e) => onDateChange(e.target.value)}
-            className="w-full pl-3.5 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm font-bold text-slate-900 focus:bg-white focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 focus:outline-hidden"
+            className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 focus:border-[#2B7A78] rounded-xl text-xs sm:text-sm font-semibold text-slate-900 outline-none transition-all duration-150"
           />
         </div>
-        <span className="text-xs text-slate-500">
-          {new Date(selectedDate + 'T00:00:00').toLocaleDateString('es-ES', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-          })}
-        </span>
+        {formattedDateLabel && (
+          <span className="text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200/80 px-3 py-2 rounded-xl">
+            {formattedDateLabel}
+          </span>
+        )}
       </div>
 
       {/* Bloques de Horarios */}
       {isLoading ? (
-        <div className="flex items-center justify-center gap-2.5 text-xs text-slate-500 py-8 bg-slate-50/60 rounded-2xl border border-slate-200/60">
-          <Loader2 size={16} className="animate-spin text-[#0e7490]" />
-          <span>Calculando bloques disponibles...</span>
+        <div className="flex items-center justify-center gap-2.5 text-xs text-slate-500 py-10 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+          <Loader2 className="w-4 h-4 animate-spin text-[#2B7A78]" />
+          <span>Consultando turnos libres para esta fecha...</span>
         </div>
       ) : slots.length === 0 ? (
-        <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-2xl text-xs text-amber-800 font-medium">
-          No hay turnos disponibles para este día. Por favor elige otra fecha en el calendario.
+        <div className="p-4 bg-amber-50/90 border border-amber-200/80 rounded-2xl text-xs text-amber-900 font-medium space-y-1">
+          <p className="font-bold">No hay turnos disponibles para este día</p>
+          <p className="text-amber-700">Por favor, selecciona una fecha distinta en el calendario.</p>
         </div>
       ) : (
-        <div className="space-y-3 pt-1">
+        <div className="space-y-4 pt-1">
           {/* Turno Mañana */}
           {morningSlots.length > 0 && (
-            <div className="space-y-1.5">
-              <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1 uppercase tracking-wider">
-                <Sun size={13} className="text-amber-500" />
+            <div className="space-y-2">
+              <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5 uppercase tracking-wider">
+                <Sun className="w-3.5 h-3.5 text-amber-500" />
                 Mañana (08:00 - 12:00)
               </span>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
@@ -106,8 +128,8 @@ export const SlotPicker: React.FC<SlotPickerProps> = ({
                       onClick={() => onSelectSlot(slot)}
                       className={`py-2 px-2.5 rounded-xl text-xs font-mono font-bold transition-all border cursor-pointer ${
                         isSelected
-                          ? 'bg-[#0e7490] text-white border-[#0e7490] shadow-sm'
-                          : 'bg-slate-50/80 text-slate-700 border-slate-200 hover:bg-white hover:border-slate-300'
+                          ? 'bg-[#2B7A78] text-white border-[#2B7A78] shadow-sm ring-2 ring-[#2B7A78]/20'
+                          : 'bg-white text-slate-700 border-slate-200/90 hover:bg-slate-50 hover:border-slate-300'
                       }`}
                     >
                       {slot.time}
@@ -120,9 +142,9 @@ export const SlotPicker: React.FC<SlotPickerProps> = ({
 
           {/* Turno Tarde */}
           {afternoonSlots.length > 0 && (
-            <div className="space-y-1.5 pt-1">
-              <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1 uppercase tracking-wider">
-                <Moon size={13} className="text-indigo-500" />
+            <div className="space-y-2">
+              <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1.5 uppercase tracking-wider">
+                <Moon className="w-3.5 h-3.5 text-indigo-500" />
                 Tarde (14:00 - 17:00)
               </span>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
@@ -135,8 +157,8 @@ export const SlotPicker: React.FC<SlotPickerProps> = ({
                       onClick={() => onSelectSlot(slot)}
                       className={`py-2 px-2.5 rounded-xl text-xs font-mono font-bold transition-all border cursor-pointer ${
                         isSelected
-                          ? 'bg-[#0e7490] text-white border-[#0e7490] shadow-sm'
-                          : 'bg-slate-50/80 text-slate-700 border-slate-200 hover:bg-white hover:border-slate-300'
+                          ? 'bg-[#2B7A78] text-white border-[#2B7A78] shadow-sm ring-2 ring-[#2B7A78]/20'
+                          : 'bg-white text-slate-700 border-slate-200/90 hover:bg-slate-50 hover:border-slate-300'
                       }`}
                     >
                       {slot.time}
@@ -151,3 +173,5 @@ export const SlotPicker: React.FC<SlotPickerProps> = ({
     </div>
   );
 };
+
+export default SlotPicker;

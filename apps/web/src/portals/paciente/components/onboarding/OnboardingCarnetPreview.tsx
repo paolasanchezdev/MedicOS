@@ -1,7 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/paciente/components/onboarding/OnboardingCarnetPreview.tsx
-// DESCRIPCIÓN: Visualizador interactivo de Carnet Digital Oficial con giro 3D
-//              para el Onboarding del Portal Paciente.
+// DESCRIPCIÓN: Visualizador interactivo exclusivo con giro 3D para el Onboarding.
 // =========================================================================
 
 import React, { useState, useMemo } from 'react';
@@ -155,27 +154,29 @@ export const OnboardingCarnetPreview: React.FC<OnboardingCarnetPreviewProps> = (
     : 'EXP-2026-NUEVO';
 
   const qrMatrix = useMemo(() => {
-    return generateQRCodeMatrix(`https://medicos.app/expediente/${numExpediente}`);
+    return generateQRCodeMatrix(`https://medicos.gob.sv/expediente/${numExpediente}`);
   }, [numExpediente]);
 
   const qrSize = qrMatrix.length;
   const cellSize = 95 / qrSize;
 
+  const distritoLimpio = formData.district || formData.municipality || 'San Miguel Tepezontes';
+
   return (
-    <div className="flex flex-col justify-between h-full space-y-4">
+    <div className="flex flex-col justify-between h-full space-y-3 select-none">
       <div className="flex items-center justify-between">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 border border-teal-200/80 text-teal-800 text-[11px] font-bold">
-          <Sparkles className="w-3.5 h-3.5 text-[#00838F] animate-pulse" />
-          <span>Carnet Territorial MedicOS</span>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-medicos-light-bg border border-medicos-soft-border text-medicos-teal text-[11px] font-bold">
+          <Sparkles className="w-3.5 h-3.5 text-medicos-teal" />
+          <span>Credencial Territorial MedicOS</span>
         </div>
 
         <button
           type="button"
           onClick={() => setIsFlipped(!isFlipped)}
-          className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-[#00838F] hover:text-[#005f67] bg-white rounded-lg border border-teal-200 shadow-2xs transition active:scale-95 cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-medicos-teal hover:text-medicos-dark-blue bg-white rounded-lg border border-medicos-soft-border shadow-2xs transition active:scale-95 cursor-pointer"
         >
           <RotateCw className={`w-3.5 h-3.5 transition-transform duration-500 ${isFlipped ? 'rotate-180' : ''}`} />
-          <span>{isFlipped ? 'Ver Frontal' : 'Ver Trasera'}</span>
+          <span>{isFlipped ? 'Ver Frontal' : 'Giro 3D'}</span>
         </button>
       </div>
 
@@ -192,22 +193,22 @@ export const OnboardingCarnetPreview: React.FC<OnboardingCarnetPreviewProps> = (
           style={{ transformStyle: 'preserve-3d' }}
         >
           {/* CARA FRONTAL */}
-          <div className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden backface-hidden border border-slate-200 bg-[#F3F9FA] p-3 sm:p-3.5 flex flex-col justify-between text-slate-800 font-sans">
+          <div className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden backface-hidden border border-medicos-soft-border bg-[#F3F9FA] p-3 sm:p-3.5 flex flex-col justify-between text-slate-800 font-sans">
             {/* Header */}
             <div className="bg-white rounded-xl px-3 py-1.5 flex items-center justify-between shadow-2xs border border-slate-100">
               <div className="flex items-center gap-2">
                 <img src="/logo-sinNombre.png" alt="MedicOS" className="w-7 h-7 object-contain" />
                 <div className="flex flex-col">
-                  <span className="text-sm font-black text-[#003356] leading-none tracking-tight">
-                    Medic<span className="text-[#00838F]">OS</span>
+                  <span className="text-sm font-black text-medicos-dark-blue leading-none tracking-tight">
+                    Medic<span className="text-medicos-teal">OS</span>
                   </span>
-                  <span className="text-[8px] font-semibold text-[#546E7A]">
+                  <span className="text-[8px] font-semibold text-medicos-muted">
                     Sistema de Salud Territorial
                   </span>
                 </div>
               </div>
 
-              <div className="bg-[#3B9EAA] text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
+              <div className="bg-medicos-teal text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
                 <CreditCard className="w-3.5 h-3.5 text-white" />
                 <span className="text-[9px] font-extrabold tracking-wider uppercase">
                   Carnet Paciente
@@ -217,39 +218,39 @@ export const OnboardingCarnetPreview: React.FC<OnboardingCarnetPreviewProps> = (
 
             {/* Cuerpo */}
             <div className="flex-1 flex items-center justify-between gap-3 px-1 py-1">
-              <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-full p-1 bg-linear-to-tr from-[#26C6DA] to-[#80DEEA] shadow-xs flex items-center justify-center shrink-0">
-                <div className="w-full h-full rounded-full overflow-hidden bg-[#E0F2F1] flex items-center justify-center text-[#00838F]">
+              <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-full p-1 bg-linear-to-tr from-medicos-teal to-medicos-cyan shadow-xs flex items-center justify-center shrink-0">
+                <div className="w-full h-full rounded-full overflow-hidden bg-medicos-canvas flex items-center justify-center text-medicos-teal">
                   <User className="w-10 h-10" />
                 </div>
               </div>
 
               <div className="flex-1 min-w-0 flex flex-col justify-center space-y-1">
-                <h4 className="text-xs sm:text-sm font-extrabold text-[#003356] truncate leading-tight">
+                <h4 className="text-xs sm:text-sm font-extrabold text-medicos-dark-blue truncate leading-tight">
                   {fullName || 'Nombre del Paciente'}
                 </h4>
 
                 <div className="space-y-0.5 text-[10px]">
                   <div className="flex items-center gap-1.5 truncate">
-                    <User className="w-3 h-3 text-[#00838F] shrink-0" />
-                    <span className="font-bold text-[#00838F]">Sexo:</span>
+                    <User className="w-3 h-3 text-medicos-teal shrink-0" />
+                    <span className="font-bold text-medicos-teal">Sexo:</span>
                     <span className="text-slate-700 font-medium">{formatSex(formData.sex)}</span>
                   </div>
 
                   <div className="flex items-center gap-1.5 truncate">
-                    <FileText className="w-3 h-3 text-[#00838F] shrink-0" />
-                    <span className="font-bold text-[#00838F]">Expediente:</span>
+                    <FileText className="w-3 h-3 text-medicos-teal shrink-0" />
+                    <span className="font-bold text-medicos-teal">Expediente:</span>
                     <span className="font-mono font-bold text-slate-800">{numExpediente}</span>
                   </div>
 
                   <div className="flex items-center gap-1.5 truncate">
-                    <Droplet className="w-3 h-3 text-[#00838F] fill-[#00838F] shrink-0" />
-                    <span className="font-bold text-[#00838F]">Sangre:</span>
+                    <Droplet className="w-3 h-3 text-medicos-teal fill-medicos-teal shrink-0" />
+                    <span className="font-bold text-medicos-teal">Sangre:</span>
                     <span className="font-bold text-rose-700">{formatBloodType(formData.bloodType)}</span>
                   </div>
 
                   <div className="flex items-center gap-1.5 truncate">
-                    <MapPin className="w-3 h-3 text-[#00838F] shrink-0" />
-                    <span className="font-bold text-[#00838F]">DUI:</span>
+                    <MapPin className="w-3 h-3 text-medicos-teal shrink-0" />
+                    <span className="font-bold text-medicos-teal">DUI:</span>
                     <span className="font-mono font-medium text-slate-700">{formData.dui || '00000000-0'}</span>
                   </div>
                 </div>
@@ -267,75 +268,75 @@ export const OnboardingCarnetPreview: React.FC<OnboardingCarnetPreviewProps> = (
                           y={rIdx * cellSize}
                           width={cellSize + 0.2}
                           height={cellSize + 0.2}
-                          fill="#002244"
+                          fill="#20343A"
                         />
                       ) : null
                     )
                   )}
                 </svg>
-                <span className="text-[7px] font-mono text-[#00838F] font-bold uppercase mt-0.5">
+                <span className="text-[7px] font-mono text-medicos-teal font-bold uppercase mt-0.5">
                   Ver Ficha
                 </span>
               </div>
             </div>
 
-            {/* Módulos Inferiores */}
+            {/* Módulos Inferiores con Distrito Limpio */}
             <div className="bg-white rounded-xl px-2 py-1.5 grid grid-cols-3 divide-x divide-slate-100 shadow-2xs border border-slate-100 items-center text-[9px]">
               <div className="flex items-center gap-1.5 px-1 truncate">
-                <Calendar className="w-3.5 h-3.5 text-[#00838F] shrink-0" />
+                <Calendar className="w-3.5 h-3.5 text-medicos-teal shrink-0" />
                 <div className="flex flex-col truncate">
                   <span className="text-[7px] font-bold text-slate-400">Nacimiento</span>
-                  <span className="font-bold text-[#003356] truncate">{formatDate(formData.dateOfBirth)}</span>
+                  <span className="font-bold text-medicos-dark-blue truncate">{formatDate(formData.dateOfBirth)}</span>
                 </div>
               </div>
 
               <div className="flex items-center gap-1.5 px-1 truncate">
-                <Home className="w-3.5 h-3.5 text-[#00838F] shrink-0" />
+                <Home className="w-3.5 h-3.5 text-medicos-teal shrink-0" />
                 <div className="flex flex-col truncate">
-                  <span className="text-[7px] font-bold text-slate-400">Comunidad</span>
-                  <span className="font-bold text-[#003356] truncate" title={formData.municipality}>
-                    {formData.municipality || 'San Miguel Tepezontes'}
+                  <span className="text-[7px] font-bold text-slate-400">Distrito</span>
+                  <span className="font-bold text-medicos-dark-blue truncate" title={distritoLimpio}>
+                    {distritoLimpio}
                   </span>
                 </div>
               </div>
 
               <div className="flex items-center gap-1.5 px-1 truncate">
-                <Phone className="w-3.5 h-3.5 text-[#00838F] shrink-0" />
+                <Phone className="w-3.5 h-3.5 text-medicos-teal shrink-0" />
                 <div className="flex flex-col truncate">
                   <span className="text-[7px] font-bold text-slate-400">Teléfono</span>
-                  <span className="font-bold text-[#003356] truncate">{formData.phone || 'Sin tel.'}</span>
+                  <span className="font-bold text-medicos-dark-blue truncate">{formData.phone || 'Sin tel.'}</span>
                 </div>
               </div>
             </div>
 
             {/* Pie */}
-            <div className="bg-[#00838F] text-white px-3 py-1 rounded-lg flex items-center justify-between text-[8px]">
+            <div className="bg-medicos-teal text-white px-3 py-1 rounded-lg flex items-center justify-between text-[8px]">
               <span className="italic">Tu salud, nuestra prioridad</span>
               <span className="font-black">MedicOS 2026</span>
             </div>
           </div>
 
           {/* CARA TRASERA */}
-          <div className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden backface-hidden transform-[rotateY(180deg)] border border-slate-200 bg-[#F3F9FA] p-3 sm:p-3.5 flex flex-col justify-between text-slate-800 font-sans">
+          <div className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden backface-hidden transform-[rotateY(180deg)] border border-medicos-soft-border bg-[#F3F9FA] p-3 sm:p-3.5 flex flex-col justify-between text-slate-800 font-sans">
             <div className="bg-white rounded-xl px-3 py-1.5 flex items-center justify-between shadow-2xs border border-slate-100">
-              <span className="text-xs font-black text-[#003356]">INFORMACIÓN MÉDICA &bull; EMERGENCIA</span>
-              <ShieldCheck className="w-4 h-4 text-[#00838F]" />
+              <span className="text-xs font-black text-medicos-dark-blue">INFORMACIÓN MÉDICA &bull; EMERGENCIA</span>
+              <ShieldCheck className="w-4 h-4 text-medicos-teal" />
             </div>
 
             <div className="grid grid-cols-2 gap-2 my-1">
               <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-2xs space-y-1 text-[9px]">
-                <div className="flex items-center gap-1.5 text-[#00838F] font-bold pb-1 border-b border-slate-100">
+                <div className="flex items-center gap-1.5 text-medicos-teal font-bold pb-1 border-b border-slate-100">
                   <PhoneCall className="w-3 h-3" />
                   <span>Contacto de Urgencia</span>
                 </div>
                 <p className="text-slate-800 font-bold truncate">{formData.emergencyName || 'Por asignar'}</p>
                 <p className="text-slate-500 truncate">{formData.emergencyRelation || 'Familiar'}</p>
-                <p className="text-[#00838F] font-mono font-bold truncate">{formData.emergencyPhone || 'Sin teléfono'}</p>
+                <p className="text-medicos-teal font-mono font-bold truncate">{formData.emergencyPhone || 'Sin teléfono'}</p>
               </div>
 
               <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-2xs space-y-1 text-[9px]">
-                <div className="flex items-center gap-1.5 text-[#003356] font-bold pb-1 border-b border-slate-100">
-                  <ShieldAlert className="w-3 h-3" />
+                <div className="flex items-center gap-1.5 text-medicos-dark-blue font-bold pb-1 border-b border-slate-100">
+                  <ShieldAlert className="w-3 h-3 text-medicos-teal" />
                   <span>Alergias Conocidas</span>
                 </div>
                 <p className="text-slate-700 italic line-clamp-3 leading-snug">
@@ -345,13 +346,13 @@ export const OnboardingCarnetPreview: React.FC<OnboardingCarnetPreviewProps> = (
             </div>
 
             <div className="bg-white rounded-xl p-2 border border-slate-100 shadow-2xs flex items-center gap-2 text-[9px]">
-              <Lock className="w-4 h-4 text-[#00838F] shrink-0" />
+              <Lock className="w-4 h-4 text-medicos-teal shrink-0" />
               <span className="text-slate-600 leading-tight">
                 Documento personal emitido por el sistema MedicOS. Válido en toda la red nacional de brigadas.
               </span>
             </div>
 
-            <div className="bg-[#003356] text-white px-3 py-1 rounded-lg flex items-center justify-between text-[8px]">
+            <div className="bg-medicos-dark-blue text-white px-3 py-1 rounded-lg flex items-center justify-between text-[8px]">
               <span>Validación territorial en línea</span>
               <span className="font-bold">El Salvador &bull; 2026</span>
             </div>
@@ -360,7 +361,7 @@ export const OnboardingCarnetPreview: React.FC<OnboardingCarnetPreviewProps> = (
       </div>
 
       <p className="text-center text-[10px] text-slate-400 font-medium">
-        💡 Haz clic sobre el carnet o usa el botón superior para inspeccionar ambas caras.
+        💡 Haz clic sobre el carnet o usa el botón superior para voltear en 3D.
       </p>
     </div>
   );

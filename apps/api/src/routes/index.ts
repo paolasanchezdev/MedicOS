@@ -11,6 +11,8 @@ import { brigadeRoutes } from '../modules/brigadas/brigades.routes.js';
 import { patientRoutes } from '../modules/patients/patients.routes.js';
 import { appointmentRoutes } from '../modules/appointments/appointments.routes.js';
 import { consultationRoutes } from '../modules/consultations/consultations.routes.js';
+import { diagnosisRoutes } from '../modules/diagnoses/diagnoses.routes.js';
+import { clinicalHistoryRoutes } from '../modules/clinical-history/clinical-history.routes.js';
 import { vaccinationRoutes } from '../modules/vaccinations/vaccinations.routes.js';
 import { reportRoutes } from '../modules/reports/reports.routes.js';
 import { adminRoutes } from '../modules/admin/admin.routes.js';
@@ -30,6 +32,8 @@ router.use('/patients', patientRoutes);
 router.use('/brigades', brigadeRoutes);
 router.use('/appointments', appointmentRoutes);
 router.use('/consultations', consultationRoutes);
+router.use('/diagnoses', diagnosisRoutes);
+router.use('/clinical-history', clinicalHistoryRoutes);
 router.use('/vaccinations', vaccinationRoutes);
 router.use('/reports', reportRoutes);
 router.use('/admin', adminRoutes);
@@ -41,6 +45,8 @@ router.use('/medico', medicoRoutes);
 router.use('/brigadas', brigadeRoutes);
 router.use('/citas', appointmentRoutes);
 router.use('/consultas', consultationRoutes);
+router.use('/diagnosticos', diagnosisRoutes);
+router.use('/historial-clinico', clinicalHistoryRoutes);
 router.use('/vacunacion', vaccinationRoutes);
 
 // Endpoint de resumen clínico rápido para pacientes

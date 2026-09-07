@@ -65,11 +65,21 @@ MedicOS/
 │   │   │   │   │   ├── brigades.schema.ts
 │   │   │   │   │   ├── brigades.service.ts
 │   │   │   │   │   └── brigadista-dashboard.service.ts
+│   │   │   │   ├── clinical-history/
+│   │   │   │   │   ├── clinical-history.controller.ts
+│   │   │   │   │   ├── clinical-history.routes.ts
+│   │   │   │   │   ├── clinical-history.service.ts
+│   │   │   │   │   └── clinical-history.types.ts
 │   │   │   │   ├── consultations/
 │   │   │   │   │   ├── consultations.controller.ts
 │   │   │   │   │   ├── consultations.routes.ts
 │   │   │   │   │   ├── consultations.schema.ts
 │   │   │   │   │   └── consultations.service.ts
+│   │   │   │   ├── diagnoses/
+│   │   │   │   │   ├── diagnoses.controller.ts
+│   │   │   │   │   ├── diagnoses.routes.ts
+│   │   │   │   │   ├── diagnoses.schema.ts
+│   │   │   │   │   └── diagnoses.service.ts
 │   │   │   │   ├── medico/
 │   │   │   │   │   ├── medico-dashboard.service.ts
 │   │   │   │   │   ├── medico.controller.ts
@@ -175,6 +185,22 @@ MedicOS/
 │       │   │   ├── admin/
 │       │   │   │   └── types/
 │       │   │   │       └── admin-dashboard.types.ts
+│       │   │   ├── appointments/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── CancelarCitaModal.tsx
+│       │   │   │   │   ├── CitaEstadoBadge.tsx
+│       │   │   │   │   ├── DetalleCitaModal.tsx
+│       │   │   │   │   ├── index.ts
+│       │   │   │   │   └── ReprogramarCitaModal.tsx
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── useAppointments.ts
+│       │   │   │   ├── rules/
+│       │   │   │   │   └── appointmentOrientation.rules.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── appointments.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── appointment.types.ts
+│       │   │   │   └── index.ts
 │       │   │   ├── atencion/
 │       │   │   │   ├── components/
 │       │   │   │   │   ├── DetalleAtencionModal.tsx
@@ -230,6 +256,46 @@ MedicOS/
 │       │   │   │   │   ├── brigade.types.ts
 │       │   │   │   │   └── brigadista-dashboard.types.ts
 │       │   │   │   ├── utils/
+│       │   │   │   └── index.ts
+│       │   │   ├── clinical-history/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── AlergiaTipoBadge.tsx
+│       │   │   │   │   ├── AntecedenteTipoBadge.tsx
+│       │   │   │   │   ├── DetalleAlergiaModal.tsx
+│       │   │   │   │   ├── DetalleAntecedenteModal.tsx
+│       │   │   │   │   └── index.ts
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── usePatientClinicalHistory.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── clinical-history.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── clinical-history.types.ts
+│       │   │   │   └── index.ts
+│       │   │   ├── consultations/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── ConsultaEstadoBadge.tsx
+│       │   │   │   │   ├── DetalleConsultaModal.tsx
+│       │   │   │   │   └── index.ts
+│       │   │   │   ├── hooks/
+│       │   │   │   │   ├── useConsultationDetail.ts
+│       │   │   │   │   └── useConsultationHistory.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── consultations.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── consultation.types.ts
+│       │   │   │   └── index.ts
+│       │   │   ├── diagnoses/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── DetalleDiagnosticoModal.tsx
+│       │   │   │   │   ├── DiagnosticoEstadoBadge.tsx
+│       │   │   │   │   └── index.ts
+│       │   │   │   ├── hooks/
+│       │   │   │   │   ├── useDiagnosisDetail.ts
+│       │   │   │   │   └── useDiagnosisHistory.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── diagnoses.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── diagnosis.types.ts
 │       │   │   │   └── index.ts
 │       │   │   ├── establishments/
 │       │   │   │   ├── components/
@@ -1080,6 +1146,7 @@ MedicOS/
 │       │   │   │   │   │       └── RegistroSignosVitalesPage.tsx
 │       │   │   │   │   ├── expediente/
 │       │   │   │   │   │   ├── antecedentes/
+│       │   │   │   │   │   │   ├── components/
 │       │   │   │   │   │   │   └── AlergiasAntecedentesPacientePage.tsx
 │       │   │   │   │   │   ├── consultas/
 │       │   │   │   │   │   │   └── ConsultasPacientePage.tsx
@@ -1169,6 +1236,7 @@ MedicOS/
 │       │   │       │   │   ├── OnboardingCarnetPreview.tsx
 │       │   │       │   │   ├── OnboardingPaso1.tsx
 │       │   │       │   │   ├── OnboardingPaso2.tsx
+│       │   │       │   │   ├── OnboardingPaso3.tsx
 │       │   │       │   │   └── OnboardingSuccess.tsx
 │       │   │       │   ├── PacienteHeader.tsx
 │       │   │       │   └── PacienteSidebar.tsx
@@ -1182,12 +1250,23 @@ MedicOS/
 │       │   │       │   │   ├── agendar/
 │       │   │       │   │   │   ├── components/
 │       │   │       │   │   │   │   ├── AgendarCitaHeader.tsx
+│       │   │       │   │   │   │   ├── AppointmentStepper.tsx
 │       │   │       │   │   │   │   ├── CitaConfirmadaCard.tsx
 │       │   │       │   │   │   │   ├── DoctorSelector.tsx
+│       │   │       │   │   │   │   ├── MotivoCitaSelector.tsx
 │       │   │       │   │   │   │   ├── SlotPicker.tsx
 │       │   │       │   │   │   │   └── SymptomSelector.tsx
 │       │   │       │   │   │   └── AgendarCitaPage.tsx
 │       │   │       │   │   ├── mis-citas/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── CitaCard.tsx
+│       │   │       │   │   │   │   ├── CitasFilters.tsx
+│       │   │       │   │   │   │   ├── index.ts
+│       │   │       │   │   │   │   ├── MisCitasEmpty.tsx
+│       │   │       │   │   │   │   ├── MisCitasError.tsx
+│       │   │       │   │   │   │   ├── MisCitasHeader.tsx
+│       │   │       │   │   │   │   ├── MisCitasLoading.tsx
+│       │   │       │   │   │   │   └── ProximaCitaCard.tsx
 │       │   │       │   │   │   └── MisCitasPage.tsx
 │       │   │       │   │   └── telemedicina/
 │       │   │       │   │       └── TelemedicinaPage.tsx
@@ -1232,10 +1311,38 @@ MedicOS/
 │       │   │       │   │       └── ResultadosLaboratorioPage.tsx
 │       │   │       │   ├── expediente/
 │       │   │       │   │   ├── alergias-antecedentes/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── AlergiaCard.tsx
+│       │   │       │   │   │   │   ├── AlergiasAntecedentesEmpty.tsx
+│       │   │       │   │   │   │   ├── AlergiasAntecedentesError.tsx
+│       │   │       │   │   │   │   ├── AlergiasAntecedentesHeader.tsx
+│       │   │       │   │   │   │   ├── AlergiasAntecedentesLoading.tsx
+│       │   │       │   │   │   │   ├── AntecedenteCard.tsx
+│       │   │       │   │   │   │   ├── AntecedentesSection.tsx
+│       │   │       │   │   │   │   ├── index.ts
+│       │   │       │   │   │   │   └── ResumenAlergias.tsx
 │       │   │       │   │   │   └── AlergiasAntecedentesPage.tsx
 │       │   │       │   │   ├── consultas/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── ConsultaHistorialCard.tsx
+│       │   │       │   │   │   │   ├── ConsultasStatusCards.tsx
+│       │   │       │   │   │   │   ├── HistorialConsultasEmpty.tsx
+│       │   │       │   │   │   │   ├── HistorialConsultasError.tsx
+│       │   │       │   │   │   │   ├── HistorialConsultasFilters.tsx
+│       │   │       │   │   │   │   ├── HistorialConsultasHeader.tsx
+│       │   │       │   │   │   │   ├── HistorialConsultasLoading.tsx
+│       │   │       │   │   │   │   └── index.ts
 │       │   │       │   │   │   └── HistorialConsultasPage.tsx
 │       │   │       │   │   ├── diagnosticos/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── DiagnosticoCard.tsx
+│       │   │       │   │   │   │   ├── DiagnosticosEmpty.tsx
+│       │   │       │   │   │   │   ├── DiagnosticosError.tsx
+│       │   │       │   │   │   │   ├── DiagnosticosFilters.tsx
+│       │   │       │   │   │   │   ├── DiagnosticosHeader.tsx
+│       │   │       │   │   │   │   ├── DiagnosticosLoading.tsx
+│       │   │       │   │   │   │   ├── DiagnosticosStatusCards.tsx
+│       │   │       │   │   │   │   └── index.ts
 │       │   │       │   │   │   └── DiagnosticosPage.tsx
 │       │   │       │   │   └── vacunas/
 │       │   │       │   │       └── VacunasPage.tsx

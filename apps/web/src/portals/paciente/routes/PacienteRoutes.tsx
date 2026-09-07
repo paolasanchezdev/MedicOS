@@ -1,18 +1,24 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/paciente/routes/PacienteRoutes.tsx
-// DESCRIPCIÓN: Enrutador del Portal Paciente con Agendar Cita conectado.
+// DESCRIPCIÓN: Enrutador del Portal Paciente con Alergias y Antecedentes,
+//              Diagnósticos, Historial de Consultas, Vacunas, Mis Citas y Agendar Cita.
 // =========================================================================
 
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Construction } from 'lucide-react';
 
-import { DashboardLayout } from '../pages/dashboard/DashboardLayout';
-import { ResumenPacientePage } from '../pages/dashboard/resumen/ResumenPacientePage';
-import { ActividadPacientePage as ActividadPacienteView } from '../pages/dashboard/actividad/ActividadPacientePage';
+import { DashboardLayout } from '../pages/dashboard/DashboardLayout.js';
+import { ResumenPacientePage } from '../pages/dashboard/resumen/ResumenPacientePage.js';
+import { ActividadPacientePage as ActividadPacienteView } from '../pages/dashboard/actividad/ActividadPacientePage.js';
 
 // PÁGINAS REALES IMPLEMENTADAS
-import { AgendarCitaPage } from '../pages/citas/agendar/AgendarCitaPage';
+import { AgendarCitaPage } from '../pages/citas/agendar/AgendarCitaPage.js';
+import { MisCitasPage } from '../pages/citas/mis-citas/MisCitasPage.js';
+import { HistorialConsultasPage } from '../pages/expediente/consultas/HistorialConsultasPage.js';
+import { DiagnosticosPage } from '../pages/expediente/diagnosticos/DiagnosticosPage.js';
+import { AlergiasAntecedentesPage } from '../pages/expediente/alergias-antecedentes/AlergiasAntecedentesPage.js';
+import { VacunasPage } from '../pages/expediente/vacunas/VacunasPage.js';
 
 // COMPONENTE TEMPORAL PARA VISTAS EN DESARROLLO
 const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
@@ -30,12 +36,7 @@ const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
 );
 
 // STUBS DE PÁGINAS PENDIENTES
-export const MisCitasPage = () => <PlaceholderPage title="Mis Citas Programadas" />;
 export const TelemedicinaPage = () => <PlaceholderPage title="Consultas de Telemedicina" />;
-export const HistorialConsultasPage = () => <PlaceholderPage title="Historial de Consultas" />;
-export const DiagnosticosPage = () => <PlaceholderPage title="Diagnósticos Médicos" />;
-export const AlergiasAntecedentesPage = () => <PlaceholderPage title="Alergias y Antecedentes" />;
-export const VacunasPage = () => <PlaceholderPage title="Esquema de Vacunación" />;
 export const RecetasActivasPage = () => <PlaceholderPage title="Recetas y Medicamentos Activos" />;
 export const RecordatoriosTomasPage = () => <PlaceholderPage title="Recordatorios de Toma" />;
 export const HistorialMedicamentosPage = () => <PlaceholderPage title="Historial de Medicamentos" />;

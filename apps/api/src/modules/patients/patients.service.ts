@@ -1,7 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/patients/patients.service.ts
-// DESCRIPCIÓN: Servicio de gestión de pacientes con soporte de actualización de perfil
-//              y completado de expediente clínico en MedicOS.
+// DESCRIPCIÓN: Servicio de gestión de pacientes con persistencia estructurada de antecedentes
+//              médicos (Paso 3 de Salud) y auto-aprovisionamiento en Onboarding.
 // =========================================================================
 
 import { prisma } from '../../config/prisma.js';
@@ -43,6 +43,9 @@ export interface UpdatePatientProfileDTO {
   department?: string | null;
   bloodType?: BloodType;
   allergies?: string | null;
+  chronicDiseases?: string | null;
+  medication?: string | null;
+  observations?: string | null;
   emergencyName?: string | null;
   emergencyPhone?: string | null;
   emergencyRelation?: string | null;
@@ -87,7 +90,6 @@ export class PatientsService extends BaseService {
       where: { 
         id: identifier, 
         deletedAt: null,
-        user: { status: UserStatus.ACTIVE, deletedAt: null }
       },
     });
     if (patientById) return patientById.id;
@@ -96,21 +98,20 @@ export class PatientsService extends BaseService {
       where: { 
         userId: identifier, 
         deletedAt: null,
-        user: { status: UserStatus.ACTIVE, deletedAt: null }
       },
     });
     if (patientByUserId) return patientByUserId.id;
 
     const user = await prisma.user.findFirst({
-      where: { id: identifier, deletedAt: null, status: UserStatus.ACTIVE },
+      where: { id: identifier, deletedAt: null },
     });
     if (!user) return null;
 
     const patientByUser = await prisma.patient.findFirst({
       where: {
         deletedAt: null,
-        user: { status: UserStatus.ACTIVE, deletedAt: null },
         OR: [
+          { userId: user.id },
           ...(user.phone ? [{ phone: user.phone }] : []),
           {
             firstName: { equals: user.firstName, mode: 'insensitive' },
@@ -131,7 +132,6 @@ export class PatientsService extends BaseService {
       where: {
         dui: cleanDui,
         deletedAt: null,
-        user: { status: UserStatus.ACTIVE, deletedAt: null },
       },
       select: {
         id: true,
@@ -195,12 +195,11 @@ export class PatientsService extends BaseService {
     ].filter(Boolean);
     const direccionCompleta = partesDireccion.join(', ');
 
-    const detallesMedicos = [
-      data.allergies?.trim() ? `Alergias: ${data.allergies.trim()}` : null,
-      data.chronicDiseases?.trim() ? `Enfermedades crónicas: ${data.chronicDiseases.trim()}` : null,
-      data.disabilities?.trim() ? `Discapacidad: ${data.disabilities.trim()}` : null,
-    ].filter(Boolean);
-    const observacionesIniciales = detallesMedicos.length > 0 ? detallesMedicos.join(' | ') : null;
+    const healthMetadata = JSON.stringify({
+      allergies: data.allergies?.trim() || null,
+      chronicDiseases: data.chronicDiseases?.trim() || null,
+      disabilities: data.disabilities?.trim() || null,
+    });
 
     return prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -241,7 +240,7 @@ export class PatientsService extends BaseService {
           bloodType: data.bloodType || BloodType.UNKNOWN,
           familyHistory: data.familyHistory?.trim() || null,
           surgicalHistory: data.surgicalHistory?.trim() || null,
-          observations: observacionesIniciales,
+          observations: healthMetadata,
           syncStatus: SyncStatus.SYNCED,
           version: 1,
           originDeviceId: deviceId,
@@ -278,12 +277,34 @@ export class PatientsService extends BaseService {
   }
 
   /**
-   * Actualiza el perfil clínico y completa el expediente del paciente desde el Onboarding
+   * Actualiza el perfil clínico y completa el expediente del paciente desde el Onboarding.
+   * Empaqueta antecedentes de salud (alergias, enfermedades crónicas, medicación, observaciones)
+   * de forma estructurada en ClinicalRecord.
    */
   async updatePatientProfile(identifier: string, data: UpdatePatientProfileDTO) {
-    const resolvedId = await this.resolvePatientId(identifier);
-    if (!resolvedId) {
-      throw new Error('No se encontró un expediente asociado a este usuario.');
+    let resolvedId = await this.resolvePatientId(identifier);
+    const userObj = await prisma.user.findFirst({
+      where: { id: identifier, deletedAt: null },
+    });
+
+    if (!resolvedId && userObj) {
+      const existingByUserId = await prisma.patient.findFirst({
+        where: { userId: userObj.id, deletedAt: null },
+      });
+      if (existingByUserId) {
+        resolvedId = existingByUserId.id;
+      } else if (userObj.phone) {
+        const orphanByPhone = await prisma.patient.findFirst({
+          where: { phone: userObj.phone, userId: null, deletedAt: null },
+        });
+        if (orphanByPhone) {
+          resolvedId = orphanByPhone.id;
+          await prisma.patient.update({
+            where: { id: orphanByPhone.id },
+            data: { userId: userObj.id },
+          });
+        }
+      }
     }
 
     const cleanDui = data.dui?.trim() || null;
@@ -291,7 +312,7 @@ export class PatientsService extends BaseService {
       const duiExistente = await prisma.patient.findFirst({
         where: {
           dui: cleanDui,
-          id: { not: resolvedId },
+          ...(resolvedId ? { id: { not: resolvedId } } : {}),
           deletedAt: null,
         },
       });
@@ -307,6 +328,73 @@ export class PatientsService extends BaseService {
     ].filter(Boolean);
     const direccionCompleta = partesDireccion.join(', ');
 
+    // Estructuración de datos médicos para almacenamiento en observaciones
+    const healthObservations = JSON.stringify({
+      allergies: data.allergies?.trim() || 'Ninguna reportada',
+      chronicDiseases: data.chronicDiseases?.trim() || 'Ninguna registrada',
+      medication: data.medication?.trim() || 'Ninguna activa',
+      notes: data.observations?.trim() || 'Sin observaciones adicionales',
+    });
+
+    // Caso 1: Aprovisionamiento inicial del paciente
+    if (!resolvedId) {
+      if (!userObj) {
+        throw new Error('No se encontró un usuario ni expediente asociado a esta cuenta.');
+      }
+
+      return prisma.$transaction(async (tx) => {
+        const newPatient = await tx.patient.create({
+          data: {
+            userId: userObj.id,
+            firstName: userObj.firstName,
+            lastName: userObj.lastName,
+            dateOfBirth: new Date(data.dateOfBirth),
+            dui: cleanDui,
+            sex: data.sex || 'OTHER',
+            phone: data.phone?.trim() || userObj.phone || null,
+            address: direccionCompleta,
+            emergencyName: data.emergencyName?.trim() || null,
+            emergencyPhone: data.emergencyPhone?.trim() || null,
+            emergencyRelation: data.emergencyRelation?.trim() || null,
+            syncStatus: SyncStatus.SYNCED,
+            version: 1,
+            originDeviceId: 'WEB_PORTAL',
+            lastModifiedByDeviceId: 'WEB_PORTAL',
+          },
+        });
+
+        if (data.phone?.trim() && data.phone.trim() !== userObj.phone) {
+          await tx.user.update({
+            where: { id: userObj.id },
+            data: { phone: data.phone.trim() },
+          });
+        }
+
+        await tx.clinicalRecord.create({
+          data: {
+            patientId: newPatient.id,
+            bloodType: data.bloodType || BloodType.UNKNOWN,
+            observations: healthObservations,
+            syncStatus: SyncStatus.SYNCED,
+            version: 1,
+            originDeviceId: 'WEB_PORTAL',
+            lastModifiedByDeviceId: 'WEB_PORTAL',
+          },
+        });
+
+        return tx.patient.findUnique({
+          where: { id: newPatient.id },
+          include: {
+            clinicalRecord: true,
+            user: {
+              select: { id: true, email: true, role: true, firstName: true, lastName: true },
+            },
+          },
+        });
+      });
+    }
+
+    // Caso 2: Actualización de expediente existente
     return prisma.$transaction(async (tx) => {
       const updatedPatient = await tx.patient.update({
         where: { id: resolvedId },
@@ -333,22 +421,17 @@ export class PatientsService extends BaseService {
 
       const clinicalUpdateData: Prisma.ClinicalRecordUpdateInput = {
         bloodType: data.bloodType || BloodType.UNKNOWN,
+        observations: healthObservations,
         version: { increment: 1 },
         lastModifiedByDeviceId: 'WEB_PORTAL',
       };
-
-      if (data.allergies !== undefined) {
-        clinicalUpdateData.observations = data.allergies?.trim()
-          ? `Alergias: ${data.allergies.trim()}`
-          : null;
-      }
 
       await tx.clinicalRecord.upsert({
         where: { patientId: resolvedId },
         create: {
           patientId: resolvedId,
           bloodType: data.bloodType || BloodType.UNKNOWN,
-          observations: data.allergies?.trim() ? `Alergias: ${data.allergies.trim()}` : null,
+          observations: healthObservations,
           syncStatus: SyncStatus.SYNCED,
           version: 1,
           originDeviceId: 'WEB_PORTAL',
@@ -357,7 +440,15 @@ export class PatientsService extends BaseService {
         update: clinicalUpdateData,
       });
 
-      return updatedPatient;
+      return tx.patient.findUnique({
+        where: { id: updatedPatient.id },
+        include: {
+          clinicalRecord: true,
+          user: {
+            select: { id: true, email: true, role: true, firstName: true, lastName: true },
+          },
+        },
+      });
     });
   }
 
@@ -365,10 +456,6 @@ export class PatientsService extends BaseService {
     const todosLosPacientes = await prisma.patient.findMany({
       where: {
         deletedAt: null,
-        user: {
-          status: UserStatus.ACTIVE,
-          deletedAt: null,
-        },
       },
       include: {
         clinicalRecord: true,
@@ -420,10 +507,6 @@ export class PatientsService extends BaseService {
       where: { 
         id: searchId, 
         deletedAt: null,
-        user: {
-          status: UserStatus.ACTIVE,
-          deletedAt: null,
-        }
       },
       include: {
         clinicalRecord: true,
@@ -437,7 +520,7 @@ export class PatientsService extends BaseService {
 
     if (!patient) {
       const user = await prisma.user.findFirst({
-        where: { id, deletedAt: null, status: UserStatus.ACTIVE },
+        where: { id, deletedAt: null },
       });
 
       if (user) {
@@ -478,10 +561,6 @@ export class PatientsService extends BaseService {
       where: { 
         id: searchId, 
         deletedAt: null,
-        user: {
-          status: UserStatus.ACTIVE,
-          deletedAt: null,
-        }
       },
       include: {
         clinicalRecord: true,
@@ -491,7 +570,7 @@ export class PatientsService extends BaseService {
     let userFallback = null;
     if (!patient) {
       userFallback = await prisma.user.findFirst({
-        where: { id, deletedAt: null, status: UserStatus.ACTIVE },
+        where: { id, deletedAt: null },
       });
     }
 
@@ -560,10 +639,6 @@ export class PatientsService extends BaseService {
       where: { 
         id: patientId, 
         deletedAt: null,
-        user: {
-          status: UserStatus.ACTIVE,
-          deletedAt: null,
-        }
       },
     });
 
@@ -610,10 +685,6 @@ export class PatientsService extends BaseService {
         createdAt: { gte: startOfDay },
         patient: {
           deletedAt: null,
-          user: {
-            status: UserStatus.ACTIVE,
-            deletedAt: null,
-          }
         }
       },
       include: {

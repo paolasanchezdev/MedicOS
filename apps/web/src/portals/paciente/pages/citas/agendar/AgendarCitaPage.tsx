@@ -1,115 +1,90 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/paciente/pages/citas/agendar/AgendarCitaPage.tsx
-// DESCRIPCIÓN: Vista de agendamiento en 2 columnas con diseño limpio y unificado.
+// DESCRIPCIÓN: Orquestador de citas de MedicOS con confirmación modal
+//              estilo Apple/iOS con efecto backdrop-blur sobre el Paso 2.
 // =========================================================================
 
-import React, { useState, useEffect } from 'react';
-import { apiClient } from '../../../../../shared/lib/apiClient';
-import { AlertCircle, Loader2, ArrowRight, CheckCircle2, Clock } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AlertCircle, Loader2, CheckCircle2, Clock, ArrowLeft, ShieldCheck } from 'lucide-react';
 
 import { AgendarCitaHeader } from './components/AgendarCitaHeader';
-import { DoctorSelector, type DoctorItem } from './components/DoctorSelector';
-import { SlotPicker, type AvailableSlot } from './components/SlotPicker';
-import { SymptomSelector } from './components/SymptomSelector';
+import { AppointmentStepper } from './components/AppointmentStepper';
+import { MotivoCitaSelector } from './components/MotivoCitaSelector';
+import { DoctorSelector } from './components/DoctorSelector';
+import { SlotPicker } from './components/SlotPicker';
 import { CitaConfirmadaCard, type ConfirmedAppointmentData } from './components/CitaConfirmadaCard';
 
-interface ApiResponse<T> {
-  success?: boolean;
-  data?: T;
-  error?: string;
-}
+import {
+  useAvailableDoctors,
+  useAvailableSlots,
+  useCreateAppointment,
+} from '../../../../../modules/appointments/hooks/useAppointments';
+import {
+  obtenerOrientacionConsulta,
+  CATALOGO_SINTOMAS,
+} from '../../../../../modules/appointments/rules/appointmentOrientation.rules';
+import type { AvailableSlot } from '../../../../../modules/appointments/types/appointment.types';
 
 export const AgendarCitaPage: React.FC = () => {
-  const [doctores, setDoctores] = useState<DoctorItem[]>([]);
+  const navigate = useNavigate();
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+
+  // Paso 1: Motivo de consulta
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
+  const [additionalNotes, setAdditionalNotes] = useState<string>('');
+
+  // Paso 2: Profesional y turno
   const [doctorId, setDoctorId] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const today = new Date();
     return today.toISOString().split('T')[0];
   });
-  const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
 
-  // Síntomas
-  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
-  const [additionalNotes, setAdditionalNotes] = useState<string>('');
-
-  const [isLoadingDoctors, setIsLoadingDoctors] = useState<boolean>(false);
-  const [isLoadingSlots, setIsLoadingSlots] = useState<boolean>(false);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Estados de confirmación
   const [confirmedAppointment, setConfirmedAppointment] = useState<ConfirmedAppointmentData | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
 
-  // 1. Cargar médicos activos
-  useEffect(() => {
-    let ignore = false;
+  // Consumo de hooks del módulo de citas
+  const {
+    doctors,
+    loading: isLoadingDoctors,
+    error: doctorsError,
+  } = useAvailableDoctors();
 
-    void (async () => {
-      await Promise.resolve();
-      if (ignore) return;
-      setIsLoadingDoctors(true);
+  // Resolución de médico activo como estado derivado sin efectos colaterales
+  const selectedDoctorId = useMemo(() => {
+    if (doctorId) return doctorId;
+    return doctors.length > 0 ? doctors[0].id : '';
+  }, [doctorId, doctors]);
 
-      try {
-        const res = await apiClient<ApiResponse<DoctorItem[]> | DoctorItem[]>('/appointments/doctors');
-        const list = Array.isArray(res) ? res : res?.data || [];
-        if (!ignore) {
-          setDoctores(list);
-          if (list.length > 0) {
-            setDoctorId((prev) => (prev ? prev : list[0].id));
-          }
-        }
-      } catch (err: unknown) {
-        console.error('Error al cargar médicos:', err);
-      } finally {
-        if (!ignore) {
-          setIsLoadingDoctors(false);
-        }
-      }
-    })();
+  const {
+    slots,
+    loading: isLoadingSlots,
+    error: slotsError,
+  } = useAvailableSlots(selectedDoctorId, selectedDate);
 
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  const {
+    createAppointment,
+    loading: isSubmitting,
+    error: createError,
+  } = useCreateAppointment();
 
-  // 2. Cargar slots libres cuando cambie médico o fecha
-  useEffect(() => {
-    if (!doctorId || !selectedDate) return;
+  // Orientación calculada en tiempo real
+  const orientacion = useMemo(() => {
+    return obtenerOrientacionConsulta(selectedSymptoms);
+  }, [selectedSymptoms]);
 
-    let ignore = false;
+  const canNavigateToStep2 = selectedSymptoms.length > 0;
 
-    void (async () => {
-      await Promise.resolve();
-      if (ignore) return;
-      setIsLoadingSlots(true);
-
-      try {
-        const res = await apiClient<ApiResponse<AvailableSlot[]> | AvailableSlot[]>(
-          `/appointments/available-slots?doctorId=${doctorId}&date=${selectedDate}`
-        );
-        const slotList = Array.isArray(res) ? res : res?.data || [];
-        if (!ignore) {
-          setSlots(slotList);
-          setErrorMessage(null);
-        }
-      } catch (err: unknown) {
-        if (!ignore) {
-          const msg = err instanceof Error ? err.message : 'Error al consultar horarios disponibles.';
-          setErrorMessage(msg);
-          setSlots([]);
-        }
-      } finally {
-        if (!ignore) {
-          setIsLoadingSlots(false);
-        }
-      }
-    })();
-
-    return () => {
-      ignore = true;
-    };
-  }, [doctorId, selectedDate]);
+  const handleToggleSymptom = (symptomId: string): void => {
+    setSelectedSymptoms((prev) =>
+      prev.includes(symptomId) ? prev.filter((id) => id !== symptomId) : [...prev, symptomId]
+    );
+  };
 
   const handleSelectDoctor = (id: string): void => {
     setDoctorId(id);
@@ -121,50 +96,44 @@ export const AgendarCitaPage: React.FC = () => {
     setSelectedSlot(null);
   };
 
-  const handleToggleSymptom = (symptom: string): void => {
-    setSelectedSymptoms((prev) =>
-      prev.includes(symptom) ? prev.filter((s) => s !== symptom) : [...prev, symptom]
-    );
-  };
-
-  // 3. Confirmar reserva
+  // Creación y reserva en PostgreSQL
   const handleBooking = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
+    setFormError(null);
 
-    if (!doctorId || !selectedSlot) {
-      setErrorMessage('Por favor selecciona al médico y un horario disponible.');
+    if (!selectedDoctorId || !selectedSlot) {
+      setFormError('Por favor selecciona al profesional médico y un horario disponible.');
       return;
     }
 
     if (selectedSymptoms.length === 0) {
-      setErrorMessage('Por favor selecciona al menos un síntoma principal.');
+      setFormError('Debes indicar al menos un síntoma o motivo de consulta.');
+      setCurrentStep(1);
       return;
     }
 
-    setIsSubmitting(true);
-    setErrorMessage(null);
+    const doctorSelected = doctors.find((d) => d.id === selectedDoctorId);
+    const doctorName = doctorSelected
+      ? `Dr. ${doctorSelected.firstName} ${doctorSelected.lastName}`
+      : 'Médico General';
+
+    const symptomLabels = CATALOGO_SINTOMAS.filter((s) => selectedSymptoms.includes(s.id)).map(
+      (s) => s.label
+    );
+
+    const combinedReason = [
+      `Síntomas: ${symptomLabels.join(', ')}`,
+      additionalNotes.trim() ? `Detalles: ${additionalNotes.trim()}` : null,
+    ]
+      .filter(Boolean)
+      .join(' | ');
 
     try {
-      const doctorSelected = doctores.find((d) => d.id === doctorId);
-      const doctorName = doctorSelected
-        ? `Dr. ${doctorSelected.firstName} ${doctorSelected.lastName}`
-        : 'Médico General';
-
-      const combinedReason = [
-        `Síntomas: ${selectedSymptoms.join(', ')}`,
-        additionalNotes.trim() ? `Detalles: ${additionalNotes.trim()}` : null,
-      ]
-        .filter(Boolean)
-        .join(' | ');
-
-      await apiClient('/appointments', {
-        method: 'POST',
-        body: JSON.stringify({
-          doctorId,
-          appointmentDate: selectedSlot.dateTime,
-          durationMinutes: 30,
-          reason: combinedReason,
-        }),
+      await createAppointment({
+        doctorId: selectedDoctorId,
+        appointmentDate: selectedSlot.dateTime,
+        durationMinutes: 30,
+        reason: combinedReason,
       });
 
       setConfirmedAppointment({
@@ -175,10 +144,8 @@ export const AgendarCitaPage: React.FC = () => {
       });
     } catch (err: unknown) {
       const msg =
-        err instanceof Error ? err.message : 'Error al reservar la cita. El horario puede haber sido tomado.';
-      setErrorMessage(msg);
-    } finally {
-      setIsSubmitting(false);
+        err instanceof Error ? err.message : 'Error al confirmar la reserva médica.';
+      setFormError(msg);
     }
   };
 
@@ -186,103 +153,156 @@ export const AgendarCitaPage: React.FC = () => {
     setConfirmedAppointment(null);
     setSelectedSymptoms([]);
     setAdditionalNotes('');
+    setDoctorId('');
     setSelectedSlot(null);
+    setCurrentStep(1);
+    setFormError(null);
   };
 
-  const isFormValid =
-    Boolean(doctorId) && Boolean(selectedSlot) && selectedSymptoms.length > 0 && !isSubmitting;
+  const isStep2Valid =
+    Boolean(selectedDoctorId) && Boolean(selectedSlot) && selectedSymptoms.length > 0 && !isSubmitting;
+
+  const activeErrorMessage = formError || doctorsError || slotsError || createError;
 
   return (
-    <div className="max-w-[1700px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <div className="w-full max-w-[1700px] mx-auto p-3 sm:p-4 space-y-3">
+      {/* Cabecera original institucional */}
       <AgendarCitaHeader />
 
-      {confirmedAppointment ? (
-        <div className="max-w-2xl mx-auto">
-          <CitaConfirmadaCard data={confirmedAppointment} onReset={handleReset} />
-        </div>
-      ) : (
-        <form onSubmit={handleBooking} className="space-y-6">
-          {errorMessage && (
-            <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2.5 text-rose-800 text-xs sm:text-sm font-bold">
-              <AlertCircle size={16} className="text-rose-600 shrink-0" />
-              <span>{errorMessage}</span>
-            </div>
-          )}
+      <div className="space-y-3">
+        {/* Stepper de flujo */}
+        <AppointmentStepper
+          currentStep={currentStep}
+          onStepClick={(step) => {
+            if (step === 1 || canNavigateToStep2) {
+              setCurrentStep(step);
+            }
+          }}
+          canNavigateToStep2={canNavigateToStep2}
+        />
 
-          {/* ESTRUCTURA EN DOS COLUMNAS */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* COLUMNA IZQUIERDA: MÉDICO Y FECHA / HORA */}
-            <div className="lg:col-span-7 space-y-6">
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs">
+        {/* Mensaje de error reactivo */}
+        {activeErrorMessage && (
+          <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-rose-800 text-xs font-bold">
+            <AlertCircle size={14} className="text-rose-600 shrink-0" />
+            <span>{activeErrorMessage}</span>
+          </div>
+        )}
+
+        {/* PASO 1: MOTIVO Y MOLESTIAS (Catálogo de 19 síntomas) */}
+        {currentStep === 1 && (
+          <MotivoCitaSelector
+            selectedSymptoms={selectedSymptoms}
+            onToggleSymptom={handleToggleSymptom}
+            additionalNotes={additionalNotes}
+            onNotesChange={setAdditionalNotes}
+            onContinue={() => setCurrentStep(2)}
+          />
+        )}
+
+        {/* PASO 2: PROFESIONALES Y TURNOS */}
+        {currentStep === 2 && (
+          <form onSubmit={handleBooking} className="space-y-3">
+            {/* Barra superior de orientación sugerida */}
+            <div className="bg-white border border-slate-200/90 rounded-xl px-4 py-2 shadow-2xs flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-6 h-6 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center text-[#2B7A78] shrink-0">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-xs flex items-center gap-2">
+                  <span className="font-bold text-slate-800">
+                    Orientación Sugerida: <span className="text-[#2B7A78]">★ {orientacion.areaSugerida}</span>
+                  </span>
+                  <span className="text-slate-300 hidden sm:inline">•</span>
+                  <span className="text-slate-500 text-[11px] hidden sm:inline">
+                    {selectedSymptoms.length} molestia(s) indicada(s)
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setCurrentStep(1)}
+                className="inline-flex items-center gap-1 text-xs font-bold text-[#2B7A78] hover:text-[#236866] hover:underline cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Modificar motivo</span>
+              </button>
+            </div>
+
+            {/* Cuadrícula balanceada de 2 columnas */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+              {/* Columna Izquierda: Médicos */}
+              <div className="lg:col-span-7 bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs">
                 <DoctorSelector
-                  doctores={doctores}
-                  selectedDoctorId={doctorId}
+                  doctores={doctors}
+                  selectedDoctorId={selectedDoctorId}
                   onSelectDoctor={handleSelectDoctor}
                   isLoading={isLoadingDoctors}
+                  suggestedArea={orientacion.areaSugerida}
                 />
               </div>
 
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs">
-                <SlotPicker
-                  selectedDate={selectedDate}
-                  onDateChange={handleDateChange}
-                  minDate={todayStr}
-                  slots={slots}
-                  selectedSlot={selectedSlot}
-                  onSelectSlot={(slot) => setSelectedSlot(slot)}
-                  isLoading={isLoadingSlots}
-                />
-              </div>
-            </div>
-
-            {/* COLUMNA DERECHA: SÍNTOMAS Y OBSERVACIONES */}
-            <div className="lg:col-span-5 space-y-6">
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs">
-                <SymptomSelector
-                  selectedSymptoms={selectedSymptoms}
-                  onToggleSymptom={handleToggleSymptom}
-                  additionalNotes={additionalNotes}
-                  onNotesChange={setAdditionalNotes}
-                />
-              </div>
-
-              {/* BARRA DE ACCIÓN Y CONFIRMACIÓN */}
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-2 text-xs">
-                  {selectedSlot ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 border border-teal-200 text-teal-800 font-bold">
-                      <Clock size={14} className="text-[#0e7490]" />
-                      Turno: {selectedSlot.time} hrs
-                    </span>
-                  ) : (
-                    <span className="text-slate-400 text-xs">
-                      Selecciona fecha y hora para habilitar
-                    </span>
-                  )}
+              {/* Columna Derecha: Horarios y Acción */}
+              <div className="lg:col-span-5 flex flex-col justify-between space-y-3">
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs flex-1">
+                  <SlotPicker
+                    selectedDate={selectedDate}
+                    onDateChange={handleDateChange}
+                    minDate={todayStr}
+                    slots={slots}
+                    selectedSlot={selectedSlot}
+                    onSelectSlot={(slot) => setSelectedSlot(slot)}
+                    isLoading={isLoadingSlots}
+                  />
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={!isFormValid}
-                  className="w-full sm:w-auto px-7 py-3 bg-[#0e7490] hover:bg-[#0891b2] disabled:bg-slate-100 disabled:text-slate-400 disabled:border disabled:border-slate-200 text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] disabled:cursor-not-allowed disabled:shadow-none"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      <span>Procesando Reserva...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 size={16} />
-                      <span>Confirmar Cita Médica</span>
-                      <ArrowRight size={15} />
-                    </>
-                  )}
-                </button>
+                {/* Barra de Confirmación */}
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-3 shadow-2xs flex items-center justify-between gap-3">
+                  <div className="text-xs">
+                    {selectedSlot ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-[#2B7A78] font-bold font-mono text-xs">
+                        <Clock size={13} className="text-[#2B7A78]" />
+                        Turno: {selectedSlot.time} hrs
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 text-xs font-medium">
+                        Elige fecha y horario disponible
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={!isStep2Valid}
+                    className="px-6 py-2.5 bg-[#2B7A78] hover:bg-[#236866] disabled:bg-slate-100 disabled:text-slate-400 disabled:border disabled:border-slate-200 text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] disabled:cursor-not-allowed disabled:shadow-none"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 size={15} className="animate-spin" />
+                        <span>Confirmando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 size={15} />
+                        <span>Confirmar Cita Médica</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </form>
+          </form>
+        )}
+      </div>
+
+      {/* MODAL DE CONFIRMACIÓN ESTILO APPLE IOS CON BLUR SOBRE EL PASO 2 */}
+      {confirmedAppointment && (
+        <CitaConfirmadaCard
+          data={confirmedAppointment}
+          onReset={handleReset}
+          onGoToAppointments={() => navigate('/paciente/citas/mis-citas')}
+        />
       )}
     </div>
   );

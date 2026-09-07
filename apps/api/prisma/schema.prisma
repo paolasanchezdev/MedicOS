@@ -86,6 +86,12 @@ enum ConsultationStatus {
   CANCELLED
 }
 
+enum DiagnosisStatus {
+  ACTIVE
+  HISTORICAL
+  RESOLVED
+}
+
 enum AppointmentStatus {
   REQUESTED
   CONFIRMED
@@ -178,24 +184,24 @@ enum ItemCondition {
 // ======================================================
 
 model Establishment {
-  id              String                @id @default(uuid())
-  code            String                @unique
-  name            String
-  type            EstablishmentType     @default(HOSPITAL)
-  level           EstablishmentLevel    @default(DEPARTMENTAL)
-  operator        EstablishmentOperator @default(MINSAL)
-  department      String
-  municipality    String
-  address         String
-  latitude        Float?
-  longitude       Float?
-  phone           String?
+  id             String                @id @default(uuid())
+  code           String                @unique
+  name           String
+  type           EstablishmentType     @default(HOSPITAL)
+  level          EstablishmentLevel    @default(DEPARTMENTAL)
+  operator       EstablishmentOperator @default(MINSAL)
+  department     String
+  municipality   String
+  address        String
+  latitude       Float?
+  longitude      Float?
+  phone          String?
   emergencyPhone String?
-  hasEmergency    Boolean               @default(false)
-  specialties     String[]              @default([])
-  totalBeds       Int                   @default(0)
-  availableBeds   Int                   @default(0)
-  status          EstablishmentStatus   @default(OPERATIONAL)
+  hasEmergency   Boolean               @default(false)
+  specialties    String[]              @default([])
+  totalBeds      Int                   @default(0)
+  availableBeds  Int                   @default(0)
+  status         EstablishmentStatus   @default(OPERATIONAL)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -325,10 +331,10 @@ model Brigade {
   deletedAt    DateTime?
 
   // Relaciones Operativas
-  leader        User?                 @relation("BrigadeLeader", fields: [leaderId], references: [id], onDelete: SetNull)
+  leader        User?                  @relation("BrigadeLeader", fields: [leaderId], references: [id], onDelete: SetNull)
   members       BrigadeMember[]
   consultations Consultation[]
-  workSessions  WorkSession[]         @relation("BrigadeSessions")
+  workSessions  WorkSession[]          @relation("BrigadeSessions")
 
   // Dotación de Recursos en Campo
   supplyItems    BrigadeSupplyItem[]
@@ -599,6 +605,7 @@ model Patient {
   consultations  Consultation[]
   appointments   Appointment[]
   vitalSigns     VitalSigns[]
+  diagnoses      Diagnosis[]
 
   @@index([dui])
   @@index([userId])
@@ -704,6 +711,7 @@ model Consultation {
   workSessionId  String?
   workSession    WorkSession?    @relation(fields: [workSessionId], references: [id])
   vitalSigns     VitalSigns[]
+  diagnoses      Diagnosis[]
 
   // Metadatos Obligatorios Offline First
   syncStatus             SyncStatus @default(PENDING)
@@ -720,6 +728,46 @@ model Consultation {
   @@index([status])
   @@index([syncStatus])
   @@index([lastModified])
+  @@index([originDeviceId])
+  @@index([lastModifiedByDeviceId])
+}
+
+// ======================================================
+// EXPEDIENTE CLÍNICO: DIAGNÓSTICOS FORMALES
+// ======================================================
+
+model Diagnosis {
+  id             String          @id @default(uuid())
+  patientId      String
+  consultationId String?
+  code           String?         // Código CIE-10 (ej. I10, E11)
+  description    String          // Descripción diagnóstica (ej. Hipertensión esencial)
+  status         DiagnosisStatus @default(ACTIVE)
+  notes          String?         // Observaciones clínicas adicionales
+  diagnosedAt    DateTime        @default(now())
+  resolvedAt     DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones
+  patient      Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  consultation Consultation? @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String
+  lastModifiedByDeviceId String
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([patientId])
+  @@index([consultationId])
+  @@index([status])
+  @@index([code])
+  @@index([syncStatus])
+  @@index([diagnosedAt])
   @@index([originDeviceId])
   @@index([lastModifiedByDeviceId])
 }

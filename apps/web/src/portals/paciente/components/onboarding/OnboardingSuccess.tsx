@@ -1,10 +1,11 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/paciente/components/onboarding/OnboardingSuccess.tsx
-// DESCRIPCIÓN: Pantalla final de revelación apoteósica del Carnet Digital Oficial.
+// DESCRIPCIÓN: Pantalla final sin scrollbars: desempaqueta campos clínicos JSON,
+//              extrae el distrito con precisión y despliega exclusivamente Giro 3D.
 // =========================================================================
 
 import React from 'react';
-import { Sparkles, ArrowRight, Printer } from 'lucide-react';
+import { Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
 import { CarnetDigitalPaciente } from '../../../../shared/components/carnet';
 import type { PatientRecord } from '../../../../modules/patients';
 
@@ -17,9 +18,56 @@ export const OnboardingSuccess: React.FC<OnboardingSuccessProps> = ({
   patient,
   onContinue,
 }) => {
+  const cleanDui = patient.dui ? patient.dui.replace(/\D/g, '') : '';
+  const expedienteGenerado = cleanDui.length >= 4 
+    ? `EXP-2026-${cleanDui.slice(-4)}` 
+    : `EXP-${patient.id.slice(0, 6).toUpperCase()}`;
+
+  // 1. Extracción precisa del distrito territorial
+  let distritoLimpio = 'San Miguel Tepezontes';
+  if (patient.address) {
+    const match = patient.address.match(/Distrito\s+([^,]+)/i);
+    if (match) {
+      distritoLimpio = match[1].trim();
+    } else {
+      const parts = patient.address.split(',').map((s) => s.trim());
+      if (parts.length > 1) {
+        distritoLimpio = parts[1].replace(/^Distrito\s+/i, '').trim();
+      } else {
+        distritoLimpio = parts[0].replace(/^Distrito\s+/i, '').trim();
+      }
+    }
+  }
+
+  // 2. Desempaquetado del JSON de observaciones clínicas
+  let alergias = 'Ninguna';
+  let enfermedades = 'Ninguna';
+  let medicacion = 'Ninguna';
+  let notas = 'Ninguna';
+
+  if (patient.clinicalRecord?.observations) {
+    const raw = patient.clinicalRecord.observations;
+    if (typeof raw === 'string' && raw.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          alergias = parsed.allergies || alergias;
+          enfermedades = parsed.chronicDiseases || enfermedades;
+          medicacion = parsed.medication || medicacion;
+          notas = parsed.notes || parsed.observations || notas;
+        }
+      } catch {
+        alergias = raw;
+      }
+    } else {
+      alergias = raw;
+    }
+  }
+
   const datosAdaptados = {
-    expediente: patient.dui ? `EXP-2026-${patient.dui.slice(-4)}` : `EXP-${patient.id.slice(0, 6).toUpperCase()}`,
-    dui: patient.dui || '00000000-0',
+    id: patient.id,
+    expediente: expedienteGenerado,
+    dui: patient.dui || 'Sin DUI',
     nombres: patient.firstName,
     apellidos: patient.lastName,
     fechaNacimiento: patient.dateOfBirth,
@@ -27,8 +75,11 @@ export const OnboardingSuccess: React.FC<OnboardingSuccessProps> = ({
     tipoSangre: patient.clinicalRecord?.bloodType || 'O+',
     telefono: patient.phone || 'No registrado',
     direccion: patient.address || 'El Salvador',
-    distrito: patient.address,
-    alergiasTexto: patient.clinicalRecord?.observations || 'Ninguna reportada',
+    distrito: distritoLimpio,
+    alergiasTexto: alergias,
+    enfermedadesTexto: enfermedades,
+    medicacionTexto: medicacion,
+    observacionesTexto: notas,
     contactoEmergencia: {
       nombre: patient.emergencyName || 'No asignado',
       parentesco: patient.emergencyRelation || 'Familiar',
@@ -37,42 +88,36 @@ export const OnboardingSuccess: React.FC<OnboardingSuccessProps> = ({
   };
 
   return (
-    <div className="p-6 sm:p-10 space-y-6 text-center animate-in zoom-in-95 fade-in duration-500 max-w-xl mx-auto">
-      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200/80 shadow-xs animate-bounce">
-        <Sparkles className="w-4 h-4 text-emerald-600" />
-        <span>¡Expediente Activado Exitosamente!</span>
-      </div>
+    <div className="p-5 sm:p-6 flex flex-col items-center justify-between space-y-3.5 w-full select-none">
+      {/* Cabecera Concisa */}
+      <div className="flex flex-col items-center gap-1 text-center">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-medicos-light-bg text-medicos-teal text-xs font-semibold border border-medicos-soft-border shadow-2xs">
+          <Sparkles className="w-3.5 h-3.5 text-medicos-teal" />
+          <span>Ficha Territorial y Médica Activada</span>
+        </div>
 
-      <div className="space-y-1">
-        <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+        <h2 className="text-xl sm:text-2xl font-black text-medicos-dark-blue tracking-tight">
           Tu Carnet Digital Oficial
-        </h3>
-        <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
-          Has completado tu registro territorial con éxito. Tu credencial ya se encuentra protegida y verificada en la red de salud MedicOS.
+        </h2>
+        <p className="text-xs text-medicos-muted max-w-md leading-relaxed">
+          Haz clic sobre la credencial para voltearla en 3D e inspeccionar tus datos clínicos.
         </p>
       </div>
 
-      {/* Revelación del Carnet */}
-      <div className="w-full transform transition-all duration-700 hover:scale-[1.02]">
-        <CarnetDigitalPaciente paciente={datosAdaptados} hideControls={true} />
+      {/* Carnet en Modo Exclusivo 3D Proporcionado */}
+      <div className="w-full flex justify-center items-center">
+        <CarnetDigitalPaciente paciente={datosAdaptados} only3D={true} />
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-2xl transition cursor-pointer"
-        >
-          <Printer className="w-4 h-4" />
-          <span>Imprimir / Guardar PDF</span>
-        </button>
-
+      {/* Botón Principal */}
+      <div className="w-full flex justify-center pt-2 border-t border-white/70">
         <button
           type="button"
           onClick={onContinue}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3 bg-[#00838F] hover:bg-[#006e78] text-white text-xs font-bold rounded-2xl transition-all shadow-lg shadow-teal-900/10 active:scale-98 cursor-pointer"
+          className="inline-flex items-center justify-center gap-2 px-8 py-2.5 bg-linear-to-r from-medicos-teal to-[#16646f] hover:from-[#186a75] hover:to-[#12535d] text-white text-xs sm:text-sm font-semibold rounded-2xl shadow-[0_6px_20px_rgba(30,127,140,0.25),inset_0_1px_1px_rgba(255,255,255,0.3)] transition active:scale-95 cursor-pointer"
         >
-          <span>Acceder a mi Portal de Salud</span>
+          <ShieldCheck className="w-4 h-4 text-white" />
+          <span>Ingresar a mi Portal de Paciente</span>
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>

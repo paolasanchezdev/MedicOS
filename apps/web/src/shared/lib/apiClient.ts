@@ -1,111 +1,315 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/shared/lib/apiClient.ts
-// DESCRIPCIÓN: Cliente centralizado de MedicOS con logs de conexión y trazabilidad de datos.
+// DESCRIPCIÓN: Cliente centralizado de MedicOS.
+//              Soporta API local de estación y API remota.
 // =========================================================================
 
 import { sessionManager } from '../../core/auth/session';
 
-const RAW_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:3000';
+// =========================================================================
+// CONFIGURACIÓN DE API
+// =========================================================================
+//
+// En Modo Estación:
+//
+//   VITE_STATION_MODE=true
+//
+//   → Se utiliza el mismo host desde el que se carga MedicOS.
+//   → Las peticiones utilizan /api/...
+//
+// Ejemplo:
+//
+//   http://192.168.4.1/
+//          ↓
+//   http://192.168.4.1/api/auth/login
+//
+// Esto evita depender de localhost y permite acceder desde celulares,
+// tablets y laptops conectados a la red local de la Raspberry.
+//
+// En modo normal:
+//
+//   VITE_API_URL puede apuntar a la API remota.
+//
+// =========================================================================
 
-// Normaliza la URL base limpiando Markdown, corchetes, comillas y protocolos duplicados
+const isStationMode =
+  import.meta.env.VITE_STATION_MODE === 'true';
+
+const configuredApiUrl =
+  import.meta.env.VITE_API_URL as string | undefined;
+
+// =========================================================================
+// NORMALIZACIÓN DE URL REMOTA
+// =========================================================================
+
 const normalizeBaseUrl = (url: string): string => {
   let normalized = url.trim();
 
-  // Elimina formato de enlace Markdown accidental: [url](url) o [texto](url)
-  const markdownMatch = normalized.match(/\[.*?\]\((https?:\/\/[^\s)]+)\)/i);
-  if (markdownMatch && markdownMatch[1]) {
+  // Elimina formato Markdown accidental.
+  const markdownMatch = normalized.match(
+    /\[.*?\]\((https?:\/\/[^\s)]+)\)/i
+  );
+
+  if (markdownMatch?.[1]) {
     normalized = markdownMatch[1];
   } else {
-    // Limpia corchetes, paréntesis y comillas residuales
-    normalized = normalized.replace(/[[\]()"'`]/g, '').trim();
+    // Limpia corchetes, paréntesis y comillas residuales.
+    normalized = normalized
+      .replace(/[[\]()"']/g, '')
+      .trim();
   }
 
-  // Elimina protocolos repetidos accidentales (ej: https://https:// o http://https://)
-  normalized = normalized.replace(/^(?:https?:\/\/)+/i, '');
+  // Elimina protocolos duplicados accidentales.
+  normalized = normalized.replace(
+    /^(?:https?:\/\/)+/i,
+    ''
+  );
 
-  // Limpia barras iniciales o finales
-  normalized = normalized.replace(/^\/+|\/+$/g, '');
+  // Limpia barras iniciales o finales.
+  normalized = normalized.replace(
+    /^\/+|\/+$/g,
+    ''
+  );
 
-  // Determina protocolo correcto
-  const isLocalhost = normalized.includes('localhost') || normalized.includes('127.0.0.1');
-  return isLocalhost ? `http://${normalized}` : `https://${normalized}`;
+  // localhost / 127.0.0.1 deben utilizar HTTP.
+  const isLocalhost =
+    normalized.includes('localhost') ||
+    normalized.includes('127.0.0.1');
+
+  if (isLocalhost) {
+    return `http://${normalized}`;
+  }
+
+  // Para APIs remotas se mantiene HTTPS.
+  return `https://${normalized}`;
 };
 
-const BASE_URL = normalizeBaseUrl(RAW_BASE_URL);
+// =========================================================================
+// URL BASE
+// =========================================================================
+//
+// En Modo Estación:
+//
+//   BASE_URL = ''
+//
+// Las peticiones se generan como:
+//
+//   /api/auth/login
+//
+// El navegador utiliza automáticamente el mismo host desde el que
+// se cargó MedicOS.
+//
+// Ejemplo:
+//
+//   http://192.168.4.1
+//          ↓
+//   /api/auth/login
+//          ↓
+//   http://192.168.4.1/api/auth/login
+//
+// =========================================================================
+
+const BASE_URL = isStationMode
+  ? ''
+  : configuredApiUrl
+    ? normalizeBaseUrl(configuredApiUrl)
+    : 'http://localhost:3000';
+
+// =========================================================================
+// CLIENTE HTTP
+// =========================================================================
 
 export const apiClient = async <T = unknown>(
-  endpoint: string, 
+  endpoint: string,
   options: RequestInit = {}
 ): Promise<T> => {
   const token = sessionManager.getToken();
+
+  // -----------------------------------------------------------------------
+  // HEADERS
+  // -----------------------------------------------------------------------
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...((options.headers as Record<string, string>) || {}),
   };
 
-  // 🔑 Inyecta el header Authorization Bearer si el token existe y no se ha especificado uno
-  if (token && !headers['Authorization']) {
+  // -----------------------------------------------------------------------
+  // AUTENTICACIÓN BEARER
+  // -----------------------------------------------------------------------
+
+  if (
+    token &&
+    !headers['Authorization']
+  ) {
     headers['Authorization'] = `Bearer ${token}`;
   }
+
+  // -----------------------------------------------------------------------
+  // CONFIGURACIÓN DE PETICIÓN
+  // -----------------------------------------------------------------------
 
   const config: RequestInit = {
     ...options,
     headers,
-    credentials: 'include', // Mantiene compatibilidad con cookies en el mismo dominio
+
+    // Mantiene compatibilidad con autenticación mediante cookies.
+    credentials: 'include',
   };
 
-  // Asegura que el endpoint comience con una sola barra
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const targetUrl = `${BASE_URL}${cleanEndpoint}`;
+  // -----------------------------------------------------------------------
+  // ENDPOINT
+  // -----------------------------------------------------------------------
 
-  const method = options.method || 'GET';
+  const cleanEndpoint = endpoint.startsWith('/')
+    ? endpoint
+    : `/${endpoint}`;
 
-  // 🔍 Depuración: Registro de salida de petición
-  console.log(`🌐 [apiClient] ${method} -> ${targetUrl}`, {
-    headers,
-    body: options.body ? JSON.parse(options.body as string) : undefined,
-  });
+  // -----------------------------------------------------------------------
+  // URL FINAL
+  // -----------------------------------------------------------------------
+  //
+  // En Modo Estación:
+  //
+  //   /api + /auth/login
+  //   ↓
+  //   /api/auth/login
+  //
+  // En modo normal:
+  //
+  //   BASE_URL + /auth/login
+  //
+  // -----------------------------------------------------------------------
 
-  const response = await fetch(targetUrl, config);
+  const targetUrl = isStationMode
+    ? `/api${cleanEndpoint}`
+    : `${BASE_URL}${cleanEndpoint}`;
 
-  // 🛑 Manejar auto-logout SOLO si la sesión expira en peticiones protegidas.
-  // NO redirigir si el 401 proviene del intento de login o registro.
+  const method =
+    options.method || 'GET';
+
+  // =========================================================================
+  // LOG DE PETICIÓN
+  // =========================================================================
+
+  let parsedBody: unknown = undefined;
+
+  if (options.body) {
+    try {
+      parsedBody = JSON.parse(
+        options.body as string
+      );
+    } catch {
+      parsedBody = options.body;
+    }
+  }
+
+  console.log(
+    `🌐 [apiClient] ${method} -> ${targetUrl}`,
+    {
+      stationMode: isStationMode,
+      headers,
+      body: parsedBody,
+    }
+  );
+
+  // =========================================================================
+  // PETICIÓN
+  // =========================================================================
+
+  let response: Response;
+
+  try {
+    response = await fetch(
+      targetUrl,
+      config
+    );
+  } catch (error) {
+    console.error(
+      `❌ [apiClient] Error de conexión en ${targetUrl}`,
+      error
+    );
+
+    throw new Error(
+      'No se pudo conectar con el servidor de MedicOS.',
+      {
+        cause: error,
+      }
+    );
+  }
+
+  // =========================================================================
+  // SESIÓN EXPIRADA
+  // =========================================================================
+  //
+  // No redirigir cuando el 401 pertenece al propio login o registro.
+  //
+  // =========================================================================
+
   if (
     response.status === 401 &&
     !endpoint.includes('/auth/login') &&
     !endpoint.includes('/auth/register')
   ) {
     sessionManager.clearSession();
+
     window.location.href = '/login';
-    throw new Error('Sesión expirada.');
+
+    throw new Error(
+      'Sesión expirada.'
+    );
   }
 
+  // =========================================================================
+  // ERRORES HTTP
+  // =========================================================================
+
   if (!response.ok) {
-    const errorData = (await response.json().catch(() => ({}))) as { message?: string };
+    const errorData = (await response
+      .json()
+      .catch(() => ({}))) as {
+        message?: string;
+      };
+
     console.error(
-      `%c❌ [apiClient] Error ${response.status} en ${endpoint}: Base de Datos o API no disponible`,
-      'color: #e11d48; font-weight: bold; background: #ffe4e6; padding: 2px 6px; border-radius: 4px;',
-      errorData
+      `❌ [apiClient] Error ${response.status} en ${endpoint}`,
+      {
+        stationMode: isStationMode,
+        targetUrl,
+        errorData,
+      }
     );
-    throw new Error(errorData.message || `Error en la petición (${response.status})`);
+
+    throw new Error(
+      errorData.message ||
+        `Error en la petición (${response.status})`
+    );
   }
+
+  // =========================================================================
+  // 204 NO CONTENT
+  // =========================================================================
 
   if (response.status === 204) {
     console.log(
-      `%c✅ [apiClient] 204 No Content -> ${cleanEndpoint} (Operación completada en BD)`,
-      'color: #059669; font-weight: bold; background: #ecfdf5; padding: 2px 6px; border-radius: 4px;'
+      `✅ [apiClient] 204 No Content -> ${cleanEndpoint}`
     );
+
     return {} as T;
   }
 
+  // =========================================================================
+  // RESPUESTA JSON
+  // =========================================================================
+
   const data = (await response.json()) as T;
 
-  // ✅ Log explícito de conexión exitosa y recepción de datos reales de BD
   console.log(
-    `%c✅ [apiClient] ${response.status} OK -> ${cleanEndpoint} | Conexión activa con Base de Datos`,
-    'color: #059669; font-weight: bold; background: #ecfdf5; padding: 2px 6px; border-radius: 4px;',
-    { datosObtenidos: data }
+    `✅ [apiClient] ${response.status} OK -> ${cleanEndpoint}`,
+    {
+      stationMode: isStationMode,
+      datosObtenidos: data,
+    }
   );
 
   return data;

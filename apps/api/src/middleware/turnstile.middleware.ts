@@ -1,7 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/middleware/turnstile.middleware.ts
 // DESCRIPCIÓN: Middleware de validación Anti-Bot con Cloudflare Turnstile
-//              con soporte para validación por IP y control de timeouts.
+//              con soporte para validación por IP, timeouts y Modo Estación (Offline).
 // =========================================================================
 
 import { Request, Response, NextFunction } from "express";
@@ -20,12 +20,16 @@ export const validateTurnstile = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // 1. Bypass seguro en entornos de desarrollo y testing local
-    if (process.env.NODE_ENV !== "production") {
+    // 0. Bypass explícito para Modo Estación (Raspberry Pi / Offline Demo) o entornos de desarrollo
+    if (
+      process.env.STATION_MODE === "true" ||
+      process.env.BYPASS_TURNSTILE === "true" ||
+      process.env.NODE_ENV !== "production"
+    ) {
       return next();
     }
 
-    // 2. Extraer el token admitiendo variantes estándar de payloads
+    // 1. Extraer el token admitiendo variantes estándar de payloads
     const token =
       req.body?.turnstileToken ||
       req.body?.["cf-turnstile-response"] ||
@@ -49,7 +53,7 @@ export const validateTurnstile = async (
       return;
     }
 
-    // 3. Preparar parámetros de validación para Cloudflare
+    // 2. Preparar parámetros de validación para Cloudflare
     const formData = new URLSearchParams();
     formData.append("secret", secretKey);
     formData.append("response", token);
@@ -77,7 +81,7 @@ export const validateTurnstile = async (
 
       const outcome = (await response.json()) as TurnstileVerifyResponse;
 
-      // 4. Verificación rechazada por Cloudflare
+      // 3. Verificación rechazada por Cloudflare
       if (!outcome.success) {
         console.warn("⚠️ [Turnstile] Desafío rechazado por Cloudflare:", outcome["error-codes"]);
         res.status(403).json({
@@ -88,7 +92,7 @@ export const validateTurnstile = async (
         return;
       }
 
-      // 5. Verificación exitosa
+      // 4. Verificación exitosa
       return next();
     } catch (fetchError) {
       clearTimeout(timeoutId);
