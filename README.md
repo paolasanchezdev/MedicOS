@@ -48,6 +48,12 @@ MedicOS/
 │   │   │   │   │   ├── admin.controller.ts
 │   │   │   │   │   ├── admin.routes.ts
 │   │   │   │   │   └── admin.service.ts
+│   │   │   │   ├── ai-assistant/
+│   │   │   │   │   ├── ai-assistant.controller.ts
+│   │   │   │   │   ├── ai-assistant.routes.ts
+│   │   │   │   │   ├── ai-assistant.service.ts
+│   │   │   │   │   ├── ai-assistant.types.ts
+│   │   │   │   │   └── index.ts
 │   │   │   │   ├── appointments/
 │   │   │   │   │   ├── appointments.controller.ts
 │   │   │   │   │   ├── appointments.routes.ts
@@ -70,6 +76,15 @@ MedicOS/
 │   │   │   │   │   ├── clinical-history.routes.ts
 │   │   │   │   │   ├── clinical-history.service.ts
 │   │   │   │   │   └── clinical-history.types.ts
+│   │   │   │   ├── clinical-knowledge/
+│   │   │   │   │   ├── clinical-graph.builder.ts
+│   │   │   │   │   ├── clinical-knowledge.controller.ts
+│   │   │   │   │   ├── clinical-knowledge.routes.ts
+│   │   │   │   │   ├── clinical-knowledge.service.ts
+│   │   │   │   │   ├── clinical-knowledge.types.ts
+│   │   │   │   │   └── index.ts
+│   │   │   │   ├── clinical-messages/
+│   │   │   │   │   └── clinical-messages.service.ts
 │   │   │   │   ├── consultations/
 │   │   │   │   │   ├── consultations.controller.ts
 │   │   │   │   │   ├── consultations.routes.ts
@@ -80,6 +95,39 @@ MedicOS/
 │   │   │   │   │   ├── diagnoses.routes.ts
 │   │   │   │   │   ├── diagnoses.schema.ts
 │   │   │   │   │   └── diagnoses.service.ts
+│   │   │   │   ├── documents/
+│   │   │   │   │   ├── documents.controller.ts
+│   │   │   │   │   ├── documents.routes.ts
+│   │   │   │   │   └── documents.service.ts
+│   │   │   │   ├── laboratory/
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   ├── laboratory.controller.ts
+│   │   │   │   │   ├── laboratory.routes.ts
+│   │   │   │   │   ├── laboratory.service.ts
+│   │   │   │   │   └── laboratory.types.ts
+│   │   │   │   ├── lifestyle/
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   ├── lifestyle.controller.ts
+│   │   │   │   │   ├── lifestyle.routes.ts
+│   │   │   │   │   ├── lifestyle.service.ts
+│   │   │   │   │   └── lifestyle.types.ts
+│   │   │   │   ├── maternal-health/
+│   │   │   │   │   ├── maternal-health.controller.ts
+│   │   │   │   │   ├── maternal-health.routes.ts
+│   │   │   │   │   ├── maternal-health.service.ts
+│   │   │   │   │   └── maternal-health.types.ts
+│   │   │   │   ├── medical-imaging/
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   ├── medical-imaging.controller.ts
+│   │   │   │   │   ├── medical-imaging.routes.ts
+│   │   │   │   │   ├── medical-imaging.service.ts
+│   │   │   │   │   └── medical-imaging.types.ts
+│   │   │   │   ├── medications/
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   ├── medications.controller.ts
+│   │   │   │   │   ├── medications.routes.ts
+│   │   │   │   │   ├── medications.service.ts
+│   │   │   │   │   └── medications.types.ts
 │   │   │   │   ├── medico/
 │   │   │   │   │   ├── medico-dashboard.service.ts
 │   │   │   │   │   ├── medico.controller.ts
@@ -87,10 +135,21 @@ MedicOS/
 │   │   │   │   │   └── medico.service.ts
 │   │   │   │   ├── patients/
 │   │   │   │   │   ├── patient-dashboard.service.ts
+│   │   │   │   │   ├── patient-notifications.service.ts
 │   │   │   │   │   ├── patients.controller.ts
 │   │   │   │   │   ├── patients.routes.ts
 │   │   │   │   │   ├── patients.schema.ts
 │   │   │   │   │   └── patients.service.ts
+│   │   │   │   ├── personalized-advice/
+│   │   │   │   │   ├── personalized-advice.controller.ts
+│   │   │   │   │   ├── personalized-advice.routes.ts
+│   │   │   │   │   ├── personalized-advice.service.ts
+│   │   │   │   │   └── personalized-advice.types.ts
+│   │   │   │   ├── prescriptions/
+│   │   │   │   │   ├── prescriptions.controller.ts
+│   │   │   │   │   ├── prescriptions.routes.ts
+│   │   │   │   │   ├── prescriptions.service.ts
+│   │   │   │   │   └── prescriptions.types.ts
 │   │   │   │   ├── reports/
 │   │   │   │   │   ├── reports.controller.ts
 │   │   │   │   │   ├── reports.routes.ts
@@ -109,12 +168,18 @@ MedicOS/
 │   │   │   │   │   ├── users.routes.ts
 │   │   │   │   │   ├── users.schema.ts
 │   │   │   │   │   └── users.service.ts
-│   │   │   │   └── vaccinations/
-│   │   │   │       ├── vaccinations.controller.ts
-│   │   │   │       ├── vaccinations.routes.ts
-│   │   │   │       ├── vaccinations.schema.ts
-│   │   │   │       ├── vaccinations.service.ts
-│   │   │   │       └── vaccinations.types.ts
+│   │   │   │   ├── vaccinations/
+│   │   │   │   │   ├── vaccinations.controller.ts
+│   │   │   │   │   ├── vaccinations.routes.ts
+│   │   │   │   │   ├── vaccinations.schema.ts
+│   │   │   │   │   ├── vaccinations.service.ts
+│   │   │   │   │   └── vaccinations.types.ts
+│   │   │   │   └── vital-signs/
+│   │   │   │       ├── index.ts
+│   │   │   │       ├── vital-signs.controller.ts
+│   │   │   │       ├── vital-signs.routes.ts
+│   │   │   │       ├── vital-signs.service.ts
+│   │   │   │       └── vital-signs.types.ts
 │   │   │   ├── routes/
 │   │   │   │   ├── health.routes.ts
 │   │   │   │   └── index.ts
@@ -123,6 +188,7 @@ MedicOS/
 │   │   │   │   ├── create-authority-user.ts
 │   │   │   │   ├── create-brigadist.ts
 │   │   │   │   ├── create-medic.ts
+│   │   │   │   ├── seed-pregnancy-control.ts
 │   │   │   │   └── test-db.ts
 │   │   │   ├── services/
 │   │   │   │   └── base.service.ts
@@ -137,12 +203,16 @@ MedicOS/
 │   └── web/
 │       ├── public/
 │       │   ├── images/
+│       │   │   ├── articulos/
+│       │   │   │   ├── art-prev-1.jpg
+│       │   │   │   └── art-prev-2.jpeg
 │       │   │   ├── flow/
 │       │   │   │   ├── step-01.png
 │       │   │   │   └── step-02.png
-│       │   │   └── how-it-works/
-│       │   │       ├── step1-brigada.png
-│       │   │       └── step2-qr.png
+│       │   │   ├── how-it-works/
+│       │   │   │   ├── step1-brigada.png
+│       │   │   │   └── step2-qr.png
+│       │   │   └── esquema-vacunacion-minsal-2026.png
 │       │   ├── —Pngtree—3d teal cross with red_22560716.png
 │       │   ├── bg-medicos.png
 │       │   ├── desafio1.png
@@ -150,6 +220,8 @@ MedicOS/
 │       │   ├── desafio3.png
 │       │   ├── favicon.svg
 │       │   ├── icons.svg
+│       │   ├── Logo MedicOS Cruz.png
+│       │   ├── Logo MedicOS.png
 │       │   ├── logo-sinNombre.png
 │       │   ├── logo.png
 │       │   ├── solucion1.png
@@ -185,6 +257,14 @@ MedicOS/
 │       │   │   ├── admin/
 │       │   │   │   └── types/
 │       │   │   │       └── admin-dashboard.types.ts
+│       │   │   ├── ai-assistant/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── useAIAssistant.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── ai-assistant.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── ai-assistant.types.ts
+│       │   │   │   └── index.ts
 │       │   │   ├── appointments/
 │       │   │   │   ├── components/
 │       │   │   │   │   ├── CancelarCitaModal.tsx
@@ -271,6 +351,27 @@ MedicOS/
 │       │   │   │   ├── types/
 │       │   │   │   │   └── clinical-history.types.ts
 │       │   │   │   └── index.ts
+│       │   │   ├── clinical-knowledge/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── ClinicalGraphEmpty.tsx
+│       │   │   │   │   ├── ClinicalGraphFilters.tsx
+│       │   │   │   │   ├── ClinicalGraphLegend.tsx
+│       │   │   │   │   ├── ClinicalGraphNodeDetails.tsx
+│       │   │   │   │   ├── ClinicalGraphToolbar.tsx
+│       │   │   │   │   └── ClinicalGraphViewer.tsx
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── useClinicalGraph.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── clinical-knowledge.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── clinical-graph.types.ts
+│       │   │   │   └── index.ts
+│       │   │   ├── clinical-messages/
+│       │   │   │   ├── services/
+│       │   │   │   │   └── clinical-messages.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── clinical-messages.types.ts
+│       │   │   │   └── index.ts
 │       │   │   ├── consultations/
 │       │   │   │   ├── components/
 │       │   │   │   │   ├── ConsultaEstadoBadge.tsx
@@ -297,6 +398,11 @@ MedicOS/
 │       │   │   │   ├── types/
 │       │   │   │   │   └── diagnosis.types.ts
 │       │   │   │   └── index.ts
+│       │   │   ├── documents/
+│       │   │   │   ├── services/
+│       │   │   │   │   └── constancias.service.ts
+│       │   │   │   └── types/
+│       │   │   │       └── constancias.types.ts
 │       │   │   ├── establishments/
 │       │   │   │   ├── components/
 │       │   │   │   │   ├── CreateEstablishmentModal.tsx
@@ -318,6 +424,29 @@ MedicOS/
 │       │   │   │   │   └── evaluations.service.ts
 │       │   │   │   ├── types/
 │       │   │   │   │   └── evaluation.types.ts
+│       │   │   │   └── index.ts
+│       │   │   ├── health-education/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── ArticleChecklist.tsx
+│       │   │   │   │   ├── ArticleQuiz.tsx
+│       │   │   │   │   ├── ArticleReader.tsx
+│       │   │   │   │   ├── ArticleSources.tsx
+│       │   │   │   │   └── index.ts
+│       │   │   │   ├── data/
+│       │   │   │   │   ├── articles.ts
+│       │   │   │   │   └── categories.ts
+│       │   │   │   └── types/
+│       │   │   │       └── health-education.types.ts
+│       │   │   ├── laboratory/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── DetalleResultadoLaboratorioModal.tsx
+│       │   │   │   │   └── index.ts
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── useLaboratoryResults.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── laboratory.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── laboratory.types.ts
 │       │   │   │   └── index.ts
 │       │   │   ├── landing/
 │       │   │   │   ├── components/
@@ -395,6 +524,50 @@ MedicOS/
 │       │   │   │   ├── types/
 │       │   │   │   │   └── parallax.ts
 │       │   │   │   └── LandingPage.tsx
+│       │   │   ├── lifestyle/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── CrearObjetivoModal.tsx
+│       │   │   │   │   ├── index.ts
+│       │   │   │   │   ├── RegistrarActividadModal.tsx
+│       │   │   │   │   └── RegistrarHabitoModal.tsx
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── useLifestyleData.ts
+│       │   │   │   ├── RegistrarActividadModal.tsx/
+│       │   │   │   ├── services/
+│       │   │   │   │   └── lifestyle.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── lifestyle.types.ts
+│       │   │   │   └── index.ts
+│       │   │   ├── maternal-health/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── usePregnancyControl.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   ├── maternal-health.service.ts
+│       │   │   │   │   └── symptom-diary.service.ts
+│       │   │   │   └── types/
+│       │   │   │       └── maternal-health.types.ts
+│       │   │   ├── medical-imaging/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── DetalleEstudioImagenModal.tsx
+│       │   │   │   │   └── index.ts
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── useMedicalImagingStudies.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── medical-imaging.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── medical-imaging.types.ts
+│       │   │   │   └── index.ts
+│       │   │   ├── medications/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── DetalleMedicamentoModal.tsx
+│       │   │   │   │   └── index.ts
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── useMedicationHistory.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── medications.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── medication.types.ts
+│       │   │   │   └── index.ts
 │       │   │   ├── patients/
 │       │   │   │   ├── components/
 │       │   │   │   ├── constants/
@@ -402,14 +575,37 @@ MedicOS/
 │       │   │   │   ├── data/
 │       │   │   │   ├── hooks/
 │       │   │   │   │   ├── useCreatePatient.ts
+│       │   │   │   │   ├── usePatientPersonalData.ts
 │       │   │   │   │   ├── usePatientRecord.ts
 │       │   │   │   │   └── useSearchPatients.ts
 │       │   │   │   ├── schemas/
 │       │   │   │   ├── services/
+│       │   │   │   │   ├── patient-profile-preferences.service.ts
 │       │   │   │   │   └── patients.service.ts
 │       │   │   │   ├── types/
+│       │   │   │   │   ├── patient-personal-data.types.ts
 │       │   │   │   │   └── patient.types.ts
 │       │   │   │   ├── utils/
+│       │   │   │   └── index.ts
+│       │   │   ├── personalized-advice/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── usePersonalizedAdvice.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── personalized-advice.service.ts
+│       │   │   │   └── types/
+│       │   │   │       └── personalized-advice.types.ts
+│       │   │   ├── prescriptions/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── DetalleRecetaModal.tsx
+│       │   │   │   │   ├── index.ts
+│       │   │   │   │   └── RecetaEstadoBadge.tsx
+│       │   │   │   ├── hooks/
+│       │   │   │   │   ├── useActivePrescriptions.ts
+│       │   │   │   │   └── useMedicationReminders.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── prescriptions.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── prescription.types.ts
 │       │   │   │   └── index.ts
 │       │   │   ├── references/
 │       │   │   │   ├── hooks/
@@ -482,6 +678,10 @@ MedicOS/
 │       │   │   │   │   └── user.types.ts
 │       │   │   │   └── index.ts
 │       │   │   ├── vaccinations/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── DetalleVacunaModal.tsx
+│       │   │   │   │   ├── EsquemaMinsalModal.tsx
+│       │   │   │   │   └── index.ts
 │       │   │   │   ├── hooks/
 │       │   │   │   │   ├── useCreateVaccination.ts
 │       │   │   │   │   ├── useVaccinationHistory.ts
@@ -491,13 +691,24 @@ MedicOS/
 │       │   │   │   ├── types/
 │       │   │   │   │   └── vaccination.types.ts
 │       │   │   │   └── index.ts
-│       │   │   └── visits/
+│       │   │   ├── visits/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── useVisits.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── visits.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── visit.types.ts
+│       │   │   │   └── index.ts
+│       │   │   └── vital-signs/
+│       │   │       ├── components/
+│       │   │       │   ├── DetalleSignosVitalesModal.tsx
+│       │   │       │   └── index.ts
 │       │   │       ├── hooks/
-│       │   │       │   └── useVisits.ts
+│       │   │       │   └── useVitalSignsHistory.ts
 │       │   │       ├── services/
-│       │   │       │   └── visits.service.ts
+│       │   │       │   └── vital-signs.service.ts
 │       │   │       ├── types/
-│       │   │       │   └── visit.types.ts
+│       │   │       │   └── vital-signs.types.ts
 │       │   │       └── index.ts
 │       │   ├── portals/
 │       │   │   ├── admin/
@@ -1294,20 +1505,84 @@ MedicOS/
 │       │   │       │   │   └── DashboardLayout.tsx
 │       │   │       │   ├── documentos/
 │       │   │       │   │   ├── constancias/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── ConstanciaCard.tsx
+│       │   │       │   │   │   │   ├── ConstanciaPreviewModal.tsx
+│       │   │       │   │   │   │   ├── ConstanciasEmpty.tsx
+│       │   │       │   │   │   │   ├── ConstanciasError.tsx
+│       │   │       │   │   │   │   ├── ConstanciasFilters.tsx
+│       │   │       │   │   │   │   ├── ConstanciasHeader.tsx
+│       │   │       │   │   │   │   ├── ConstanciasLoading.tsx
+│       │   │       │   │   │   │   ├── ConstanciasStatusCards.tsx
+│       │   │       │   │   │   │   └── index.ts
 │       │   │       │   │   │   └── ConstanciasMedicasPage.tsx
 │       │   │       │   │   └── descarga-expediente/
+│       │   │       │   │       ├── components/
+│       │   │       │   │       │   ├── DescargaExpedienteEmpty.tsx
+│       │   │       │   │       │   ├── DescargaExpedienteError.tsx
+│       │   │       │   │       │   ├── DescargaExpedienteHeader.tsx
+│       │   │       │   │       │   ├── DescargaExpedienteLoading.tsx
+│       │   │       │   │       │   ├── EstadoExpedienteCard.tsx
+│       │   │       │   │       │   ├── FiltrosExpediente.tsx
+│       │   │       │   │       │   ├── GenerandoExpedienteModal.tsx
+│       │   │       │   │       │   ├── index.ts
+│       │   │       │   │       │   ├── InformacionRelevanteCard.tsx
+│       │   │       │   │       │   ├── OpcionesDescargaCard.tsx
+│       │   │       │   │       │   ├── ResumenExpedienteCard.tsx
+│       │   │       │   │       │   ├── ResumenIAExpedienteCard.tsx
+│       │   │       │   │       │   ├── SeccionesExpediente.tsx
+│       │   │       │   │       │   └── SeccionExpedienteCard.tsx
 │       │   │       │   │       └── DescargaExpedientePage.tsx
 │       │   │       │   ├── educacion-ia/
 │       │   │       │   │   ├── articulos/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── ArticuloCard.tsx
+│       │   │       │   │   │   │   ├── ArticuloDestacadoCard.tsx
+│       │   │       │   │   │   │   ├── ArticulosCategorias.tsx
+│       │   │       │   │   │   │   ├── ArticulosHeader.tsx
+│       │   │       │   │   │   │   ├── ArticulosSearch.tsx
+│       │   │       │   │   │   │   └── index.ts
 │       │   │       │   │   │   └── ArticulosEducativosPage.tsx
 │       │   │       │   │   ├── asistente/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── AsistenteHeader.tsx
+│       │   │       │   │   │   │   ├── ChatInputBar.tsx
+│       │   │       │   │   │   │   ├── ChatMessageBubble.tsx
+│       │   │       │   │   │   │   ├── index.ts
+│       │   │       │   │   │   │   └── SelectorContextoClinico.tsx
 │       │   │       │   │   │   └── AsistenteSaludIAPage.tsx
 │       │   │       │   │   └── consejos-personalizados/
+│       │   │       │   │       ├── components/
+│       │   │       │   │       │   ├── ArticulosSugeridosBanner.tsx
+│       │   │       │   │       │   ├── ConsejoCard.tsx
+│       │   │       │   │       │   ├── ConsejoDestacadoCard.tsx
+│       │   │       │   │       │   ├── ConsejoDetalleModal.tsx
+│       │   │       │   │       │   ├── ConsejosPersonalizadosEmpty.tsx
+│       │   │       │   │       │   ├── ConsejosPersonalizadosHeader.tsx
+│       │   │       │   │       │   └── index.ts
 │       │   │       │   │       └── ConsejosPersonalizadosPage.tsx
 │       │   │       │   ├── estudios/
 │       │   │       │   │   ├── estudios-imagen/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── EstudioImagenCard.tsx
+│       │   │       │   │   │   │   ├── EstudiosImagenEmpty.tsx
+│       │   │       │   │   │   │   ├── EstudiosImagenError.tsx
+│       │   │       │   │   │   │   ├── EstudiosImagenFilters.tsx
+│       │   │       │   │   │   │   ├── EstudiosImagenHeader.tsx
+│       │   │       │   │   │   │   ├── EstudiosImagenLoading.tsx
+│       │   │       │   │   │   │   ├── EstudiosImagenStatusCards.tsx
+│       │   │       │   │   │   │   └── index.ts
 │       │   │       │   │   │   └── EstudiosImagenPage.tsx
 │       │   │       │   │   └── resultados-laboratorio/
+│       │   │       │   │       ├── components/
+│       │   │       │   │       │   ├── index.ts
+│       │   │       │   │       │   ├── ResultadoLaboratorioCard.tsx
+│       │   │       │   │       │   ├── ResultadosLaboratorioEmpty.tsx
+│       │   │       │   │       │   ├── ResultadosLaboratorioError.tsx
+│       │   │       │   │       │   ├── ResultadosLaboratorioFilters.tsx
+│       │   │       │   │       │   ├── ResultadosLaboratorioHeader.tsx
+│       │   │       │   │       │   ├── ResultadosLaboratorioLoading.tsx
+│       │   │       │   │       │   └── ResultadosLaboratorioStatusCards.tsx
 │       │   │       │   │       └── ResultadosLaboratorioPage.tsx
 │       │   │       │   ├── expediente/
 │       │   │       │   │   ├── alergias-antecedentes/
@@ -1345,21 +1620,83 @@ MedicOS/
 │       │   │       │   │   │   │   └── index.ts
 │       │   │       │   │   │   └── DiagnosticosPage.tsx
 │       │   │       │   │   └── vacunas/
+│       │   │       │   │       ├── components/
+│       │   │       │   │       │   ├── index.ts
+│       │   │       │   │       │   ├── VacunaCard.tsx
+│       │   │       │   │       │   ├── VacunasFilters.tsx
+│       │   │       │   │       │   ├── VacunasHeader.tsx
+│       │   │       │   │       │   └── VacunasStatusCards.tsx
 │       │   │       │   │       └── VacunasPage.tsx
 │       │   │       │   ├── monitoreo/
 │       │   │       │   │   ├── habitos-estilo-vida/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── ActividadesHistorialCard.tsx
+│       │   │       │   │   │   │   ├── ActividadesRecientesMini.tsx
+│       │   │       │   │   │   │   ├── ActividadRecienteList.tsx
+│       │   │       │   │   │   │   ├── EstiloVidaEmpty.tsx
+│       │   │       │   │   │   │   ├── EstiloVidaError.tsx
+│       │   │       │   │   │   │   ├── EstiloVidaHeader.tsx
+│       │   │       │   │   │   │   ├── EstiloVidaLoading.tsx
+│       │   │       │   │   │   │   ├── EstiloVidaStatusCards.tsx
+│       │   │       │   │   │   │   ├── HabitosGrid.tsx
+│       │   │       │   │   │   │   ├── HabitoTrackerCard.tsx
+│       │   │       │   │   │   │   ├── index.ts
+│       │   │       │   │   │   │   ├── MetaSemanalCard.tsx
+│       │   │       │   │   │   │   └── ObjetivoSemanalCard.tsx
 │       │   │       │   │   │   └── EstiloVidaPage.tsx
 │       │   │       │   │   └── signos-vitales/
+│       │   │       │   │       ├── components/
+│       │   │       │   │       │   ├── EvolucionSignosVitales.tsx
+│       │   │       │   │       │   ├── HistorialSignosVitales.tsx
+│       │   │       │   │       │   ├── index.ts
+│       │   │       │   │       │   ├── SignosVitalesEmpty.tsx
+│       │   │       │   │       │   ├── SignosVitalesError.tsx
+│       │   │       │   │       │   ├── SignosVitalesFilters.tsx
+│       │   │       │   │       │   ├── SignosVitalesHeader.tsx
+│       │   │       │   │       │   ├── SignosVitalesLoading.tsx
+│       │   │       │   │       │   └── SignosVitalesStatusCards.tsx
 │       │   │       │   │       └── SignosVitalesPage.tsx
 │       │   │       │   ├── notificaciones/
 │       │   │       │   │   ├── centro/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── index.ts
+│       │   │       │   │   │   │   ├── NotificacionCard.tsx
+│       │   │       │   │   │   │   ├── NotificacionesEmpty.tsx
+│       │   │       │   │   │   │   ├── NotificacionesFilters.tsx
+│       │   │       │   │   │   │   ├── NotificacionesGroup.tsx
+│       │   │       │   │   │   │   ├── NotificacionesHeader.tsx
+│       │   │       │   │   │   │   └── NotificacionesLoading.tsx
 │       │   │       │   │   │   └── CentroNotificacionesPage.tsx
 │       │   │       │   │   └── mensajes-medico/
+│       │   │       │   │       ├── components/
+│       │   │       │   │       │   ├── ChatClinicalContextCard.tsx
+│       │   │       │   │       │   ├── ChatHeader.tsx
+│       │   │       │   │       │   ├── ChatInputBar.tsx
+│       │   │       │   │       │   ├── ChatMessageBubble.tsx
+│       │   │       │   │       │   ├── ConversacionesList.tsx
+│       │   │       │   │       │   ├── index.ts
+│       │   │       │   │       │   ├── MensajesMedicoHeader.tsx
+│       │   │       │   │       │   └── ModalAdjuntarClinico.tsx
 │       │   │       │   │       └── MensajesMedicoPage.tsx
 │       │   │       │   ├── perfil/
 │       │   │       │   │   ├── contactos-emergencia/
 │       │   │       │   │   │   └── ContactosEmergenciaPage.tsx
 │       │   │       │   │   ├── datos-personales/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── CambiarFotoModal.tsx
+│       │   │       │   │   │   │   ├── CarnetOficialCard.tsx
+│       │   │       │   │   │   │   ├── CredencialDigitalModal.tsx
+│       │   │       │   │   │   │   ├── DatosPersonalesHeader.tsx
+│       │   │       │   │   │   │   ├── IdentificacionMedicOSCard.tsx
+│       │   │       │   │   │   │   ├── index.ts
+│       │   │       │   │   │   │   ├── InformacionContactoCard.tsx
+│       │   │       │   │   │   │   ├── InformacionPersonalCard.tsx
+│       │   │       │   │   │   │   ├── InformacionSaludCard.tsx
+│       │   │       │   │   │   │   ├── ModalIdentificacionDigital.tsx
+│       │   │       │   │   │   │   ├── ModalInformacionSalud.tsx
+│       │   │       │   │   │   │   ├── PerfilPacienteCard.tsx
+│       │   │       │   │   │   │   ├── PersonalizacionPerfilCard.tsx
+│       │   │       │   │   │   │   └── PrivacidadPerfilCard.tsx
 │       │   │       │   │   │   └── DatosPersonalesPage.tsx
 │       │   │       │   │   ├── preferencias/
 │       │   │       │   │   │   └── PreferenciasPacientePage.tsx
@@ -1367,17 +1704,80 @@ MedicOS/
 │       │   │       │   │       └── SeguridadPacientePage.tsx
 │       │   │       │   ├── salud-materna/
 │       │   │       │   │   ├── citas-prenatales/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── CitaPrenatalCard.tsx
+│       │   │       │   │   │   │   ├── CitasPrenatalesEmpty.tsx
+│       │   │       │   │   │   │   ├── CitasPrenatalesError.tsx
+│       │   │       │   │   │   │   ├── CitasPrenatalesFilters.tsx
+│       │   │       │   │   │   │   ├── CitasPrenatalesHeader.tsx
+│       │   │       │   │   │   │   ├── CitasPrenatalesLoading.tsx
+│       │   │       │   │   │   │   ├── DetalleCitaPrenatalModal.tsx
+│       │   │       │   │   │   │   ├── index.ts
+│       │   │       │   │   │   │   ├── PreparacionCitaCard.tsx
+│       │   │       │   │   │   │   └── ProximaCitaPrenatalCard.tsx
 │       │   │       │   │   │   └── CitasPrenatalesPage.tsx
 │       │   │       │   │   ├── control-embarazo/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── ControlEmbarazoEmpty.tsx
+│       │   │       │   │   │   │   ├── ControlEmbarazoError.tsx
+│       │   │       │   │   │   │   ├── ControlEmbarazoHeader.tsx
+│       │   │       │   │   │   │   ├── ControlEmbarazoLoading.tsx
+│       │   │       │   │   │   │   ├── EmbarazoAiSummaryCard.tsx
+│       │   │       │   │   │   │   ├── EmbarazoKpisGrid.tsx
+│       │   │       │   │   │   │   ├── EmbarazoResumenCard.tsx
+│       │   │       │   │   │   │   ├── EmbarazoTimeline.tsx
+│       │   │       │   │   │   │   ├── ExamenesEmbarazoCard.tsx
+│       │   │       │   │   │   │   ├── GraficoEvolucionClinica.tsx
+│       │   │       │   │   │   │   ├── index.ts
+│       │   │       │   │   │   │   ├── ProgresoEmbarazoCard.tsx
+│       │   │       │   │   │   │   ├── ProximoControlCard.tsx
+│       │   │       │   │   │   │   ├── RecomendacionesEmbarazoCard.tsx
+│       │   │       │   │   │   │   ├── UltimoControlCard.tsx
+│       │   │       │   │   │   │   └── VacunasEmbarazoCard.tsx
 │       │   │       │   │   │   └── ControlEmbarazoPage.tsx
 │       │   │       │   │   └── diario-sintomas/
+│       │   │       │   │       ├── components/
+│       │   │       │   │       │   ├── DiarioSintomasHeader.tsx
+│       │   │       │   │       │   ├── EstadoActualCard.tsx
+│       │   │       │   │       │   ├── HistorialSintomas.tsx
+│       │   │       │   │       │   ├── index.ts
+│       │   │       │   │       │   ├── MovimientosFetalesCard.tsx
+│       │   │       │   │       │   ├── ObservacionesDiarioCard.tsx
+│       │   │       │   │       │   ├── RegistrarSintomasCard.tsx
+│       │   │       │   │       │   ├── RegistrarSintomasModal.tsx
+│       │   │       │   │       │   ├── RegistroSignosCasaCard.tsx
+│       │   │       │   │       │   ├── ResumenParaConsultaCard.tsx
+│       │   │       │   │       │   └── SignosAlarmaCard.tsx
 │       │   │       │   │       └── DiarioSintomasPage.tsx
 │       │   │       │   └── tratamientos/
 │       │   │       │       ├── historial-medicamentos/
+│       │   │       │       │   ├── components/
+│       │   │       │       │   │   ├── HistorialMedicamentosEmpty.tsx
+│       │   │       │       │   │   ├── HistorialMedicamentosError.tsx
+│       │   │       │       │   │   ├── HistorialMedicamentosFilters.tsx
+│       │   │       │       │   │   ├── HistorialMedicamentosHeader.tsx
+│       │   │       │       │   │   ├── HistorialMedicamentosLoading.tsx
+│       │   │       │       │   │   ├── HistorialMedicamentosStatusCards.tsx
+│       │   │       │       │   │   ├── index.ts
+│       │   │       │       │   │   └── MedicamentoHistorialCard.tsx
 │       │   │       │       │   └── HistorialMedicamentosPage.tsx
 │       │   │       │       ├── recetas-activas/
+│       │   │       │       │   ├── components/
+│       │   │       │       │   │   ├── index.ts
+│       │   │       │       │   │   ├── ProximoFinalizarCard.tsx
+│       │   │       │       │   │   ├── RecetaActivaCard.tsx
+│       │   │       │       │   │   ├── RecetasActivasEmpty.tsx
+│       │   │       │       │   │   ├── RecetasActivasHeader.tsx
+│       │   │       │       │   │   └── RecetasActivasStatusCards.tsx
 │       │   │       │       │   └── RecetasActivasPage.tsx
 │       │   │       │       └── recordatorios/
+│       │   │       │           ├── components/
+│       │   │       │           │   ├── HorarioDiaList.tsx
+│       │   │       │           │   ├── index.ts
+│       │   │       │           │   ├── ProgresoDiaCard.tsx
+│       │   │       │           │   ├── ProximaTomaCard.tsx
+│       │   │       │           │   ├── RecordatoriosHeader.tsx
+│       │   │       │           │   └── RecordatoriosStatusCards.tsx
 │       │   │       │           └── RecordatoriosTomasPage.tsx
 │       │   │       ├── routes/
 │       │   │       │   └── PacienteRoutes.tsx

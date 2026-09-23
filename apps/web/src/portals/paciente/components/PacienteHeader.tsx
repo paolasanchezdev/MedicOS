@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/paciente/components/PacienteHeader.tsx
-// DESCRIPCIÓN: Header del paciente configurado con rutas del portal.
+// DESCRIPCIÓN: Header del portal Paciente conectado con notificaciones reales.
 // =========================================================================
 
 import React, { useState } from 'react';
@@ -47,7 +47,8 @@ export const PacienteHeader: React.FC<PacienteHeaderProps> = ({
       searchValue={searchQuery}
       onSearchChange={setSearchQuery}
       onSearchSubmit={handleSearchSubmit}
-      notificationsRoute="/paciente/notificaciones"
+      notificationsRoute="/paciente/notificaciones/centro"
+      notificationEndpoint="/patients/notifications"
       userProfile={{
         fullName,
         email,

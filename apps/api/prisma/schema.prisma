@@ -94,10 +94,81 @@ enum DiagnosisStatus {
 
 enum AppointmentStatus {
   REQUESTED
+  PENDING
   CONFIRMED
+  RESCHEDULED
   IN_PROGRESS
   COMPLETED
   CANCELLED
+  NO_SHOW
+}
+
+enum AppointmentModality {
+  PRESENTIAL
+  TELEMEDICINE
+}
+
+enum PrescriptionStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum IntakeStatus {
+  PENDING
+  TAKEN
+  MISSED
+}
+
+enum LaboratoryStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum ReferenceStatus {
+  WITHIN_RANGE
+  ABOVE_RANGE
+  BELOW_RANGE
+  UNEVALUATED
+}
+
+enum ImagingType {
+  XRAY
+  ULTRASOUND
+  TOMOGRAPHY
+  RESONANCE
+  MAMMOGRAPHY
+  DENSITOMETRY
+  OTHER
+}
+
+enum ImagingStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum LifestyleHabitType {
+  WATER
+  ACTIVITY
+  SLEEP
+  NUTRITION
+  TOBACCO
+  ALCOHOL
+  MINDFULNESS
+}
+
+enum ActivityIntensity {
+  LIGHT
+  MODERATE
+  INTENSE
+}
+
+enum GoalStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
 }
 
 enum BloodType {
@@ -115,6 +186,36 @@ enum BloodType {
 enum SessionStatus {
   STARTED
   ENDED
+}
+
+enum EmergencyRelationship {
+  MADRE
+  PADRE
+  HIJO_A
+  HERMANO_A
+  CONYUGE
+  PAREJA
+  ABUELO_A
+  TUTOR_A
+  FAMILIAR
+  AMIGO_A
+  OTRO
+}
+
+// ======================================================
+// ENUMS DE CONSTANCIAS MÉDICAS Y DOCUMENTOS OFICIALES
+// ======================================================
+
+enum CertificateType {
+  MEDICAL_ATTENTION
+  CONSULTATION
+  PRENATAL_CONTROL
+  OTHER
+}
+
+enum CertificateStatus {
+  ACTIVE
+  REVOKED
 }
 
 // ======================================================
@@ -184,28 +285,32 @@ enum ItemCondition {
 // ======================================================
 
 model Establishment {
-  id             String                @id @default(uuid())
-  code           String                @unique
-  name           String
-  type           EstablishmentType     @default(HOSPITAL)
-  level          EstablishmentLevel    @default(DEPARTMENTAL)
-  operator       EstablishmentOperator @default(MINSAL)
-  department     String
-  municipality   String
-  address        String
-  latitude       Float?
-  longitude      Float?
-  phone          String?
-  emergencyPhone String?
-  hasEmergency   Boolean               @default(false)
-  specialties    String[]              @default([])
-  totalBeds      Int                   @default(0)
-  availableBeds  Int                   @default(0)
-  status         EstablishmentStatus   @default(OPERATIONAL)
+  id              String                @id @default(uuid())
+  code            String                @unique
+  name            String
+  type            EstablishmentType     @default(HOSPITAL)
+  level           EstablishmentLevel    @default(DEPARTMENTAL)
+  operator        EstablishmentOperator @default(MINSAL)
+  department      String
+  municipality    String
+  address         String
+  latitude        Float?
+  longitude       Float?
+  phone           String?
+  emergencyPhone  String?
+  hasEmergency    Boolean               @default(false)
+  specialties     String[]              @default([])
+  totalBeds       Int                   @default(0)
+  availableBeds   Int                   @default(0)
+  status          EstablishmentStatus   @default(OPERATIONAL)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
+
+  // Relaciones
+  appointments        Appointment[]
+  medicalCertificates MedicalCertificate[]
 
   // Metadatos Obligatorios Offline First
   syncStatus             SyncStatus @default(PENDING)
@@ -292,19 +397,22 @@ model User {
   status       UserStatus @default(ACTIVE)
   firstName    String
   lastName     String
+  specialty    String?
   phone        String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?
 
   // Relaciones
-  brigadesLed      Brigade[]       @relation("BrigadeLeader")
-  brigadesAssigned BrigadeMember[]
-  consultations    Consultation[]  @relation("DoctorConsultations")
-  appointments     Appointment[]   @relation("DoctorAppointments")
-  workSessions     WorkSession[]   @relation("BrigadistaSessions")
-  auditLogs        AuditLog[]
-  patient          Patient?
+  brigadesLed         Brigade[]            @relation("BrigadeLeader")
+  brigadesAssigned    BrigadeMember[]
+  consultations       Consultation[]       @relation("DoctorConsultations")
+  appointments        Appointment[]        @relation("DoctorAppointments")
+  prescriptions       Prescription[]       @relation("DoctorPrescriptions")
+  workSessions        WorkSession[]        @relation("BrigadistaSessions")
+  auditLogs           AuditLog[]
+  patient             Patient?
+  medicalCertificates MedicalCertificate[]
 
   @@index([role])
   @@index([status])
@@ -331,10 +439,11 @@ model Brigade {
   deletedAt    DateTime?
 
   // Relaciones Operativas
-  leader        User?                  @relation("BrigadeLeader", fields: [leaderId], references: [id], onDelete: SetNull)
+  leader        User?           @relation("BrigadeLeader", fields: [leaderId], references: [id], onDelete: SetNull)
   members       BrigadeMember[]
   consultations Consultation[]
-  workSessions  WorkSession[]          @relation("BrigadeSessions")
+  prescriptions Prescription[]
+  workSessions  WorkSession[]   @relation("BrigadeSessions")
 
   // Dotación de Recursos en Campo
   supplyItems    BrigadeSupplyItem[]
@@ -579,36 +688,83 @@ model BrigadeDevice {
 // ======================================================
 
 model Patient {
-  id                     String     @id @default(uuid())
-  userId                 String?    @unique
-  user                   User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id                     String      @id @default(uuid())
+  userId                 String?     @unique
+  user                   User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   firstName              String
   lastName               String
   dateOfBirth            DateTime
-  dui                    String?    @unique
-  sex                    Sex        @default(OTHER)
+  dui                    String?     @unique
+  sex                    Sex         @default(OTHER)
   phone                  String?
   address                String
   emergencyName          String?
   emergencyPhone         String?
   emergencyRelation      String?
-  createdAt              DateTime   @default(now())
-  updatedAt              DateTime   @updatedAt
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
   deletedAt              DateTime?
-  syncStatus             SyncStatus @default(SYNCED)
-  version                Int        @default(1)
+  syncStatus             SyncStatus  @default(SYNCED)
+  version                Int         @default(1)
   originDeviceId         String
   lastModifiedByDeviceId String
-  lastModified           DateTime   @default(now())
+  lastModified           DateTime    @default(now())
 
-  clinicalRecord ClinicalRecord?
-  consultations  Consultation[]
-  appointments   Appointment[]
-  vitalSigns     VitalSigns[]
-  diagnoses      Diagnosis[]
+  clinicalRecord        ClinicalRecord?
+  consultations         Consultation[]
+  appointments          Appointment[]
+  prescriptions         Prescription[]
+  medicationIntakes     MedicationIntake[]
+  laboratoryStudies     LaboratoryStudy[]
+  medicalImagingStudies MedicalImagingStudy[]
+  lifestyleHabitLogs    LifestyleHabitLog[]
+  lifestyleActivities   LifestyleActivity[]
+  lifestyleGoals        LifestyleGoal[]
+  vitalSigns            VitalSigns[]
+  diagnoses             Diagnosis[]
+  medicalCertificates   MedicalCertificate[]
+  emergencyContacts     EmergencyContact[]
 
   @@index([dui])
   @@index([userId])
+}
+
+// ======================================================
+// CONTACTOS DE EMERGENCIA DEL PACIENTE
+// ======================================================
+
+model EmergencyContact {
+  id             String                @id @default(uuid())
+  patientId      String
+  firstName      String
+  lastName       String
+  relationship   EmergencyRelationship @default(FAMILIAR)
+  customRelation String?
+  primaryPhone   String
+  secondaryPhone String?
+  email          String?
+  isPrimary      Boolean               @default(false)
+  isActive       Boolean               @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String     @default("WEB_PORTAL")
+  lastModifiedByDeviceId String     @default("WEB_PORTAL")
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([patientId])
+  @@index([isPrimary])
+  @@index([isActive])
+  @@index([syncStatus])
+  @@index([lastModified])
 }
 
 model ClinicalRecord {
@@ -644,13 +800,15 @@ model ClinicalRecord {
 // ======================================================
 
 model Appointment {
-  id              String            @id @default(uuid())
+  id              String              @id @default(uuid())
   patientId       String
   doctorId        String
+  establishmentId String?
   appointmentDate DateTime
-  durationMinutes Int               @default(30)
+  durationMinutes Int                 @default(30)
   reason          String
-  status          AppointmentStatus @default(CONFIRMED)
+  status          AppointmentStatus   @default(CONFIRMED)
+  modality        AppointmentModality @default(PRESENTIAL)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -659,6 +817,7 @@ model Appointment {
   // Relaciones
   patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
   doctor        User           @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  establishment Establishment? @relation(fields: [establishmentId], references: [id], onDelete: SetNull)
   consultations Consultation[]
 
   // Metadatos Obligatorios Offline First
@@ -670,6 +829,7 @@ model Appointment {
 
   @@index([doctorId, appointmentDate])
   @@index([patientId])
+  @@index([establishmentId])
   @@index([status])
 }
 
@@ -682,8 +842,8 @@ model Consultation {
   patientId        String
   doctorId         String
   clinicalRecordId String
-  brigadeId        String?            // Opcional para citas fuera de brigada
-  appointmentId    String?            // Opcional si proviene de cita agendada
+  brigadeId        String?
+  appointmentId    String?
   status           ConsultationStatus @default(DRAFT)
 
   // Metodología SOAP
@@ -703,15 +863,17 @@ model Consultation {
   deletedAt        DateTime?
 
   // Relaciones
-  patient        Patient         @relation(fields: [patientId], references: [id])
-  doctor         User            @relation("DoctorConsultations", fields: [doctorId], references: [id])
-  clinicalRecord ClinicalRecord  @relation(fields: [clinicalRecordId], references: [id])
-  brigade        Brigade?        @relation(fields: [brigadeId], references: [id])
-  appointment    Appointment?    @relation(fields: [appointmentId], references: [id])
-  workSessionId  String?
-  workSession    WorkSession?    @relation(fields: [workSessionId], references: [id])
-  vitalSigns     VitalSigns[]
-  diagnoses      Diagnosis[]
+  patient             Patient              @relation(fields: [patientId], references: [id])
+  doctor              User                 @relation("DoctorConsultations", fields: [doctorId], references: [id])
+  clinicalRecord      ClinicalRecord       @relation(fields: [clinicalRecordId], references: [id])
+  brigade             Brigade?             @relation(fields: [brigadeId], references: [id])
+  appointment         Appointment?         @relation(fields: [appointmentId], references: [id])
+  prescriptions       Prescription[]
+  workSessionId       String?
+  workSession         WorkSession?         @relation(fields: [workSessionId], references: [id])
+  vitalSigns          VitalSigns[]
+  diagnoses           Diagnosis[]
+  medicalCertificates MedicalCertificate[]
 
   // Metadatos Obligatorios Offline First
   syncStatus             SyncStatus @default(PENDING)
@@ -740,10 +902,10 @@ model Diagnosis {
   id             String          @id @default(uuid())
   patientId      String
   consultationId String?
-  code           String?         // Código CIE-10 (ej. I10, E11)
-  description    String          // Descripción diagnóstica (ej. Hipertensión esencial)
+  code           String?
+  description    String
   status         DiagnosisStatus @default(ACTIVE)
-  notes          String?         // Observaciones clínicas adicionales
+  notes          String?
   diagnosedAt    DateTime        @default(now())
   resolvedAt     DateTime?
 
@@ -773,7 +935,7 @@ model Diagnosis {
 }
 
 model VitalSigns {
-  id             String        @id @default(uuid())
+  id             String    @id @default(uuid())
   patientId      String
   consultationId String?
   temperature    Float
@@ -783,8 +945,8 @@ model VitalSigns {
   diastolic      Int
   weight         Float?
   height         Float?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
   // Relaciones
@@ -807,6 +969,294 @@ model VitalSigns {
 }
 
 // ======================================================
+// PRESCRIPCIONES CLÍNICAS Y FARMACOTERAPIA
+// ======================================================
+
+model Prescription {
+  id             String             @id @default(uuid())
+  code           String             @unique // Ej. RX-2026-0001
+  patientId      String
+  doctorId       String
+  consultationId String?
+  brigadeId      String?
+  status         PrescriptionStatus @default(ACTIVE)
+  notes          String?
+  issuedAt       DateTime           @default(now())
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  deletedAt      DateTime?
+
+  // Relaciones
+  patient      Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor       User               @relation("DoctorPrescriptions", fields: [doctorId], references: [id])
+  consultation Consultation?      @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+  brigade      Brigade?           @relation(fields: [brigadeId], references: [id], onDelete: SetNull)
+  items        PrescriptionItem[]
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String     @default("SERVER_CENTRAL")
+  lastModifiedByDeviceId String     @default("SERVER_CENTRAL")
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([status])
+  @@index([issuedAt])
+  @@index([syncStatus])
+  @@index([lastModified])
+}
+
+model PrescriptionItem {
+  id             String   @id @default(uuid())
+  prescriptionId String
+  medicine       String   // Ej. Amoxicilina
+  dosage         String   // Ej. 500 mg
+  route          String   @default("ORAL")
+  frequency      String   // Ej. Cada 8 horas
+  duration       String   // Ej. Por 7 días
+  instructions   String?  // Ej. Tomar después de las comidas
+  startDate      DateTime @default(now())
+  endDate        DateTime // Calculada al prescribir
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  prescription Prescription       @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  intakes      MedicationIntake[]
+
+  @@index([prescriptionId])
+  @@index([endDate])
+}
+
+// ======================================================
+// SEGUIMIENTO DE TOMAS Y RECORDATORIOS
+// ======================================================
+
+model MedicationIntake {
+  id                 String       @id @default(uuid())
+  patientId          String
+  prescriptionItemId String
+  scheduledFor       DateTime
+  takenAt            DateTime?
+  status             IntakeStatus @default(PENDING)
+  notes              String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones
+  patient          Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  prescriptionItem PrescriptionItem @relation(fields: [prescriptionItemId], references: [id], onDelete: Cascade)
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String     @default("SERVER_CENTRAL")
+  lastModifiedByDeviceId String     @default("SERVER_CENTRAL")
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@unique([prescriptionItemId, scheduledFor])
+  @@index([patientId, scheduledFor])
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([syncStatus])
+}
+
+// ======================================================
+// ESTUDIOS Y ANÁLISIS DE LABORATORIO CLÍNICO
+// ======================================================
+
+model LaboratoryStudy {
+  id                String           @id @default(uuid())
+  code              String           @unique // Ej. LAB-2026-00001
+  patientId         String
+  doctorId          String?
+  consultationId    String?
+  brigadeId         String?
+  name              String           // Ej. Hemograma Completo, Examen General de Orina
+  category          String?          // Ej. Hematología, Uroanálisis, Química Sanguínea
+  establishmentName String           // Ej. Laboratorio Central, Unidad de Salud
+  status            LaboratoryStatus @default(COMPLETED)
+  performedAt       DateTime         @default(now())
+  observations      String?
+  documentUrl       String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones
+  patient  Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  analytes LaboratoryAnalyte[]
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String     @default("SERVER_CENTRAL")
+  lastModifiedByDeviceId String     @default("SERVER_CENTRAL")
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([patientId, performedAt])
+  @@index([status])
+  @@index([syncStatus])
+  @@index([lastModified])
+}
+
+model LaboratoryAnalyte {
+  id                   String          @id @default(uuid())
+  studyId              String
+  name                 String          // Ej. Hemoglobina, Glucosa, Leucocitos
+  value                String          // Ej. 13.8, 85, Negativo
+  unit                 String          // Ej. g/dL, mg/dL, /µL
+  referenceMin         Float?          // Ej. 12.0
+  referenceMax         Float?          // Ej. 16.0
+  referenceText        String?         // Ej. 12.0 - 16.0 g/dL
+  interpretationStatus ReferenceStatus @default(WITHIN_RANGE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  study LaboratoryStudy @relation(fields: [studyId], references: [id], onDelete: Cascade)
+
+  @@index([studyId])
+}
+
+// ======================================================
+// ESTUDIOS DE IMAGEN MÉDICA Y RADIODIAGNÓSTICO
+// ======================================================
+
+model MedicalImagingStudy {
+  id                String        @id @default(uuid())
+  code              String        @unique // Ej. IMG-2026-00001
+  patientId         String
+  doctorId          String?
+  consultationId    String?
+  brigadeId         String?
+  name              String        // Ej. Radiografía de tórax PA
+  type              ImagingType   @default(XRAY)
+  bodyRegion        String        // Ej. Tórax, Abdomen, Rodilla derecha
+  establishmentName String        // Ej. Hospital Nacional Rosales, Unidad de Salud
+  status            ImagingStatus @default(COMPLETED)
+  performedAt       DateTime      @default(now())
+  findings          String?       // Hallazgos descriptivos
+  conclusion        String?       // Conclusión diagnóstica
+  documentUrl       String?       // Informe formal en PDF
+  imageUrl          String?       // Imagen/captura de estudio
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String     @default("SERVER_CENTRAL")
+  lastModifiedByDeviceId String     @default("SERVER_CENTRAL")
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([patientId, performedAt])
+  @@index([type])
+  @@index([status])
+  @@index([syncStatus])
+  @@index([lastModified])
+}
+
+// ======================================================
+// ESTILO DE VIDA, HÁBITOS DIARIOS Y AUTOCUIDADO
+// ======================================================
+
+model LifestyleHabitLog {
+  id         String             @id @default(uuid())
+  patientId  String
+  habitType  LifestyleHabitType
+  loggedDate DateTime           @db.Date
+  value      Float              // Ej: 8 vasos, 7.5 hrs sueño, 1 meta cumplida
+  unit       String             // Ej: vasos, horas, puntos
+  notes      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String     @default("SERVER_CENTRAL")
+  lastModifiedByDeviceId String     @default("SERVER_CENTRAL")
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@unique([patientId, habitType, loggedDate])
+  @@index([patientId, loggedDate])
+  @@index([habitType])
+  @@index([syncStatus])
+}
+
+model LifestyleActivity {
+  id              String            @id @default(uuid())
+  patientId       String
+  activityName    String            // Caminata, Bicicleta, Ejercicio en casa, etc.
+  durationMinutes Int               // Minutos dedicados
+  intensity       ActivityIntensity @default(MODERATE)
+  performedAt     DateTime          @default(now())
+  notes           String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String     @default("SERVER_CENTRAL")
+  lastModifiedByDeviceId String     @default("SERVER_CENTRAL")
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([patientId, performedAt])
+  @@index([syncStatus])
+}
+
+model LifestyleGoal {
+  id         String             @id @default(uuid())
+  patientId  String
+  title      String             // Ej: Actividad física 4 días por semana
+  habitType  LifestyleHabitType @default(ACTIVITY)
+  targetDays Int                // Ej: 4 días
+  startDate  DateTime           @db.Date
+  endDate    DateTime           @db.Date
+  status     GoalStatus         @default(IN_PROGRESS)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String     @default("SERVER_CENTRAL")
+  lastModifiedByDeviceId String     @default("SERVER_CENTRAL")
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([patientId, status])
+  @@index([syncStatus])
+}
+
+// ======================================================
 // JORNADAS DE TRABAJO - BRIGADISTAS (WORKSESSION)
 // ======================================================
 
@@ -819,8 +1269,8 @@ model WorkSession {
   endedAt      DateTime?
 
   // Relaciones
-  brigadista    User          @relation("BrigadistaSessions", fields: [brigadistaId], references: [id])
-  brigade       Brigade       @relation("BrigadeSessions", fields: [brigadeId], references: [id])
+  brigadista    User           @relation("BrigadistaSessions", fields: [brigadistaId], references: [id])
+  brigade       Brigade        @relation("BrigadeSessions", fields: [brigadeId], references: [id])
   consultations Consultation[]
 
   // Metadatos Obligatorios Offline First
@@ -833,6 +1283,48 @@ model WorkSession {
   @@index([brigadistaId, status])
   @@index([brigadeId])
   @@index([syncStatus])
+}
+
+// ======================================================
+// CONSTANCIAS MÉDICAS Y DOCUMENTOS OFICIALES
+// ======================================================
+
+model MedicalCertificate {
+  id              String            @id @default(uuid())
+  code            String            @unique // Ej. CM-2026-000124
+  type            CertificateType   @default(MEDICAL_ATTENTION)
+  patientId       String
+  doctorId        String?
+  establishmentId String?
+  consultationId  String?
+  issuedAt        DateTime          @default(now())
+  observations    String?
+  qrHash          String            @unique
+  status          CertificateStatus @default(ACTIVE)
+  documentUrl     String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relaciones
+  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor        User?          @relation(fields: [doctorId], references: [id], onDelete: SetNull)
+  establishment Establishment? @relation(fields: [establishmentId], references: [id], onDelete: SetNull)
+  consultation  Consultation?  @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+
+  // Metadatos Obligatorios Offline First
+  syncStatus             SyncStatus @default(PENDING)
+  version                Int        @default(1)
+  originDeviceId         String     @default("SERVER_CENTRAL")
+  lastModifiedByDeviceId String     @default("SERVER_CENTRAL")
+  lastModified           DateTime   @default(now()) @updatedAt
+
+  @@index([patientId, issuedAt])
+  @@index([code])
+  @@index([status])
+  @@index([syncStatus])
+  @@index([lastModified])
 }
 
 // ======================================================

@@ -1,7 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/paciente/routes/PacienteRoutes.tsx
-// DESCRIPCIÓN: Enrutador del Portal Paciente con Alergias y Antecedentes,
-//              Diagnósticos, Historial de Consultas, Vacunas, Mis Citas y Agendar Cita.
+// DESCRIPCIÓN: Enrutador del Portal Paciente con Centro de Notificaciones,
+//              Mensajes con el Médico, Datos Personales y Contactos de Emergencia oficiales.
 // =========================================================================
 
 import React from 'react';
@@ -19,43 +19,47 @@ import { HistorialConsultasPage } from '../pages/expediente/consultas/HistorialC
 import { DiagnosticosPage } from '../pages/expediente/diagnosticos/DiagnosticosPage.js';
 import { AlergiasAntecedentesPage } from '../pages/expediente/alergias-antecedentes/AlergiasAntecedentesPage.js';
 import { VacunasPage } from '../pages/expediente/vacunas/VacunasPage.js';
+import { RecetasActivasPage } from '../pages/tratamientos/recetas-activas/RecetasActivasPage.js';
+import { RecordatoriosTomasPage } from '../pages/tratamientos/recordatorios/RecordatoriosTomasPage.js';
+import { HistorialMedicamentosPage } from '../pages/tratamientos/historial-medicamentos/HistorialMedicamentosPage.js';
+import { ResultadosLaboratorioPage } from '../pages/estudios/resultados-laboratorio/ResultadosLaboratorioPage.js';
+import { EstudiosImagenPage } from '../pages/estudios/estudios-imagen/EstudiosImagenPage.js';
+import { SignosVitalesPage } from '../pages/monitoreo/signos-vitales/SignosVitalesPage.js';
+import { EstiloVidaPage } from '../pages/monitoreo/habitos-estilo-vida/EstiloVidaPage.js';
+import { AsistenteSaludIAPage } from '../pages/educacion-ia/asistente/AsistenteSaludIAPage.js';
+import { ConsejosPersonalizadosPage } from '../pages/educacion-ia/consejos-personalizados/ConsejosPersonalizadosPage.js';
+import { ArticulosEducativosPage } from '../pages/educacion-ia/articulos/ArticulosEducativosPage.js';
+import { ControlEmbarazoPage } from '../pages/salud-materna/control-embarazo/ControlEmbarazoPage.js';
+import { CitasPrenatalesPage } from '../pages/salud-materna/citas-prenatales/CitasPrenatalesPage.js';
+import { DiarioSintomasPage } from '../pages/salud-materna/diario-sintomas/DiarioSintomasPage.js';
+import { ConstanciasMedicasPage } from '../pages/documentos/constancias/ConstanciasMedicasPage.js';
+import { DescargaExpedientePage } from '../pages/documentos/descarga-expediente/DescargaExpedientePage.js';
 
-// COMPONENTE TEMPORAL PARA VISTAS EN DESARROLLO
+// PÁGINAS OFICIALES DE NOTIFICACIONES
+import { CentroNotificacionesPage } from '../pages/notificaciones/centro/CentroNotificacionesPage.js';
+import { MensajesMedicoPage } from '../pages/notificaciones/mensajes-medico/MensajesMedicoPage.js';
+
+// PÁGINAS OFICIALES DE PERFIL
+import { DatosPersonalesPage } from '../pages/perfil/datos-personales/DatosPersonalesPage.js';
+import { ContactosEmergenciaPage } from '../pages/perfil/contactos-emergencia/ContactosEmergenciaPage.js';
+
+// COMPONENTE TEMPORAL PARA VISTAS EN DESARROLLO PENDIENTES
 const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
-  <div className="p-8 rounded-3xl bg-white/80 border border-medicos-soft-border/60 shadow-xs backdrop-blur-xl flex flex-col items-center justify-center text-center min-h-87.5 space-y-4 animate-in fade-in duration-300">
-    <div className="w-14 h-14 rounded-2xl bg-medicos-light-bg text-medicos-teal flex items-center justify-center">
+  <div className="p-8 rounded-3xl bg-white/80 border border-slate-200/60 shadow-xs backdrop-blur-xl flex flex-col items-center justify-center text-center min-h-87.5 space-y-4 animate-in fade-in duration-300">
+    <div className="w-14 h-14 rounded-2xl bg-teal-50 text-medicos-teal flex items-center justify-center">
       <Construction className="w-7 h-7" />
     </div>
     <div className="space-y-1 max-w-sm">
-      <h2 className="text-lg font-black text-medicos-dark-blue">{title}</h2>
-      <p className="text-xs text-medicos-muted leading-relaxed">
+      <h2 className="text-lg font-black text-slate-900">{title}</h2>
+      <p className="text-xs text-slate-500 leading-relaxed">
         Esta sección está actualmente en desarrollo dentro del portal del paciente.
       </p>
     </div>
   </div>
 );
 
-// STUBS DE PÁGINAS PENDIENTES
+// STUBS DE PÁGINAS PENDIENTES RESTANTES
 export const TelemedicinaPage = () => <PlaceholderPage title="Consultas de Telemedicina" />;
-export const RecetasActivasPage = () => <PlaceholderPage title="Recetas y Medicamentos Activos" />;
-export const RecordatoriosTomasPage = () => <PlaceholderPage title="Recordatorios de Toma" />;
-export const HistorialMedicamentosPage = () => <PlaceholderPage title="Historial de Medicamentos" />;
-export const ResultadosLaboratorioPage = () => <PlaceholderPage title="Resultados de Laboratorio" />;
-export const EstudiosImagenPage = () => <PlaceholderPage title="Estudios e Imágenes Médicas" />;
-export const SignosVitalesPage = () => <PlaceholderPage title="Monitoreo de Signos Vitales" />;
-export const EstiloVidaPage = () => <PlaceholderPage title="Hábitos y Estilo de Vida" />;
-export const AsistenteSaludIAPage = () => <PlaceholderPage title="Asistente de Salud IA" />;
-export const ConsejosPersonalizadosPage = () => <PlaceholderPage title="Consejos Personalizados" />;
-export const ArticulosEducativosPage = () => <PlaceholderPage title="Artículos Educativos" />;
-export const ControlEmbarazoPage = () => <PlaceholderPage title="Control de Embarazo" />;
-export const CitasPrenatalesPage = () => <PlaceholderPage title="Citas Prenatales" />;
-export const DiarioSintomasPage = () => <PlaceholderPage title="Diario de Síntomas" />;
-export const ConstanciasMedicasPage = () => <PlaceholderPage title="Constancias Médicas" />;
-export const DescargaExpedientePage = () => <PlaceholderPage title="Descarga de Expediente" />;
-export const CentroNotificacionesPage = () => <PlaceholderPage title="Centro de Notificaciones" />;
-export const MensajesMedicoPage = () => <PlaceholderPage title="Mensajes con el Médico" />;
-export const DatosPersonalesPage = () => <PlaceholderPage title="Datos Personales" />;
-export const ContactosEmergenciaPage = () => <PlaceholderPage title="Contactos de Emergencia" />;
 export const PreferenciasPacientePage = () => <PlaceholderPage title="Preferencias del Sistema" />;
 export const SeguridadPacientePage = () => <PlaceholderPage title="Configuración de Seguridad" />;
 

@@ -1,7 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/paciente/pages/expediente/vacunas/VacunasPage.tsx
-// DESCRIPCIÓN: Vista oficial "Pasaporte de Vacunación Digital" con 4 tarjetas
-//              superiores de estatus, filtros, histórico por año y soporte offline.
+// DESCRIPCIÓN: Orquestador visual del Pasaporte de Vacunación Digital.
+//              Mantiene la cabecera original y armoniza el resto de secciones.
 // =========================================================================
 
 import React, { useState, useMemo } from 'react';
@@ -35,14 +35,14 @@ export const VacunasPage: React.FC = () => {
   const { user } = useAuth();
   const patientId = user?.id || '';
 
-  // Hook oficial del módulo de vacunas
+  // Hook oficial del dominio
   const { records: remoteRecords, loading, error, refresh } = useVaccinationRecord(patientId);
 
-  // Filtros y buscador
+  // Estados de filtrado
   const [search, setSearch] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<VacunaFilterCategory>('ALL');
 
-  // Modales
+  // Modales y notificaciones
   const [selectedRecord, setSelectedRecord] = useState<VaccinationRecord | null>(null);
   const [showMinsalModal, setShowMinsalModal] = useState<boolean>(false);
   const [showCartillaModal, setShowCartillaModal] = useState<boolean>(false);
@@ -75,7 +75,7 @@ export const VacunasPage: React.FC = () => {
     }));
   }, [remoteRecords]);
 
-  // Mapa de enfermedades diana desde el catálogo maestro oficial MINSAL 2026
+  // Mapa de enfermedades diana desde el catálogo MINSAL 2026
   const targetDiseaseMap = useMemo(() => {
     const map = new Map<string, string>();
     ESQUEMA_MINSAL_2026_CATALOG.forEach((item) => {
@@ -129,7 +129,6 @@ export const VacunasPage: React.FC = () => {
       }));
   }, [filteredRecords]);
 
-  // Total de dosis requeridas según catálogo nacional obligatorio MINSAL
   const targetRequiredDoses = useMemo(() => {
     return ESQUEMA_MINSAL_2026_CATALOG.filter((v) => v.isRequired).length;
   }, []);
@@ -139,12 +138,12 @@ export const VacunasPage: React.FC = () => {
       <div className="w-full px-4 sm:px-6 lg:px-8 py-5 space-y-4 max-w-[1700px] mx-auto animate-pulse">
         <div className="h-28 bg-slate-200 rounded-2xl" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          <div className="h-40 bg-slate-200 rounded-2xl" />
-          <div className="h-40 bg-slate-200 rounded-2xl" />
-          <div className="h-40 bg-slate-200 rounded-2xl" />
-          <div className="h-40 bg-slate-200 rounded-2xl" />
+          <div className="h-36 bg-slate-200 rounded-2xl" />
+          <div className="h-36 bg-slate-200 rounded-2xl" />
+          <div className="h-36 bg-slate-200 rounded-2xl" />
+          <div className="h-36 bg-slate-200 rounded-2xl" />
         </div>
-        <div className="h-10 bg-slate-200 rounded-xl" />
+        <div className="h-11 bg-slate-200 rounded-xl" />
         <div className="h-24 bg-slate-200 rounded-2xl" />
       </div>
     );
@@ -157,7 +156,7 @@ export const VacunasPage: React.FC = () => {
           <AlertCircle className="w-6 h-6" />
         </div>
         <div>
-          <h3 className="text-sm font-bold text-slate-900">Error al cargar pasaporte</h3>
+          <h3 className="text-sm font-bold text-slate-900">Error al cargar historial</h3>
           <p className="text-xs text-slate-500 mt-1">{error}</p>
         </div>
         <button
@@ -173,15 +172,15 @@ export const VacunasPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8 py-5 space-y-4 max-w-[1700px] mx-auto animate-in fade-in duration-200">
-      {/* 1. Cabecera Ejecutiva Pasaporte de Vacunación */}
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-5 space-y-4.5 max-w-[1700px] mx-auto animate-in fade-in duration-200">
+      {/* 1. Cabecera Original Intacta */}
       <VacunasHeader
         totalApplied={records.length}
         onOpenEsquemaMinsal={() => setShowMinsalModal(true)}
         onOpenCartillaQR={() => setShowCartillaModal(true)}
       />
 
-      {/* 2. Grid de 4 Tarjetas de Estatus Inmunológico */}
+      {/* 2. Grid Superior Limpio de Estatus */}
       <VacunasStatusCards
         records={records}
         targetDosesCount={targetRequiredDoses}
@@ -200,7 +199,7 @@ export const VacunasPage: React.FC = () => {
         onCategoryChange={setCategoryFilter}
       />
 
-      {/* 4. Lista Cronológica por Año con Tarjetas Clínicas Anchas */}
+      {/* 4. Línea de Tiempo y Fichas Clínicas */}
       {filteredRecords.length === 0 ? (
         <div className="bg-white border border-slate-200/80 rounded-2xl p-8 text-center text-xs text-slate-500 shadow-2xs space-y-3">
           <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-100 text-[#2B7A78] flex items-center justify-center mx-auto shadow-2xs">
@@ -223,7 +222,7 @@ export const VacunasPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowMinsalModal(true)}
-              className="px-3.5 py-1.5 bg-[#2B7A78] text-white font-bold rounded-xl transition cursor-pointer text-xs"
+              className="px-4 py-2 bg-[#2B7A78] hover:bg-[#236866] text-white font-bold rounded-xl transition cursor-pointer text-xs shadow-2xs"
             >
               Consultar Esquema MINSAL 2026
             </button>
@@ -234,7 +233,7 @@ export const VacunasPage: React.FC = () => {
                   setSearch('');
                   setCategoryFilter('ALL');
                 }}
-                className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer text-xs"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer text-xs"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Restablecer</span>
@@ -256,7 +255,7 @@ export const VacunasPage: React.FC = () => {
                 </span>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {items.map((record) => (
                   <VacunaCard
                     key={record.id}
@@ -271,16 +270,16 @@ export const VacunasPage: React.FC = () => {
         </div>
       )}
 
-      {/* 5. Franja Inferior Informativa de Certificación Digital */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-teal-50 border border-teal-100 text-[#2B7A78] flex items-center justify-center shrink-0 shadow-xs">
+      {/* 5. Franja Informativa de Certificación */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-teal-50 border border-teal-100 text-[#2B7A78] flex items-center justify-center shrink-0 shadow-2xs">
             <Info className="w-4 h-4" />
           </div>
           <p className="text-xs text-slate-600 font-medium leading-relaxed">
             <strong className="text-slate-900 font-bold">Pasaporte Clínico Inalterable:</strong> Los biológicos
-            registrados corresponden a las dosis certificadas en centros de salud y brigadas comunitarias. Para registrar
-            una vacuna previa de tu cartilla física, preséntala ante tu médico tratante.
+            registrados corresponden a las aplicaciones certificadas en jornadas territoriales. Para homologar
+            inmunizaciones previas de tu cartilla física, preséntala ante tu brigada médica.
           </p>
         </div>
 
@@ -290,13 +289,13 @@ export const VacunasPage: React.FC = () => {
             setShowToast(true);
             setTimeout(() => setShowToast(false), 4000);
           }}
-          className="shrink-0 px-3.5 py-1.5 bg-slate-100 hover:bg-[#2B7A78] text-slate-700 hover:text-white font-bold text-xs rounded-xl border border-slate-200 hover:border-[#2B7A78] transition-all cursor-pointer shadow-xs select-none"
+          className="shrink-0 px-3.5 py-1.5 bg-slate-100 hover:bg-[#2B7A78] text-slate-700 hover:text-white font-bold text-xs rounded-xl border border-slate-200 hover:border-[#2B7A78] transition-all cursor-pointer shadow-2xs select-none"
         >
           Validar cartilla física
         </button>
       </div>
 
-      {/* Modales Clínicos Desacoplados Reexportados desde el Módulo de Vacunas */}
+      {/* Modales Clínicos Reutilizables */}
       <DetalleVacunaModal
         record={selectedRecord}
         targetDisease={selectedRecord ? targetDiseaseMap.get(selectedRecord.vaccineCode) : undefined}
@@ -308,14 +307,14 @@ export const VacunasPage: React.FC = () => {
         onClose={() => setShowMinsalModal(false)}
       />
 
-      {/* Modal Rápido de Cartilla Digital QR */}
+      {/* Modal QR Rápido */}
       {showCartillaModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
           <div
             className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-sm p-6 text-center space-y-4 animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-14 h-14 rounded-2xl bg-teal-50 border border-teal-100 text-[#2B7A78] flex items-center justify-center mx-auto shadow-sm">
+            <div className="w-14 h-14 rounded-2xl bg-teal-50 border border-teal-100 text-[#2B7A78] flex items-center justify-center mx-auto shadow-2xs">
               <QrCode className="w-8 h-8" />
             </div>
 

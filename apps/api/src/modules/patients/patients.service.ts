@@ -1,12 +1,20 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/patients/patients.service.ts
-// DESCRIPCIÓN: Servicio de gestión de pacientes con persistencia estructurada de antecedentes
-//              médicos (Paso 3 de Salud) y auto-aprovisionamiento en Onboarding.
+// DESCRIPCIÓN: Servicio de gestión de pacientes con normalización de DUI,
+//              Grupo Sanguíneo y administración completa de Contactos de Emergencia
+//              con auto-migración retrocompatible desde Patient y exactOptionalPropertyTypes.
 // =========================================================================
 
 import { prisma } from '../../config/prisma.js';
 import { BaseService } from '../../services/base.service.js';
-import { BloodType, Role, UserStatus, SyncStatus, Prisma } from '@prisma/client';
+import {
+  BloodType,
+  Role,
+  UserStatus,
+  SyncStatus,
+  Prisma,
+  EmergencyRelationship,
+} from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 export interface CreatePatientDTO {
@@ -21,7 +29,7 @@ export interface CreatePatientDTO {
   address: string;
   municipality?: string | null;
   department?: string | null;
-  bloodType?: BloodType;
+  bloodType?: BloodType | string;
   allergies?: string | null;
   chronicDiseases?: string | null;
   disabilities?: string | null;
@@ -41,7 +49,7 @@ export interface UpdatePatientProfileDTO {
   address: string;
   municipality?: string | null;
   department?: string | null;
-  bloodType?: BloodType;
+  bloodType?: BloodType | string;
   allergies?: string | null;
   chronicDiseases?: string | null;
   medication?: string | null;
@@ -64,6 +72,101 @@ export interface CreateVitalSignsDTO {
   originDeviceId?: string;
 }
 
+export interface CreateEmergencyContactDTO {
+  firstName: string;
+  lastName: string;
+  relationship?: EmergencyRelationship;
+  customRelation?: string | null;
+  primaryPhone: string;
+  secondaryPhone?: string | null;
+  email?: string | null;
+  isPrimary?: boolean;
+  isActive?: boolean;
+  originDeviceId?: string;
+}
+
+export interface UpdateEmergencyContactDTO {
+  firstName?: string;
+  lastName?: string;
+  relationship?: EmergencyRelationship;
+  customRelation?: string | null;
+  primaryPhone?: string;
+  secondaryPhone?: string | null;
+  email?: string | null;
+  isPrimary?: boolean;
+  isActive?: boolean;
+  originDeviceId?: string;
+}
+
+/**
+ * Normaliza y valida un número de DUI al formato oficial salvadoreño ########-#
+ */
+function normalizarDui(rawDui?: string | null): string | null {
+  if (!rawDui) return null;
+  const digits = rawDui.replace(/\D/g, '');
+  if (digits.length === 9) {
+    return `${digits.slice(0, 8)}-${digits.slice(8)}`;
+  }
+  if (rawDui.trim().length > 0 && /^\d{8}-\d{1}$/.test(rawDui.trim())) {
+    return rawDui.trim();
+  }
+  return null;
+}
+
+/**
+ * Mapea cualquier entrada de grupo sanguíneo al Enum BloodType estricto de Prisma.
+ */
+function normalizarBloodType(raw?: string | null): BloodType {
+  if (!raw) return BloodType.UNKNOWN;
+  const clean = raw.trim().toUpperCase().replace(/[\s\(\)]/g, '_');
+
+  const map: Record<string, BloodType> = {
+    O_POSITIVE: BloodType.O_POSITIVE,
+    'O+': BloodType.O_POSITIVE,
+    OPOSITIVE: BloodType.O_POSITIVE,
+    O_POSITIVO: BloodType.O_POSITIVE,
+
+    O_NEGATIVE: BloodType.O_NEGATIVE,
+    'O-': BloodType.O_NEGATIVE,
+    ONEGATIVE: BloodType.O_NEGATIVE,
+    O_NEGATIVO: BloodType.O_NEGATIVE,
+
+    A_POSITIVE: BloodType.A_POSITIVE,
+    'A+': BloodType.A_POSITIVE,
+    APOSITIVE: BloodType.A_POSITIVE,
+    A_POSITIVO: BloodType.A_POSITIVE,
+
+    A_NEGATIVE: BloodType.A_NEGATIVE,
+    'A-': BloodType.A_NEGATIVE,
+    ANEGATIVE: BloodType.A_NEGATIVE,
+    A_NEGATIVO: BloodType.A_NEGATIVE,
+
+    B_POSITIVE: BloodType.B_POSITIVE,
+    'B+': BloodType.B_POSITIVE,
+    BPOSITIVE: BloodType.B_POSITIVE,
+    B_POSITIVO: BloodType.B_POSITIVE,
+
+    B_NEGATIVE: BloodType.B_NEGATIVE,
+    'B-': BloodType.B_NEGATIVE,
+    BNEGATIVE: BloodType.B_NEGATIVE,
+    B_NEGATIVO: BloodType.B_NEGATIVE,
+
+    AB_POSITIVE: BloodType.AB_POSITIVE,
+    'AB+': BloodType.AB_POSITIVE,
+    ABPOSITIVE: BloodType.AB_POSITIVE,
+    AB_POSITIVO: BloodType.AB_POSITIVE,
+
+    AB_NEGATIVE: BloodType.AB_NEGATIVE,
+    'AB-': BloodType.AB_NEGATIVE,
+    ABNEGATIVE: BloodType.AB_NEGATIVE,
+    AB_NEGATIVO: BloodType.AB_NEGATIVE,
+
+    UNKNOWN: BloodType.UNKNOWN,
+  };
+
+  return map[clean] || BloodType.UNKNOWN;
+}
+
 function normalizarTexto(texto: string | null | undefined): string {
   if (!texto) return '';
   return texto
@@ -80,6 +183,73 @@ function normalizarAlfanumerico(texto: string | null | undefined): string {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Traduce el enum a formato legible en español para el expediente y carnet del paciente
+ */
+function formatRelationLabel(rel: EmergencyRelationship, custom?: string | null): string {
+  if (rel === EmergencyRelationship.OTRO && custom?.trim()) {
+    return custom.trim();
+  }
+  const map: Record<EmergencyRelationship, string> = {
+    MADRE: 'Madre',
+    PADRE: 'Padre',
+    HIJO_A: 'Hijo/a',
+    HERMANO_A: 'Hermano/a',
+    CONYUGE: 'Cónyuge',
+    PAREJA: 'Pareja',
+    ABUELO_A: 'Abuelo/a',
+    TUTOR_A: 'Tutor/a',
+    FAMILIAR: 'Familiar',
+    AMIGO_A: 'Amigo/a',
+    OTRO: 'Otro',
+  };
+  return map[rel] || 'Familiar';
+}
+
+/**
+ * Interpreta relaciones textuales heredadas (ej. "Madre", "Esposo", "Hermana") y las mapea al enum
+ */
+function parseLegacyRelationship(relationStr?: string | null): {
+  relationship: EmergencyRelationship;
+  customRelation: string | null;
+} {
+  if (!relationStr || !relationStr.trim()) {
+    return { relationship: EmergencyRelationship.FAMILIAR, customRelation: null };
+  }
+  const clean = normalizarTexto(relationStr);
+  if (clean.includes('madr') || clean.includes('mama')) {
+    return { relationship: EmergencyRelationship.MADRE, customRelation: null };
+  }
+  if (clean.includes('padr') || clean.includes('papa')) {
+    return { relationship: EmergencyRelationship.PADRE, customRelation: null };
+  }
+  if (clean.includes('hij')) {
+    return { relationship: EmergencyRelationship.HIJO_A, customRelation: null };
+  }
+  if (clean.includes('herman')) {
+    return { relationship: EmergencyRelationship.HERMANO_A, customRelation: null };
+  }
+  if (clean.includes('conyug') || clean.includes('espos')) {
+    return { relationship: EmergencyRelationship.CONYUGE, customRelation: null };
+  }
+  if (clean.includes('parej')) {
+    return { relationship: EmergencyRelationship.PAREJA, customRelation: null };
+  }
+  if (clean.includes('abuel')) {
+    return { relationship: EmergencyRelationship.ABUELO_A, customRelation: null };
+  }
+  if (clean.includes('tutor')) {
+    return { relationship: EmergencyRelationship.TUTOR_A, customRelation: null };
+  }
+  if (clean.includes('amig')) {
+    return { relationship: EmergencyRelationship.AMIGO_A, customRelation: null };
+  }
+  if (clean.includes('familiar')) {
+    return { relationship: EmergencyRelationship.FAMILIAR, customRelation: null };
+  }
+  return { relationship: EmergencyRelationship.OTRO, customRelation: relationStr.trim() };
 }
 
 export class PatientsService extends BaseService {
@@ -125,7 +295,7 @@ export class PatientsService extends BaseService {
   }
 
   async checkDuiAvailability(dui: string): Promise<{ available: boolean; patientName?: string }> {
-    const cleanDui = dui.trim();
+    const cleanDui = normalizarDui(dui);
     if (!cleanDui) return { available: true };
 
     const existing = await prisma.patient.findFirst({
@@ -168,6 +338,8 @@ export class PatientsService extends BaseService {
   async createPatient(data: CreatePatientDTO) {
     const deviceId = data.originDeviceId || 'SERVER_CENTRAL';
     const emailNormalizado = data.email.trim().toLowerCase();
+    const cleanDui = normalizarDui(data.dui);
+    const validBloodType = normalizarBloodType(data.bloodType as string);
 
     const emailExistente = await prisma.user.findFirst({
       where: { email: emailNormalizado, deletedAt: null },
@@ -176,12 +348,12 @@ export class PatientsService extends BaseService {
       throw new Error('El correo electrónico ya se encuentra registrado en MedicOS.');
     }
 
-    if (data.dui?.trim()) {
+    if (cleanDui) {
       const duiExistente = await prisma.patient.findFirst({
-        where: { dui: data.dui.trim(), deletedAt: null },
+        where: { dui: cleanDui, deletedAt: null },
       });
       if (duiExistente) {
-        throw new Error(`El DUI ${data.dui} ya está asociado al paciente ${duiExistente.firstName} ${duiExistente.lastName}.`);
+        throw new Error(`El DUI ${cleanDui} ya está asociado al paciente ${duiExistente.firstName} ${duiExistente.lastName}.`);
       }
     }
 
@@ -220,7 +392,7 @@ export class PatientsService extends BaseService {
           firstName: data.firstName.trim(),
           lastName: data.lastName.trim(),
           dateOfBirth: new Date(data.dateOfBirth),
-          dui: data.dui?.trim() || null,
+          dui: cleanDui,
           sex: data.sex || 'OTHER',
           phone: data.phone?.trim() || null,
           address: direccionCompleta,
@@ -237,7 +409,7 @@ export class PatientsService extends BaseService {
       const clinicalRecord = await tx.clinicalRecord.create({
         data: {
           patientId: patient.id,
-          bloodType: data.bloodType || BloodType.UNKNOWN,
+          bloodType: validBloodType,
           familyHistory: data.familyHistory?.trim() || null,
           surgicalHistory: data.surgicalHistory?.trim() || null,
           observations: healthMetadata,
@@ -247,6 +419,30 @@ export class PatientsService extends BaseService {
           lastModifiedByDeviceId: deviceId,
         },
       });
+
+      if (data.emergencyName?.trim() && data.emergencyPhone?.trim()) {
+        const partsName = data.emergencyName.trim().split(/\s+/);
+        const contactFirst = partsName[0] || 'Contacto';
+        const contactLast = partsName.slice(1).join(' ') || 'Emergencia';
+        const { relationship, customRelation } = parseLegacyRelationship(data.emergencyRelation);
+
+        await tx.emergencyContact.create({
+          data: {
+            patientId: patient.id,
+            firstName: contactFirst,
+            lastName: contactLast,
+            relationship,
+            customRelation,
+            primaryPhone: data.emergencyPhone.trim(),
+            isPrimary: true,
+            isActive: true,
+            syncStatus: SyncStatus.SYNCED,
+            version: 1,
+            originDeviceId: deviceId,
+            lastModifiedByDeviceId: deviceId,
+          },
+        });
+      }
 
       return {
         id: patient.id,
@@ -276,11 +472,6 @@ export class PatientsService extends BaseService {
     });
   }
 
-  /**
-   * Actualiza el perfil clínico y completa el expediente del paciente desde el Onboarding.
-   * Empaqueta antecedentes de salud (alergias, enfermedades crónicas, medicación, observaciones)
-   * de forma estructurada en ClinicalRecord.
-   */
   async updatePatientProfile(identifier: string, data: UpdatePatientProfileDTO) {
     let resolvedId = await this.resolvePatientId(identifier);
     const userObj = await prisma.user.findFirst({
@@ -307,7 +498,9 @@ export class PatientsService extends BaseService {
       }
     }
 
-    const cleanDui = data.dui?.trim() || null;
+    const cleanDui = normalizarDui(data.dui);
+    const validBloodType = normalizarBloodType(data.bloodType as string);
+
     if (cleanDui) {
       const duiExistente = await prisma.patient.findFirst({
         where: {
@@ -328,7 +521,6 @@ export class PatientsService extends BaseService {
     ].filter(Boolean);
     const direccionCompleta = partesDireccion.join(', ');
 
-    // Estructuración de datos médicos para almacenamiento en observaciones
     const healthObservations = JSON.stringify({
       allergies: data.allergies?.trim() || 'Ninguna reportada',
       chronicDiseases: data.chronicDiseases?.trim() || 'Ninguna registrada',
@@ -373,7 +565,7 @@ export class PatientsService extends BaseService {
         await tx.clinicalRecord.create({
           data: {
             patientId: newPatient.id,
-            bloodType: data.bloodType || BloodType.UNKNOWN,
+            bloodType: validBloodType,
             observations: healthObservations,
             syncStatus: SyncStatus.SYNCED,
             version: 1,
@@ -381,6 +573,27 @@ export class PatientsService extends BaseService {
             lastModifiedByDeviceId: 'WEB_PORTAL',
           },
         });
+
+        if (data.emergencyName?.trim() && data.emergencyPhone?.trim()) {
+          const partsName = data.emergencyName.trim().split(/\s+/);
+          const { relationship, customRelation } = parseLegacyRelationship(data.emergencyRelation);
+          await tx.emergencyContact.create({
+            data: {
+              patientId: newPatient.id,
+              firstName: partsName[0] || 'Contacto',
+              lastName: partsName.slice(1).join(' ') || 'Emergencia',
+              relationship,
+              customRelation,
+              primaryPhone: data.emergencyPhone.trim(),
+              isPrimary: true,
+              isActive: true,
+              syncStatus: SyncStatus.SYNCED,
+              version: 1,
+              originDeviceId: 'WEB_PORTAL',
+              lastModifiedByDeviceId: 'WEB_PORTAL',
+            },
+          });
+        }
 
         return tx.patient.findUnique({
           where: { id: newPatient.id },
@@ -396,20 +609,25 @@ export class PatientsService extends BaseService {
 
     // Caso 2: Actualización de expediente existente
     return prisma.$transaction(async (tx) => {
+      const updateData: Prisma.PatientUpdateInput = {
+        dateOfBirth: new Date(data.dateOfBirth),
+        sex: data.sex || 'OTHER',
+        phone: data.phone?.trim() || null,
+        address: direccionCompleta,
+        emergencyName: data.emergencyName?.trim() || null,
+        emergencyPhone: data.emergencyPhone?.trim() || null,
+        emergencyRelation: data.emergencyRelation?.trim() || null,
+        version: { increment: 1 },
+        lastModifiedByDeviceId: 'WEB_PORTAL',
+      };
+
+      if (cleanDui) {
+        updateData.dui = cleanDui;
+      }
+
       const updatedPatient = await tx.patient.update({
         where: { id: resolvedId },
-        data: {
-          dateOfBirth: new Date(data.dateOfBirth),
-          dui: cleanDui,
-          sex: data.sex || 'OTHER',
-          phone: data.phone?.trim() || null,
-          address: direccionCompleta,
-          emergencyName: data.emergencyName?.trim() || null,
-          emergencyPhone: data.emergencyPhone?.trim() || null,
-          emergencyRelation: data.emergencyRelation?.trim() || null,
-          version: { increment: 1 },
-          lastModifiedByDeviceId: 'WEB_PORTAL',
-        },
+        data: updateData,
       });
 
       if (updatedPatient.userId && data.phone?.trim()) {
@@ -419,26 +637,74 @@ export class PatientsService extends BaseService {
         });
       }
 
-      const clinicalUpdateData: Prisma.ClinicalRecordUpdateInput = {
-        bloodType: data.bloodType || BloodType.UNKNOWN,
+      const clinicalRecordUpdateData: Prisma.ClinicalRecordUpdateInput = {
         observations: healthObservations,
         version: { increment: 1 },
         lastModifiedByDeviceId: 'WEB_PORTAL',
       };
 
+      if (validBloodType !== BloodType.UNKNOWN) {
+        clinicalRecordUpdateData.bloodType = validBloodType;
+      }
+
       await tx.clinicalRecord.upsert({
         where: { patientId: resolvedId },
         create: {
           patientId: resolvedId,
-          bloodType: data.bloodType || BloodType.UNKNOWN,
+          bloodType: validBloodType,
           observations: healthObservations,
           syncStatus: SyncStatus.SYNCED,
           version: 1,
           originDeviceId: 'WEB_PORTAL',
           lastModifiedByDeviceId: 'WEB_PORTAL',
         },
-        update: clinicalUpdateData,
+        update: clinicalRecordUpdateData,
       });
+
+      // Sincronizar hacia EmergencyContact si se proporcionaron datos de emergencia en Datos Personales
+      if (data.emergencyName?.trim() && data.emergencyPhone?.trim()) {
+        const partsName = data.emergencyName.trim().split(/\s+/);
+        const contactFirst = partsName[0] || 'Contacto';
+        const contactLast = partsName.slice(1).join(' ') || 'Emergencia';
+        const { relationship, customRelation } = parseLegacyRelationship(data.emergencyRelation);
+
+        const primaryExists = await tx.emergencyContact.findFirst({
+          where: { patientId: resolvedId, isPrimary: true, deletedAt: null },
+        });
+
+        if (primaryExists) {
+          await tx.emergencyContact.update({
+            where: { id: primaryExists.id },
+            data: {
+              firstName: contactFirst,
+              lastName: contactLast,
+              primaryPhone: data.emergencyPhone.trim(),
+              relationship,
+              customRelation,
+              isActive: true,
+              version: { increment: 1 },
+              lastModifiedByDeviceId: 'WEB_PORTAL',
+            },
+          });
+        } else {
+          await tx.emergencyContact.create({
+            data: {
+              patientId: resolvedId,
+              firstName: contactFirst,
+              lastName: contactLast,
+              primaryPhone: data.emergencyPhone.trim(),
+              relationship,
+              customRelation,
+              isPrimary: true,
+              isActive: true,
+              syncStatus: SyncStatus.SYNCED,
+              version: 1,
+              originDeviceId: 'WEB_PORTAL',
+              lastModifiedByDeviceId: 'WEB_PORTAL',
+            },
+          });
+        }
+      }
 
       return tx.patient.findUnique({
         where: { id: updatedPatient.id },
@@ -451,6 +717,358 @@ export class PatientsService extends BaseService {
       });
     });
   }
+
+  // =========================================================================
+  // GESTIÓN DE CONTACTOS DE EMERGENCIA DEL PACIENTE
+  // =========================================================================
+
+  /**
+   * Obtiene la lista de contactos de emergencia del paciente autenticado.
+   * Si la tabla está vacía pero el paciente tiene datos de emergencia en su expediente,
+   * realiza una auto-migración transparente al vuelo para conservar su contacto.
+   */
+  async getEmergencyContacts(identifier: string) {
+    const patientId = await this.resolvePatientId(identifier);
+    if (!patientId) return [];
+
+    const existingContacts = await prisma.emergencyContact.findMany({
+      where: {
+        patientId,
+        deletedAt: null,
+      },
+      orderBy: [
+        { isPrimary: 'desc' },
+        { createdAt: 'asc' },
+      ],
+    });
+
+    if (existingContacts.length > 0) {
+      return existingContacts;
+    }
+
+    // AUTO-MIGRACIÓN AL VUELO: Si no hay filas pero Patient tiene emergencyName y emergencyPhone
+    const patient = await prisma.patient.findUnique({
+      where: { id: patientId },
+      select: {
+        id: true,
+        emergencyName: true,
+        emergencyPhone: true,
+        emergencyRelation: true,
+      },
+    });
+
+    if (patient?.emergencyName?.trim() && patient?.emergencyPhone?.trim()) {
+      const parts = patient.emergencyName.trim().split(/\s+/);
+      const firstName = parts[0] || 'Contacto';
+      const lastName = parts.slice(1).join(' ') || 'Emergencia';
+      const { relationship, customRelation } = parseLegacyRelationship(patient.emergencyRelation);
+
+      const migratedContact = await prisma.emergencyContact.create({
+        data: {
+          patientId: patient.id,
+          firstName,
+          lastName,
+          relationship,
+          customRelation,
+          primaryPhone: patient.emergencyPhone.trim(),
+          isPrimary: true,
+          isActive: true,
+          syncStatus: SyncStatus.SYNCED,
+          version: 1,
+          originDeviceId: 'WEB_PORTAL',
+          lastModifiedByDeviceId: 'WEB_PORTAL',
+        },
+      });
+
+      return [migratedContact];
+    }
+
+    return [];
+  }
+
+  /**
+   * Registra un nuevo contacto de emergencia.
+   * Regla de negocio: Si se marca como Principal o es el primer contacto registrado,
+   * se asegura la unicidad y se sincroniza con el modelo Patient.
+   */
+  async createEmergencyContact(identifier: string, data: CreateEmergencyContactDTO) {
+    const patientId = await this.resolvePatientId(identifier);
+    if (!patientId) {
+      throw new Error('No se encontró el expediente del paciente para registrar el contacto.');
+    }
+
+    const deviceId = data.originDeviceId || 'WEB_PORTAL';
+    const activeContactsCount = await prisma.emergencyContact.count({
+      where: { patientId, deletedAt: null },
+    });
+
+    const shouldBePrimary = activeContactsCount === 0 ? true : Boolean(data.isPrimary);
+    const relationEnum = data.relationship || EmergencyRelationship.FAMILIAR;
+    const customRel = relationEnum === EmergencyRelationship.OTRO ? (data.customRelation?.trim() || null) : null;
+
+    return prisma.$transaction(async (tx) => {
+      if (shouldBePrimary) {
+        await tx.emergencyContact.updateMany({
+          where: { patientId, deletedAt: null },
+          data: { isPrimary: false },
+        });
+      }
+
+      const newContact = await tx.emergencyContact.create({
+        data: {
+          patientId,
+          firstName: data.firstName.trim(),
+          lastName: data.lastName.trim(),
+          relationship: relationEnum,
+          customRelation: customRel,
+          primaryPhone: data.primaryPhone.trim(),
+          secondaryPhone: data.secondaryPhone?.trim() || null,
+          email: data.email?.trim().toLowerCase() || null,
+          isPrimary: shouldBePrimary,
+          isActive: data.isActive !== undefined ? data.isActive : true,
+          syncStatus: SyncStatus.SYNCED,
+          version: 1,
+          originDeviceId: deviceId,
+          lastModifiedByDeviceId: deviceId,
+        },
+      });
+
+      if (shouldBePrimary) {
+        await tx.patient.update({
+          where: { id: patientId },
+          data: {
+            emergencyName: `${newContact.firstName} ${newContact.lastName}`.trim(),
+            emergencyPhone: newContact.primaryPhone,
+            emergencyRelation: formatRelationLabel(relationEnum, customRel),
+            lastModifiedByDeviceId: deviceId,
+          },
+        });
+      }
+
+      return newContact;
+    });
+  }
+
+  /**
+   * Actualiza los datos de un contacto de emergencia existente.
+   */
+  async updateEmergencyContact(identifier: string, contactId: string, data: UpdateEmergencyContactDTO) {
+    const patientId = await this.resolvePatientId(identifier);
+    if (!patientId) {
+      throw new Error('Expediente del paciente no encontrado.');
+    }
+
+    const existingContact = await prisma.emergencyContact.findFirst({
+      where: { id: contactId, patientId, deletedAt: null },
+    });
+    if (!existingContact) {
+      throw new Error('El contacto de emergencia no existe o ya ha sido removido.');
+    }
+
+    const deviceId = data.originDeviceId || 'WEB_PORTAL';
+
+    return prisma.$transaction(async (tx) => {
+      if (data.isPrimary === true) {
+        await tx.emergencyContact.updateMany({
+          where: { patientId, id: { not: contactId }, deletedAt: null },
+          data: { isPrimary: false },
+        });
+      }
+
+      const updatePayload: Prisma.EmergencyContactUpdateInput = {
+        version: { increment: 1 },
+        lastModifiedByDeviceId: deviceId,
+      };
+
+      if (data.firstName !== undefined) updatePayload.firstName = data.firstName.trim();
+      if (data.lastName !== undefined) updatePayload.lastName = data.lastName.trim();
+      if (data.relationship !== undefined) updatePayload.relationship = data.relationship;
+
+      if (data.relationship === EmergencyRelationship.OTRO) {
+        updatePayload.customRelation = data.customRelation?.trim() || null;
+      } else if (data.relationship) {
+        updatePayload.customRelation = null;
+      } else if (data.customRelation !== undefined) {
+        updatePayload.customRelation = data.customRelation?.trim() || null;
+      }
+
+      if (data.primaryPhone !== undefined) updatePayload.primaryPhone = data.primaryPhone.trim();
+      if (data.secondaryPhone !== undefined) {
+        updatePayload.secondaryPhone = data.secondaryPhone?.trim() || null;
+      }
+      if (data.email !== undefined) {
+        updatePayload.email = data.email?.trim().toLowerCase() || null;
+      }
+      if (data.isPrimary !== undefined) updatePayload.isPrimary = data.isPrimary;
+      if (data.isActive !== undefined) updatePayload.isActive = data.isActive;
+
+      const updated = await tx.emergencyContact.update({
+        where: { id: contactId },
+        data: updatePayload,
+      });
+
+      if (updated.isPrimary && updated.isActive) {
+        await tx.patient.update({
+          where: { id: patientId },
+          data: {
+            emergencyName: `${updated.firstName} ${updated.lastName}`.trim(),
+            emergencyPhone: updated.primaryPhone,
+            emergencyRelation: formatRelationLabel(updated.relationship, updated.customRelation),
+            lastModifiedByDeviceId: deviceId,
+          },
+        });
+      } else if (existingContact.isPrimary && (!updated.isPrimary || !updated.isActive)) {
+        const fallback = await tx.emergencyContact.findFirst({
+          where: { patientId, id: { not: contactId }, deletedAt: null, isActive: true },
+          orderBy: { createdAt: 'asc' },
+        });
+
+        if (fallback) {
+          await tx.emergencyContact.update({
+            where: { id: fallback.id },
+            data: { isPrimary: true },
+          });
+          await tx.patient.update({
+            where: { id: patientId },
+            data: {
+              emergencyName: `${fallback.firstName} ${fallback.lastName}`.trim(),
+              emergencyPhone: fallback.primaryPhone,
+              emergencyRelation: formatRelationLabel(fallback.relationship, fallback.customRelation),
+              lastModifiedByDeviceId: deviceId,
+            },
+          });
+        } else {
+          await tx.patient.update({
+            where: { id: patientId },
+            data: {
+              emergencyName: null,
+              emergencyPhone: null,
+              emergencyRelation: null,
+              lastModifiedByDeviceId: deviceId,
+            },
+          });
+        }
+      }
+
+      return updated;
+    });
+  }
+
+  /**
+   * Elimina suavemente (soft delete) un contacto de emergencia.
+   * Si era el principal, transfiere automáticamente el rango al siguiente contacto activo.
+   */
+  async deleteEmergencyContact(identifier: string, contactId: string) {
+    const patientId = await this.resolvePatientId(identifier);
+    if (!patientId) {
+      throw new Error('Expediente del paciente no encontrado.');
+    }
+
+    const contact = await prisma.emergencyContact.findFirst({
+      where: { id: contactId, patientId, deletedAt: null },
+    });
+    if (!contact) {
+      throw new Error('El contacto a eliminar no fue encontrado.');
+    }
+
+    return prisma.$transaction(async (tx) => {
+      await tx.emergencyContact.update({
+        where: { id: contactId },
+        data: {
+          deletedAt: new Date(),
+          isPrimary: false,
+          isActive: false,
+          version: { increment: 1 },
+          lastModifiedByDeviceId: 'WEB_PORTAL',
+        },
+      });
+
+      if (contact.isPrimary) {
+        const nextPrimary = await tx.emergencyContact.findFirst({
+          where: { patientId, deletedAt: null, isActive: true },
+          orderBy: { createdAt: 'asc' },
+        });
+
+        if (nextPrimary) {
+          await tx.emergencyContact.update({
+            where: { id: nextPrimary.id },
+            data: { isPrimary: true },
+          });
+          await tx.patient.update({
+            where: { id: patientId },
+            data: {
+              emergencyName: `${nextPrimary.firstName} ${nextPrimary.lastName}`.trim(),
+              emergencyPhone: nextPrimary.primaryPhone,
+              emergencyRelation: formatRelationLabel(nextPrimary.relationship, nextPrimary.customRelation),
+              lastModifiedByDeviceId: 'WEB_PORTAL',
+            },
+          });
+        } else {
+          await tx.patient.update({
+            where: { id: patientId },
+            data: {
+              emergencyName: null,
+              emergencyPhone: null,
+              emergencyRelation: null,
+              lastModifiedByDeviceId: 'WEB_PORTAL',
+            },
+          });
+        }
+      }
+
+      return { success: true, message: 'Contacto de emergencia eliminado exitosamente.' };
+    });
+  }
+
+  /**
+   * Establece explícitamente un contacto como Principal.
+   */
+  async setPrimaryEmergencyContact(identifier: string, contactId: string) {
+    const patientId = await this.resolvePatientId(identifier);
+    if (!patientId) {
+      throw new Error('Expediente del paciente no encontrado.');
+    }
+
+    const targetContact = await prisma.emergencyContact.findFirst({
+      where: { id: contactId, patientId, deletedAt: null },
+    });
+    if (!targetContact) {
+      throw new Error('Contacto no encontrado.');
+    }
+
+    return prisma.$transaction(async (tx) => {
+      await tx.emergencyContact.updateMany({
+        where: { patientId, deletedAt: null },
+        data: { isPrimary: false },
+      });
+
+      const updated = await tx.emergencyContact.update({
+        where: { id: contactId },
+        data: {
+          isPrimary: true,
+          isActive: true,
+          version: { increment: 1 },
+          lastModifiedByDeviceId: 'WEB_PORTAL',
+        },
+      });
+
+      await tx.patient.update({
+        where: { id: patientId },
+        data: {
+          emergencyName: `${updated.firstName} ${updated.lastName}`.trim(),
+          emergencyPhone: updated.primaryPhone,
+          emergencyRelation: formatRelationLabel(updated.relationship, updated.customRelation),
+          lastModifiedByDeviceId: 'WEB_PORTAL',
+        },
+      });
+
+      return updated;
+    });
+  }
+
+  // =========================================================================
+  // CONSULTAS GENERALES Y EXPEDIENTES
+  // =========================================================================
 
   async getAllPatients(search?: string) {
     const todosLosPacientes = await prisma.patient.findMany({
@@ -685,7 +1303,7 @@ export class PatientsService extends BaseService {
         createdAt: { gte: startOfDay },
         patient: {
           deletedAt: null,
-        }
+        },
       },
       include: {
         patient: {

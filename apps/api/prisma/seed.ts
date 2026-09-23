@@ -1,7 +1,8 @@
 // =========================================================================
 // ARCHIVO: apps/api/prisma/seed.ts
 // DESCRIPCIÓN: Sembrado maestro para MedicOS (103 Establecimientos Oficiales,
-//              IAM, Dispositivos, Brigadas, Pacientes, Consultas y Auditoría).
+//              IAM, Dispositivos, Brigadas, Pacientes con persistencia real
+//              de DUI, Grupo Sanguíneo y Contactos de Emergencia Oficiales).
 // =========================================================================
 
 import path from 'path';
@@ -27,6 +28,7 @@ import {
   EstablishmentOperator,
   EstablishmentStatus,
   SyncStatus,
+  EmergencyRelationship,
 } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
@@ -65,6 +67,17 @@ interface EstablishmentSeedRecord {
   specialties: string[];
 }
 
+interface EmergencyContactSeedData {
+  firstName: string;
+  lastName: string;
+  relationship: EmergencyRelationship;
+  customRelation?: string | null;
+  primaryPhone: string;
+  secondaryPhone?: string | null;
+  email?: string | null;
+  isPrimary: boolean;
+}
+
 interface PacienteSeedData {
   userId: string;
   firstName: string;
@@ -76,6 +89,10 @@ interface PacienteSeedData {
   address: string;
   bloodType: BloodType;
   familyHistory: string;
+  emergencyName: string;
+  emergencyPhone: string;
+  emergencyRelation: string;
+  contacts: EmergencyContactSeedData[];
   createdAt: Date;
 }
 
@@ -764,9 +781,9 @@ const verifiedNationalHospitals: EstablishmentSeedRecord[] = [
   },
 ];
 
-// =========================================================================
+// =========================================================
 // 2. CATÁLOGO OFICIAL DE UNIDADES MÉDICAS ISSS (26)
-// =========================================================================
+// =========================================================
 const verifiedISSSHealthUnits: EstablishmentSeedRecord[] = [
   {
     code: 'ISSS-UM-001',
@@ -2008,8 +2025,10 @@ async function main() {
   console.log(`✅ Brigada activa para hoy: ${brigade.name}`);
 
   // -----------------------------------------------------------------------
-  // 5. Crear Pacientes y Expedientes Clínicos
+  // 5. Crear o Actualizar Pacientes, Expedientes y Contactos de Emergencia
   // -----------------------------------------------------------------------
+  await prisma.emergencyContact.deleteMany({});
+
   const pacientesData: PacienteSeedData[] = [
     {
       userId: patientUser1.id,
@@ -2022,6 +2041,28 @@ async function main() {
       address: 'Barrio El Centro, Calle Principal, San Miguel Tepezontes',
       bloodType: BloodType.O_POSITIVE,
       familyHistory: 'Diabetes Mellitus Tipo 2 (Madre)',
+      emergencyName: 'Carmen Elena González',
+      emergencyPhone: '+503 7890-1234',
+      emergencyRelation: 'Madre',
+      contacts: [
+        {
+          firstName: 'Carmen Elena',
+          lastName: 'González',
+          relationship: EmergencyRelationship.MADRE,
+          primaryPhone: '+503 7890-1234',
+          secondaryPhone: '+503 2234-5678',
+          email: 'carmen.gonzalez@correo.sv',
+          isPrimary: true,
+        },
+        {
+          firstName: 'Roberto Carlos',
+          lastName: 'González',
+          relationship: EmergencyRelationship.HERMANO_A,
+          primaryPhone: '+503 7654-3210',
+          email: 'roberto.gonzalez@correo.sv',
+          isPrimary: false,
+        },
+      ],
       createdAt: fechaHaceMinutos(180),
     },
     {
@@ -2035,6 +2076,18 @@ async function main() {
       address: 'Caserío El Calvario, San Miguel Tepezontes',
       bloodType: BloodType.A_POSITIVE,
       familyHistory: 'Hipertensión Arterial (Padre)',
+      emergencyName: 'Sofía de Ruiz',
+      emergencyPhone: '+503 7111-2233',
+      emergencyRelation: 'Cónyuge',
+      contacts: [
+        {
+          firstName: 'Sofía',
+          lastName: 'de Ruiz',
+          relationship: EmergencyRelationship.CONYUGE,
+          primaryPhone: '+503 7111-2233',
+          isPrimary: true,
+        },
+      ],
       createdAt: fechaHaceMinutos(120),
     },
     {
@@ -2048,6 +2101,18 @@ async function main() {
       address: 'Cantón La Cruz, San Miguel Tepezontes',
       bloodType: BloodType.O_POSITIVE,
       familyHistory: 'Sin antecedentes relevantes',
+      emergencyName: 'Manuel Rodríguez',
+      emergencyPhone: '+503 7444-5566',
+      emergencyRelation: 'Padre',
+      contacts: [
+        {
+          firstName: 'Manuel',
+          lastName: 'Rodríguez',
+          relationship: EmergencyRelationship.PADRE,
+          primaryPhone: '+503 7444-5566',
+          isPrimary: true,
+        },
+      ],
       createdAt: fechaHaceMinutos(60),
     },
     {
@@ -2061,6 +2126,18 @@ async function main() {
       address: 'Barrio San José, San Miguel Tepezontes',
       bloodType: BloodType.O_NEGATIVE,
       familyHistory: 'Cardiopatía isquémica (Abuelo)',
+      emergencyName: 'Lucía Martínez',
+      emergencyPhone: '+503 7777-8899',
+      emergencyRelation: 'Hija',
+      contacts: [
+        {
+          firstName: 'Lucía',
+          lastName: 'Martínez',
+          relationship: EmergencyRelationship.HIJO_A,
+          primaryPhone: '+503 7777-8899',
+          isPrimary: true,
+        },
+      ],
       createdAt: fechaHaceMinutos(30),
     },
   ];
@@ -2069,7 +2146,12 @@ async function main() {
 
   for (const p of pacientesData) {
     let patient = await prisma.patient.findFirst({
-      where: { dui: p.dui },
+      where: {
+        OR: [
+          { userId: p.userId },
+          { dui: p.dui },
+        ],
+      },
       include: { clinicalRecord: true },
     });
 
@@ -2084,6 +2166,9 @@ async function main() {
           sex: p.sex,
           phone: p.phone,
           address: p.address,
+          emergencyName: p.emergencyName,
+          emergencyPhone: p.emergencyPhone,
+          emergencyRelation: p.emergencyRelation,
           originDeviceId: mobileDevice1.id,
           lastModifiedByDeviceId: mobileDevice1.id,
           createdAt: p.createdAt,
@@ -2105,17 +2190,64 @@ async function main() {
       patient = await prisma.patient.update({
         where: { id: patient.id },
         data: {
-          createdAt: p.createdAt,
-          updatedAt: p.createdAt,
+          userId: p.userId,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          dateOfBirth: p.dob,
+          dui: p.dui,
+          sex: p.sex,
+          phone: p.phone,
+          address: p.address,
+          emergencyName: p.emergencyName,
+          emergencyPhone: p.emergencyPhone,
+          emergencyRelation: p.emergencyRelation,
+          updatedAt: now,
+          clinicalRecord: {
+            upsert: {
+              create: {
+                bloodType: p.bloodType,
+                familyHistory: p.familyHistory,
+                originDeviceId: mobileDevice1.id,
+                lastModifiedByDeviceId: mobileDevice1.id,
+              },
+              update: {
+                bloodType: p.bloodType,
+                familyHistory: p.familyHistory,
+                lastModifiedByDeviceId: mobileDevice1.id,
+              },
+            },
+          },
         },
         include: { clinicalRecord: true },
+      });
+    }
+
+    // Sembrar los contactos de emergencia específicos para cada paciente
+    for (const c of p.contacts) {
+      await prisma.emergencyContact.create({
+        data: {
+          patientId: patient.id,
+          firstName: c.firstName,
+          lastName: c.lastName,
+          relationship: c.relationship,
+          customRelation: c.customRelation || null,
+          primaryPhone: c.primaryPhone,
+          secondaryPhone: c.secondaryPhone || null,
+          email: c.email || null,
+          isPrimary: c.isPrimary,
+          isActive: true,
+          syncStatus: SyncStatus.SYNCED,
+          version: 1,
+          originDeviceId: mobileDevice1.id,
+          lastModifiedByDeviceId: mobileDevice1.id,
+        },
       });
     }
 
     patientsList.push(patient);
   }
 
-  console.log('✅ Pacientes y expedientes clínicos preparados');
+  console.log('✅ Pacientes, expedientes y contactos de emergencia preparados exitosamente.');
 
   // -----------------------------------------------------------------------
   // 6. Consultas del Día

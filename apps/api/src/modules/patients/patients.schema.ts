@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/patients/patients.schema.ts
-// DESCRIPCIÓN: Esquemas Zod para validación de entrada de pacientes, cuentas y perfil clínico.
+// DESCRIPCIÓN: Esquemas Zod para validación de entrada de pacientes, cuentas,
+//              perfil clínico y gestión de Contactos de Emergencia en MedicOS.
 // =========================================================================
 
 import { z } from 'zod';
@@ -67,7 +68,7 @@ export const createPatientSchema = z.object({
     familyHistory: z.string().trim().optional().nullable(),
     surgicalHistory: z.string().trim().optional().nullable(),
 
-    // 5. Contacto de Emergencia
+    // 5. Contacto de Emergencia Base
     emergencyName: z.string().trim().optional().nullable(),
     emergencyPhone: z.string().trim().optional().nullable(),
     emergencyRelation: z.string().trim().optional().nullable(),
@@ -121,5 +122,107 @@ export const updatePatientProfileSchema = z.object({
   }),
 });
 
+// =========================================================================
+// ESQUEMAS DE CONTACTOS DE EMERGENCIA DEL PACIENTE
+// =========================================================================
+
+export const emergencyRelationshipEnum = z.enum([
+  'MADRE',
+  'PADRE',
+  'HIJO_A',
+  'HERMANO_A',
+  'CONYUGE',
+  'PAREJA',
+  'ABUELO_A',
+  'TUTOR_A',
+  'FAMILIAR',
+  'AMIGO_A',
+  'OTRO',
+]);
+
+export const emergencyContactIdParamSchema = z.object({
+  params: z.object({
+    contactId: z.string().uuid('ID de contacto de emergencia inválido'),
+  }),
+});
+
+export const createEmergencyContactSchema = z.object({
+  body: z
+    .object({
+      firstName: z.string().trim().min(2, 'El nombre debe tener al menos 2 caracteres'),
+      lastName: z.string().trim().min(2, 'El apellido debe tener al menos 2 caracteres'),
+      relationship: emergencyRelationshipEnum.default('FAMILIAR'),
+      customRelation: z.string().trim().optional().nullable(),
+      primaryPhone: z
+        .string()
+        .trim()
+        .min(8, 'El teléfono principal debe contener al menos 8 dígitos'),
+      secondaryPhone: z.string().trim().optional().nullable().or(z.literal('')),
+      email: z
+        .string()
+        .trim()
+        .email('El correo electrónico no tiene un formato válido')
+        .optional()
+        .nullable()
+        .or(z.literal('')),
+      isPrimary: z.boolean().default(false),
+      isActive: z.boolean().default(true),
+    })
+    .refine(
+      (data) => {
+        if (data.relationship === 'OTRO') {
+          return Boolean(data.customRelation && data.customRelation.trim().length > 0);
+        }
+        return true;
+      },
+      {
+        message: 'Debe especificar el parentesco o relación si selecciona "Otro"',
+        path: ['customRelation'],
+      }
+    ),
+});
+
+export const updateEmergencyContactSchema = z.object({
+  params: z.object({
+    contactId: z.string().uuid('ID de contacto de emergencia inválido'),
+  }),
+  body: z
+    .object({
+      firstName: z.string().trim().min(2, 'El nombre debe tener al menos 2 caracteres').optional(),
+      lastName: z.string().trim().min(2, 'El apellido debe tener al menos 2 caracteres').optional(),
+      relationship: emergencyRelationshipEnum.optional(),
+      customRelation: z.string().trim().optional().nullable(),
+      primaryPhone: z
+        .string()
+        .trim()
+        .min(8, 'El teléfono principal debe contener al menos 8 dígitos')
+        .optional(),
+      secondaryPhone: z.string().trim().optional().nullable().or(z.literal('')),
+      email: z
+        .string()
+        .trim()
+        .email('El correo electrónico no tiene un formato válido')
+        .optional()
+        .nullable()
+        .or(z.literal('')),
+      isPrimary: z.boolean().optional(),
+      isActive: z.boolean().optional(),
+    })
+    .refine(
+      (data) => {
+        if (data.relationship === 'OTRO' && data.customRelation !== undefined) {
+          return Boolean(data.customRelation && data.customRelation.trim().length > 0);
+        }
+        return true;
+      },
+      {
+        message: 'Debe especificar el parentesco o relación si selecciona "Otro"',
+        path: ['customRelation'],
+      }
+    ),
+});
+
 export type CreatePatientInput = z.infer<typeof createPatientSchema>['body'];
 export type UpdatePatientProfileInput = z.infer<typeof updatePatientProfileSchema>['body'];
+export type CreateEmergencyContactInput = z.infer<typeof createEmergencyContactSchema>['body'];
+export type UpdateEmergencyContactInput = z.infer<typeof updateEmergencyContactSchema>['body'];

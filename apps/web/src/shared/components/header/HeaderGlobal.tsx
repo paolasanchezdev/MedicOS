@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/shared/components/header/HeaderGlobal.tsx
-// DESCRIPCIÓN: Header global con layout responsivo optimizado para móviles y tablets.
+// DESCRIPCIÓN: Header global limpio sin botones duplicados en escritorio.
 // =========================================================================
 
 import React from 'react';
@@ -50,13 +50,13 @@ export const HeaderGlobal: React.FC<HeaderGlobalProps> = ({
   onLogout,
 }) => {
   return (
-    <header className="h-16 sm:h-20 bg-white/95 backdrop-blur-md border-b border-slate-100 px-3 sm:px-6 lg:px-8 flex items-center justify-between shrink-0 sticky top-0 z-30 transition-all gap-2 sm:gap-4">
-      {/* Zona Izquierda: Disparador del Menú Móvil / Tablet */}
+    <header className="h-16 sm:h-20 bg-white/95 backdrop-blur-md border-b border-slate-100 px-3 sm:px-6 lg:px-8 flex items-center justify-between shrink-0 sticky top-0 z-30 transition-all gap-2 sm:gap-4 select-none">
+      {/* Zona Izquierda: Disparador del Menú Móvil / Tablet únicamente */}
       <div className="flex items-center gap-2 shrink-0">
         <button
           type="button"
           onClick={onOpenSidebar}
-          className="xl:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100/80 transition-colors focus:outline-none focus:ring-2 focus:ring-[#3f8880]/30"
+          className="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100/80 transition-colors focus:outline-none focus:ring-2 focus:ring-[#3f8880]/30 cursor-pointer"
           aria-label="Abrir menú de navegación"
         >
           <Menu className="w-5 h-5" />

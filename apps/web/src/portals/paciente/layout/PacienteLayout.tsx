@@ -1,10 +1,10 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/paciente/layout/PacienteLayout.tsx
-// DESCRIPCIÓN: Layout del Portal Paciente con detección de perfil incompleto
-//              y compuerta modular de bienvenida y carnet digital.
+// DESCRIPCIÓN: Layout del Portal Paciente con soporte de atajo Ctrl + B
+//              y proporciones calibradas para portátiles 1366x768.
 // =========================================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet } from 'react-router-dom';
 import { PacienteSidebar } from '../components/PacienteSidebar';
 import { PacienteHeader } from '../components/PacienteHeader';
@@ -37,8 +37,29 @@ function isAddressPending(addr?: string | null): boolean {
 
 export const PacienteLayout: React.FC<PacienteLayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useAuth();
 
+  // Estado de colapso de la barra lateral
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('medicos_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleCollapse = useCallback(() => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('medicos_sidebar_collapsed', String(next));
+      } catch {
+        // En caso de que localStorage esté restringido
+      }
+      return next;
+    });
+  }, []);
+
+  const { user } = useAuth();
   const [currentPatient, setCurrentPatient] = useState<PatientRecord | null>(null);
   const [checkingProfile, setCheckingProfile] = useState(true);
 
@@ -72,7 +93,6 @@ export const PacienteLayout: React.FC<PacienteLayoutProps> = ({ children }) => {
     };
   }, [user?.id]);
 
-  // Si la cuenta posee fecha de nacimiento temporal o dirección pendiente, se activa el onboarding
   const requiresOnboarding = Boolean(
     !checkingProfile &&
     currentPatient &&
@@ -80,22 +100,27 @@ export const PacienteLayout: React.FC<PacienteLayoutProps> = ({ children }) => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50/90 flex font-sans antialiased text-slate-800">
+    <div className="h-screen w-screen overflow-hidden bg-slate-50/90 flex font-sans antialiased text-slate-800 select-none">
       {/* Sidebar lateral */}
-      <PacienteSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <PacienteSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={toggleCollapse}
+      />
 
       {/* Área principal */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Header superior */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        {/* Header superior limpio */}
         <PacienteHeader onOpenSidebar={() => setSidebarOpen(true)} />
 
-        {/* Lienzo dinámico limpio */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 w-full">
+        {/* Lienzo dinámico */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6 w-full custom-scrollbar">
           {children || <Outlet />}
         </main>
       </div>
 
-      {/* Compuerta de Bienvenida y Activación de Carnet */}
+      {/* Compuerta de Bienvenida */}
       {requiresOnboarding && currentPatient && (
         <BienvenidaOnboardingModal
           patient={currentPatient}

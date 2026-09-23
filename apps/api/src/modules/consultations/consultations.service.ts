@@ -1,11 +1,13 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/consultations/consultations.service.ts
 // DESCRIPCIÓN: Servicio de consultas SOAP y atenciones comunitarias con creación
-//              automática de diagnósticos formales en la tabla Diagnosis.
+//              automática de diagnósticos formales y emisión transaccional
+//              de constancias médicas oficiales (MedicalCertificate).
 // =========================================================================
 
 import { prisma } from '../../config/prisma.js';
 import { BaseService } from '../../services/base.service.js';
+import { CertificateType, CertificateStatus, SyncStatus } from '@prisma/client';
 
 export interface VitalsInputDTO {
   systolic: number;
@@ -96,12 +98,14 @@ export class ConsultationsService extends BaseService {
     if (!patient) throw new Error('El paciente especificado no existe.');
     if (!doctor) throw new Error('El usuario responsable no existe o no tiene permisos para registrar la atención.');
 
+    let establishmentId: string | null = null;
     if (appointmentId) {
       const db = prisma as any;
       const appointment = await db.appointment.findFirst({
         where: { id: appointmentId, deletedAt: null },
       });
       if (!appointment) throw new Error('La cita médica referenciada no existe.');
+      establishmentId = appointment.establishmentId || null;
     }
 
     if (brigadeId) {
@@ -181,6 +185,47 @@ export class ConsultationsService extends BaseService {
         });
       }
 
+      // EMISIÓN AUTOMÁTICA DE CONSTANCIA MÉDICA OFICIAL EN POSTGRESQL
+      const randomSuffix = Math.floor(100000 + Math.random() * 900000);
+      const certCode = `CM-2026-${randomSuffix}`;
+      const qrHash = `MEDICOS-VERIFY-${certCode}`;
+
+      let certType: CertificateType = CertificateType.CONSULTATION;
+      const diagLower = `${diagnosisDesc || ''} ${diagnosisCode || ''}`.toLowerCase();
+      const chiefLower = (chiefComplaint || '').toLowerCase();
+
+      if (
+        diagLower.includes('prenatal') ||
+        diagLower.includes('embarazo') ||
+        diagLower.includes('gestac') ||
+        chiefLower.includes('prenatal') ||
+        chiefLower.includes('embarazo')
+      ) {
+        certType = CertificateType.PRENATAL_CONTROL;
+      } else if (brigadeId) {
+        certType = CertificateType.MEDICAL_ATTENTION;
+      }
+
+      const certObservations = `Atención clínica completada. Diagnóstico: ${diagnosisDesc.trim()}. Plan y tratamiento: ${treatmentPlan.trim()}.`;
+
+      await tx.medicalCertificate.create({
+        data: {
+          code: certCode,
+          type: certType,
+          patientId,
+          doctorId,
+          consultationId: consultation.id,
+          establishmentId,
+          issuedAt: consultation.consultationDate || new Date(),
+          observations: certObservations,
+          qrHash,
+          status: CertificateStatus.ACTIVE,
+          syncStatus: SyncStatus.SYNCED,
+          originDeviceId: deviceId,
+          lastModifiedByDeviceId: deviceId,
+        },
+      });
+
       return tx.consultation.findUnique({
         where: { id: consultation.id },
         include: {
@@ -198,6 +243,7 @@ export class ConsultationsService extends BaseService {
           brigade: true,
           appointment: true,
           diagnoses: true,
+          medicalCertificates: true,
         },
       });
     });

@@ -1,7 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/modules/patients/services/patients.service.ts
 // DESCRIPCIÓN: Servicio cliente HTTP para gestión, validación, registro,
-//              onboarding e historial de pacientes en MedicOS.
+//              onboarding, historial y Contactos de Emergencia en MedicOS.
 // =========================================================================
 
 import { apiClient } from '../../../shared/lib/apiClient';
@@ -15,6 +15,11 @@ import type {
   PatientHistoryResponse,
   UpdatePatientProfileDto,
 } from '../types/patient.types';
+import type {
+  EmergencyContact,
+  CreateEmergencyContactDto,
+  UpdateEmergencyContactDto,
+} from '../types/emergency-contacts.types';
 
 interface PatientsResponse {
   success: boolean;
@@ -37,6 +42,21 @@ interface CheckDuiApiResponse extends CheckDuiResult {
 
 interface CheckEmailApiResponse extends CheckEmailResult {
   success: boolean;
+}
+
+interface EmergencyContactsResponse {
+  success: boolean;
+  data: EmergencyContact[];
+}
+
+interface SingleEmergencyContactResponse {
+  success: boolean;
+  data: EmergencyContact;
+}
+
+interface DeleteEmergencyContactResponse {
+  success: boolean;
+  message: string;
 }
 
 export const patientsService = {
@@ -126,5 +146,61 @@ export const patientsService = {
       method: 'GET',
     });
     return res.data || null;
+  },
+
+  // =========================================================================
+  // GESTIÓN DE CONTACTOS DE EMERGENCIA (PORTAL PACIENTE)
+  // =========================================================================
+
+  /**
+   * Obtiene todos los contactos de emergencia del paciente autenticado
+   */
+  async getEmergencyContacts(): Promise<EmergencyContact[]> {
+    const res = await apiClient<EmergencyContactsResponse>('/patients/emergency-contacts', {
+      method: 'GET',
+    });
+    return res.data || [];
+  },
+
+  /**
+   * Registra un nuevo contacto de emergencia
+   */
+  async createEmergencyContact(dto: CreateEmergencyContactDto): Promise<EmergencyContact> {
+    const res = await apiClient<SingleEmergencyContactResponse>('/patients/emergency-contacts', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+    return res.data;
+  },
+
+  /**
+   * Actualiza los datos de un contacto de emergencia existente
+   */
+  async updateEmergencyContact(contactId: string, dto: UpdateEmergencyContactDto): Promise<EmergencyContact> {
+    const res = await apiClient<SingleEmergencyContactResponse>(`/patients/emergency-contacts/${encodeURIComponent(contactId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(dto),
+    });
+    return res.data;
+  },
+
+  /**
+   * Elimina un contacto de emergencia (soft delete con reasignación)
+   */
+  async deleteEmergencyContact(contactId: string): Promise<{ success: boolean; message: string }> {
+    const res = await apiClient<DeleteEmergencyContactResponse>(`/patients/emergency-contacts/${encodeURIComponent(contactId)}`, {
+      method: 'DELETE',
+    });
+    return res;
+  },
+
+  /**
+   * Establece explícitamente un contacto como Principal
+   */
+  async setPrimaryEmergencyContact(contactId: string): Promise<EmergencyContact> {
+    const res = await apiClient<SingleEmergencyContactResponse>(`/patients/emergency-contacts/${encodeURIComponent(contactId)}/primary`, {
+      method: 'PATCH',
+    });
+    return res.data;
   },
 };

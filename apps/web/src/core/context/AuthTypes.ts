@@ -1,10 +1,20 @@
-// Apps/web/src/core/context/AuthTypes.ts
+// =========================================================================
+// ARCHIVO: apps/web/src/core/context/AuthTypes.ts
+// DESCRIPCIÓN: Tipos de autenticación con soporte para contexto clínico materno.
+// =========================================================================
+
 export interface User {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
   role: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  isPregnant?: boolean;
+  preferences?: {
+    showMaternalHealth?: boolean;
+    [key: string]: unknown;
+  };
 }
 
 export interface AuthContextType {

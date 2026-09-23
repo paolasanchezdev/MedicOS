@@ -1,3 +1,5 @@
+//apps/web/src/portals/paciente/navigation/paciente.navigation.ts
+
 import { 
   Home, 
   Activity, 
