@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/paciente/pages/monitoreo/habitos-estilo-vida/components/HabitosGrid.tsx
 // DESCRIPCIÓN: Rejilla compacta de hábitos con acciones de registro de 1 clic.
+//              Tipado seguro garantizado sin retornos undefined.
 // =========================================================================
 
 import React from 'react';
@@ -13,7 +14,23 @@ interface HabitosGridProps {
   onOpenActivityModal: () => void;
 }
 
-const getHabitMeta = (type: LifestyleHabitType) => {
+interface HabitMetaConfig {
+  label: string;
+  icon: React.ElementType;
+  color: string;
+  bg: string;
+  unit: string;
+}
+
+const DEFAULT_HABIT_META: HabitMetaConfig = {
+  label: 'Hábito',
+  icon: Apple,
+  color: 'text-teal-600',
+  bg: 'bg-teal-50',
+  unit: 'registro',
+};
+
+const getHabitMeta = (type: LifestyleHabitType): HabitMetaConfig => {
   switch (type) {
     case 'WATER':
       return { label: 'Hidratación', icon: Droplets, color: 'text-sky-600', bg: 'bg-sky-50', unit: 'vasos' };
@@ -27,6 +44,8 @@ const getHabitMeta = (type: LifestyleHabitType) => {
       return { label: 'Bienestar / Calma', icon: Smile, color: 'text-amber-600', bg: 'bg-amber-50', unit: 'min' };
     case 'TOBACCO':
       return { label: 'Tabaco / Alcohol', icon: Cigarette, color: 'text-rose-600', bg: 'bg-rose-50', unit: 'control' };
+    default:
+      return DEFAULT_HABIT_META;
   }
 };
 
@@ -88,7 +107,7 @@ export const HabitosGrid: React.FC<HabitosGridProps> = ({
                     ? onOpenActivityModal()
                     : onOpenHabitModal(habit.habitType)
                 }
-                className="w-full py-1.5 px-2 bg-slate-50 hover:bg-medicos-teal text-slate-700 hover:text-white border border-slate-200 hover:border-medicos-teal rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+                className="w-full py-1.5 px-2 bg-slate-50 hover:bg-[#1c5752] text-slate-700 hover:text-white border border-slate-200 hover:border-[#1c5752] rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
               >
                 <Plus className="w-3 h-3" />
                 <span>{habit.isLoggedToday ? 'Actualizar' : 'Registrar'}</span>

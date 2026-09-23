@@ -1,6 +1,6 @@
 // =========================================================================
-// ARCHIVO: ContactoEmergenciaCard.tsx
-// DESCRIPCIÓN: Tarjeta de contacto minimalista, sin cajas toscas, con micro-acciones limpias.
+// ARCHIVO: apps/web/src/portals/paciente/pages/perfil/contactos-emergencia/components/ContactoEmergenciaCard.tsx
+// DESCRIPCIÓN: Tarjeta de contacto minimalista, limpia, con marcación directa y sin imports no utilizados.
 // =========================================================================
 
 import React, { useState } from 'react';
@@ -11,8 +11,7 @@ import {
   Pencil, 
   Trash2, 
   Copy, 
-  Check, 
-  Star 
+  Check 
 } from 'lucide-react';
 import type { 
   EmergencyContact, 
@@ -112,11 +111,11 @@ export const ContactoEmergenciaCard: React.FC<ContactoEmergenciaCardProps> = ({
               <span className="font-mono font-semibold text-slate-800 text-xs">
                 {contact.primaryPhone}
               </span>
-              {contact.secondaryPhone && (
+              {contact.secondaryPhone ? (
                 <span className="text-slate-400 font-mono text-[11px] truncate">
                   · {contact.secondaryPhone}
                 </span>
-              )}
+              ) : null}
             </div>
 
             <button
@@ -126,19 +125,19 @@ export const ContactoEmergenciaCard: React.FC<ContactoEmergenciaCardProps> = ({
               title="Copiar teléfono"
             >
               {copied ? (
-                <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+                <Check className="w-3.5 h-3.5 text-emerald-600 stroke-3" />
               ) : (
                 <Copy className="w-3.5 h-3.5" />
               )}
             </button>
           </div>
 
-          {contact.email && (
+          {contact.email ? (
             <div className="flex items-center gap-2 text-slate-400 text-[11px]">
               <Mail className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">{contact.email}</span>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 

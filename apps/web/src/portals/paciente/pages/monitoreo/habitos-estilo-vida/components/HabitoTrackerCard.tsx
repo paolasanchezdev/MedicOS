@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/paciente/pages/monitoreo/habitos-estilo-vida/components/HabitoTrackerCard.tsx
 // DESCRIPCIÓN: Tarjeta Habit Tracker estética estilo Habitly con racha verídica L-D.
+//              Tipado seguro garantizado sin retornos undefined.
 // =========================================================================
 
 import React from 'react';
@@ -26,7 +27,27 @@ interface HabitoTrackerCardProps {
   onQuickWaterChange?: (newVal: number) => void;
 }
 
-const getHabitDetails = (type: LifestyleHabitType) => {
+interface HabitDetailsConfig {
+  title: string;
+  medicalGuide: string;
+  icon: React.ElementType;
+  color: string;
+  bg: string;
+  activePill: string;
+  unit: string;
+}
+
+const DEFAULT_HABIT_DETAILS: HabitDetailsConfig = {
+  title: 'Hábito de Salud',
+  medicalGuide: 'Monitoreo de bienestar',
+  icon: Apple,
+  color: 'text-teal-600',
+  bg: 'bg-teal-50',
+  activePill: 'bg-teal-600 text-white shadow-2xs',
+  unit: 'registro',
+};
+
+const getHabitDetails = (type: LifestyleHabitType): HabitDetailsConfig => {
   switch (type) {
     case 'WATER':
       return {
@@ -88,6 +109,8 @@ const getHabitDetails = (type: LifestyleHabitType) => {
         activePill: 'bg-rose-500 text-white shadow-2xs',
         unit: 'control',
       };
+    default:
+      return DEFAULT_HABIT_DETAILS;
   }
 };
 
@@ -133,7 +156,7 @@ export const HabitoTrackerCard: React.FC<HabitoTrackerCardProps> = ({
           const isDone = Boolean(habit.daysLogged && habit.daysLogged[idx]);
 
           return (
-            <div key={idx} className="flex flex-col items-center gap-1.5 flex-1">
+            <div key={`dia-${idx}`} className="flex flex-col items-center gap-1.5 flex-1">
               <span className={`text-[10.5px] font-bold ${isToday ? 'text-teal-700' : 'text-slate-400'}`}>
                 {dia}
               </span>

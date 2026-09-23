@@ -2,6 +2,7 @@
 // ARCHIVO: apps/web/src/modules/clinical-knowledge/components/ClinicalGraphNodeDetails.tsx
 // DESCRIPCIÓN: Panel lateral de información clínica humanizada para el paciente.
 //              Sin tecnicismos de base de datos ni UUIDs expuestos.
+//              Tipado seguro para TypeScript y limpio de reglas ESLint.
 // =========================================================================
 
 import React from 'react';
@@ -60,9 +61,11 @@ const getNodeIcon = (type: ClinicalNodeType) => {
 };
 
 const formatReadableDate = (dateStr?: unknown): string => {
-  if (!dateStr || typeof dateStr !== 'string') return 'Fecha no especificada';
+  if (!dateStr) return 'Fecha no especificada';
   try {
-    return new Date(dateStr).toLocaleDateString('es-ES', {
+    const parsedDate = new Date(dateStr as string | number | Date);
+    if (Number.isNaN(parsedDate.getTime())) return String(dateStr);
+    return parsedDate.toLocaleDateString('es-ES', {
       day: '2-digit',
       month: 'long',
       year: 'numeric',
@@ -106,18 +109,18 @@ export const ClinicalGraphNodeDetails: React.FC<ClinicalGraphNodeDetailsProps> =
               <span className="text-slate-500 font-medium">Fecha de nacimiento:</span>
               <span className="font-bold text-slate-800">{formatReadableDate(meta.dateOfBirth)}</span>
             </div>
-            {meta.phone && (
+            {meta.phone ? (
               <div className="flex justify-between py-1.5 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Teléfono de contacto:</span>
                 <span className="font-bold text-slate-800">{String(meta.phone)}</span>
               </div>
-            )}
-            {meta.address && (
+            ) : null}
+            {meta.address ? (
               <div className="flex flex-col py-1.5">
                 <span className="text-slate-500 font-medium">Comunidad / Dirección:</span>
                 <span className="font-semibold text-slate-800 mt-0.5">{String(meta.address)}</span>
               </div>
-            )}
+            ) : null}
           </div>
         );
 
@@ -130,26 +133,26 @@ export const ClinicalGraphNodeDetails: React.FC<ClinicalGraphNodeDetailsProps> =
               <span className="text-slate-500 font-medium">Fecha de atención:</span>
               <span className="font-bold text-slate-800">{formatReadableDate(meta.consultationDate || node.provenance.timestamp)}</span>
             </div>
-            {meta.doctorName && (
+            {meta.doctorName ? (
               <div className="flex justify-between py-1.5 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Profesional responsable:</span>
                 <span className="font-bold text-[#1c5752]">{String(meta.doctorName)}</span>
               </div>
-            )}
-            {meta.diagnosisDesc && (
+            ) : null}
+            {meta.diagnosisDesc ? (
               <div className="py-1.5 border-b border-slate-100">
                 <span className="text-slate-500 font-medium block">Diagnóstico de la consulta:</span>
                 <span className="font-bold text-slate-900 mt-0.5 block">{String(meta.diagnosisDesc)}</span>
               </div>
-            )}
-            {meta.treatmentPlan && (
+            ) : null}
+            {meta.treatmentPlan ? (
               <div className="py-1.5">
                 <span className="text-slate-500 font-medium block">Indicaciones / Plan de cuidado:</span>
                 <span className="font-medium text-slate-700 mt-0.5 block bg-slate-50 p-2.5 rounded-xl border border-slate-200">
                   {String(meta.treatmentPlan)}
                 </span>
               </div>
-            )}
+            ) : null}
           </div>
         );
 
@@ -162,24 +165,24 @@ export const ClinicalGraphNodeDetails: React.FC<ClinicalGraphNodeDetailsProps> =
                 {String(meta.systolic ?? '--')}/{String(meta.diastolic ?? '--')} mmHg
               </span>
             </div>
-            {meta.heartRate && (
+            {meta.heartRate ? (
               <div className="flex justify-between py-1.5 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Frecuencia Cardíaca:</span>
                 <span className="font-bold text-slate-800">{String(meta.heartRate)} lpm</span>
               </div>
-            )}
-            {meta.oxygenSat && (
+            ) : null}
+            {meta.oxygenSat ? (
               <div className="flex justify-between py-1.5 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Saturación de Oxígeno (SpO2):</span>
                 <span className="font-bold text-slate-800">{String(meta.oxygenSat)}%</span>
               </div>
-            )}
-            {meta.temperature && (
+            ) : null}
+            {meta.temperature ? (
               <div className="flex justify-between py-1.5 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Temperatura Corporal:</span>
                 <span className="font-bold text-slate-800">{String(meta.temperature)} °C</span>
               </div>
-            )}
+            ) : null}
           </div>
         );
 
@@ -190,14 +193,14 @@ export const ClinicalGraphNodeDetails: React.FC<ClinicalGraphNodeDetailsProps> =
               <span className="text-slate-500 font-medium">Diagnóstico Clínico:</span>
               <span className="font-bold text-slate-900">{node.label}</span>
             </div>
-            {meta.code && (
+            {meta.code ? (
               <div className="flex justify-between py-1.5 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Código CIE Oficial:</span>
                 <span className="font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                   {String(meta.code)}
                 </span>
               </div>
-            )}
+            ) : null}
             <div className="flex justify-between py-1.5">
               <span className="text-slate-500 font-medium">Estado del diagnóstico:</span>
               <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
@@ -214,12 +217,12 @@ export const ClinicalGraphNodeDetails: React.FC<ClinicalGraphNodeDetailsProps> =
               <span className="text-slate-500 font-medium">Hábito de salud:</span>
               <span className="font-bold text-slate-900">{String(meta.habitType || node.label)}</span>
             </div>
-            {meta.value && (
+            {meta.value ? (
               <div className="flex justify-between py-1.5 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Registro documentado:</span>
                 <span className="font-bold text-slate-800">{String(meta.value)} {String(meta.unit || '')}</span>
               </div>
-            )}
+            ) : null}
             <div className="flex justify-between py-1.5">
               <span className="text-slate-500 font-medium">Fecha de registro:</span>
               <span className="font-bold text-slate-800">{formatReadableDate(meta.loggedDate || node.provenance.timestamp)}</span>
@@ -231,7 +234,7 @@ export const ClinicalGraphNodeDetails: React.FC<ClinicalGraphNodeDetailsProps> =
         return (
           <div className="space-y-2 text-slate-700">
             <p className="font-semibold text-slate-900">{node.label}</p>
-            {node.sublabel && <p className="text-xs text-slate-500">{node.sublabel}</p>}
+            {node.sublabel ? <p className="text-xs text-slate-500">{node.sublabel}</p> : null}
           </div>
         );
     }
@@ -239,7 +242,6 @@ export const ClinicalGraphNodeDetails: React.FC<ClinicalGraphNodeDetailsProps> =
 
   return (
     <div className="w-full sm:w-96 bg-white/95 border-l border-slate-200 backdrop-blur-md flex flex-col h-full text-slate-800 select-none shadow-xl z-20 animate-in slide-in-from-right duration-200">
-      
       {/* Encabezado del Panel */}
       <div className="p-4 border-b border-slate-100 flex items-start justify-between gap-3 bg-slate-50/70">
         <div className="flex items-start gap-2.5 min-w-0">
@@ -253,11 +255,11 @@ export const ClinicalGraphNodeDetails: React.FC<ClinicalGraphNodeDetailsProps> =
             <h3 className="text-sm font-black text-slate-900 tracking-tight truncate">
               {node.label}
             </h3>
-            {node.sublabel && (
+            {node.sublabel ? (
               <p className="text-xs text-slate-500 font-medium truncate mt-0.5">
                 {node.sublabel}
               </p>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -272,7 +274,6 @@ export const ClinicalGraphNodeDetails: React.FC<ClinicalGraphNodeDetailsProps> =
 
       {/* Contenido Clínico */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
-        
         {/* Parámetros del Registro */}
         <div className="space-y-2">
           <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
@@ -343,7 +344,6 @@ export const ClinicalGraphNodeDetails: React.FC<ClinicalGraphNodeDetailsProps> =
             </div>
           )}
         </div>
-
       </div>
 
       {/* Pie del Panel */}
@@ -351,7 +351,6 @@ export const ClinicalGraphNodeDetails: React.FC<ClinicalGraphNodeDetailsProps> =
         <span>Portal Paciente MedicOS</span>
         <span className="text-[#1c5752] font-bold">2026</span>
       </div>
-
     </div>
   );
 };

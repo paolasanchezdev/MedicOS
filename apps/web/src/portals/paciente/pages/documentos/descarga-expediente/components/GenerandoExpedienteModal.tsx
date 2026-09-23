@@ -3,6 +3,7 @@
 // DESCRIPCIÓN: Visor oficial del expediente en hoja tamaño Carta montado en portal,
 //              con extracción directa de DUI, Grupo Sanguíneo y soporte multipágina
 //              sin sobrecosto de memoización manual (compatible con React Compiler).
+//              Tipado estricto seguro para TypeScript y ESLint.
 // =========================================================================
 
 import React, { useEffect } from 'react';
@@ -37,7 +38,7 @@ function formatBirthDateLong(rawDate?: unknown): string {
   }
 
   const d = new Date(str);
-  if (isNaN(d.getTime())) return 'No registrada';
+  if (Number.isNaN(d.getTime())) return 'No registrada';
 
   return `${d.getUTCDate()} de ${months[d.getUTCMonth()]} de ${d.getUTCFullYear()}`;
 }
@@ -213,7 +214,7 @@ export const GenerandoExpedienteModal: React.FC<GenerandoExpedienteModalProps> =
             <Printer className="w-4 h-4 text-[#1c5752]" />
             <span>Imprimir / Guardar PDF</span>
           </button>
-          <div className="w-px h-5 bg-white/20 mx-1 hidden sm:block"></div>
+          <div className="w-px h-5 bg-white/20 mx-1 hidden sm:block" />
           <button
             type="button"
             onClick={onClose}
@@ -361,14 +362,14 @@ export const GenerandoExpedienteModal: React.FC<GenerandoExpedienteModalProps> =
                       </span>
                       <span className="font-mono text-slate-600 text-[11px]">{c.sublabel}</span>
                     </div>
-                    {c.metadata?.doctorName && (
+                    {c.metadata?.doctorName ? (
                       <p className="text-[10.5px] text-slate-700 font-bold">Médico Responsable: {String(c.metadata.doctorName)}</p>
-                    )}
-                    {c.metadata?.treatmentPlan && (
+                    ) : null}
+                    {c.metadata?.treatmentPlan ? (
                       <p className="text-[11px] text-slate-800">
                         <strong>Plan e Indicaciones:</strong> {String(c.metadata.treatmentPlan)}
                       </p>
-                    )}
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -378,7 +379,7 @@ export const GenerandoExpedienteModal: React.FC<GenerandoExpedienteModalProps> =
           </div>
 
           {/* 5. Controles Prenatales y Obstétricos */}
-          {prenatal.length > 0 && (
+          {prenatal.length > 0 ? (
             <div className="space-y-1.5 print-avoid-break">
               <div className="border-b border-[#1c5752] pb-1">
                 <span className="text-[9.5px] font-black uppercase tracking-wider text-[#1c5752]">
@@ -395,19 +396,19 @@ export const GenerandoExpedienteModal: React.FC<GenerandoExpedienteModalProps> =
                       </span>
                       <span className="font-mono text-pink-800 text-[11px]">{p.sublabel}</span>
                     </div>
-                    {p.metadata?.treatmentPlan && (
+                    {p.metadata?.treatmentPlan ? (
                       <p className="text-[11px] text-slate-800">
                         <strong>Evolución y Cuidados:</strong> {String(p.metadata.treatmentPlan)}
                       </p>
-                    )}
+                    ) : null}
                   </div>
                 ))}
               </div>
             </div>
-          )}
+          ) : null}
 
           {/* 6. Inmunizaciones y Vacunas */}
-          {vaccines.length > 0 && (
+          {vaccines.length > 0 ? (
             <div className="space-y-1.5 print-avoid-break">
               <div className="border-b border-[#1c5752] pb-1">
                 <span className="text-[9.5px] font-black uppercase tracking-wider text-[#1c5752]">
@@ -438,7 +439,7 @@ export const GenerandoExpedienteModal: React.FC<GenerandoExpedienteModalProps> =
                 </tbody>
               </table>
             </div>
-          )}
+          ) : null}
 
           {/* 7. Registro Histórico de Signos Vitales */}
           <div className="space-y-1.5 print-avoid-break">
@@ -475,7 +476,7 @@ export const GenerandoExpedienteModal: React.FC<GenerandoExpedienteModalProps> =
           </div>
 
           {/* 8. Hábitos de Salud y Autocuidado */}
-          {habits.length > 0 && (
+          {habits.length > 0 ? (
             <div className="space-y-1.5 print-avoid-break">
               <div className="border-b border-[#1c5752] pb-1">
                 <span className="text-[9.5px] font-black uppercase tracking-wider text-[#1c5752]">
@@ -494,7 +495,7 @@ export const GenerandoExpedienteModal: React.FC<GenerandoExpedienteModalProps> =
                 ))}
               </div>
             </div>
-          )}
+          ) : null}
 
           {/* Sellos Oficiales y QR */}
           <div className="pt-4 border-t-2 border-slate-200 flex items-center justify-between print-avoid-break">
