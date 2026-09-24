@@ -13,6 +13,7 @@ import { JornadaBrigadaPage } from '../pages/brigada/jornada/JornadaBrigadaPage'
 import { PacientesBrigadaPage } from '../pages/brigada/pacientes/PacientesBrigadaPage';
 import { BuscarPacientePage } from '../pages/pacientes/buscar/BuscarPacientePage';
 import { RegistrarPacientePage } from '../pages/pacientes/registrar/RegistrarPacientePage';
+import { EscanearPacientePage } from '../pages/pacientes/escanear/EscanearPacientePage';
 import { ExpedientePacientePage } from '../pages/pacientes/expediente/ExpedientePacientePage';
 import { NuevaAtencionPage } from '../pages/atencion/nueva/NuevaAtencionPage';
 import { AtencionesPendientesPage } from '../pages/atencion/pendientes/AtencionesPendientesPage';
@@ -57,10 +58,7 @@ export const BrigadistaRoutes: React.FC = () => {
         <Route path="pacientes" element={<Navigate to="/brigadista/pacientes/buscar" replace />} />
         <Route path="pacientes/buscar" element={<BuscarPacientePage />} />
         <Route path="pacientes/registrar" element={<RegistrarPacientePage />} />
-        <Route
-          path="pacientes/escanear"
-          element={<PagePlaceholder title="Escanear QR / ID" category="Pacientes" />}
-        />
+        <Route path="pacientes/escanear" element={<EscanearPacientePage />} />
         <Route path="pacientes/expediente" element={<ExpedientePacientePage />} />
 
         {/* 4. Atención */}
