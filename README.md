@@ -1,5 +1,3 @@
-
-
 ## Project Structure
 
 ```text
@@ -575,15 +573,23 @@ MedicOS/
 │       │   │   │   ├── data/
 │       │   │   │   ├── hooks/
 │       │   │   │   │   ├── useCreatePatient.ts
+│       │   │   │   │   ├── useEmergencyContacts.ts
 │       │   │   │   │   ├── usePatientPersonalData.ts
+│       │   │   │   │   ├── usePatientPreferences.ts
 │       │   │   │   │   ├── usePatientRecord.ts
+│       │   │   │   │   ├── usePatientSecurity.ts
 │       │   │   │   │   └── useSearchPatients.ts
 │       │   │   │   ├── schemas/
 │       │   │   │   ├── services/
+│       │   │   │   │   ├── patient-preferences.service.ts
 │       │   │   │   │   ├── patient-profile-preferences.service.ts
+│       │   │   │   │   ├── patient-security.service.ts
 │       │   │   │   │   └── patients.service.ts
 │       │   │   │   ├── types/
+│       │   │   │   │   ├── emergency-contacts.types.ts
 │       │   │   │   │   ├── patient-personal-data.types.ts
+│       │   │   │   │   ├── patient-preferences.types.ts
+│       │   │   │   │   ├── patient-security.types.ts
 │       │   │   │   │   └── patient.types.ts
 │       │   │   │   ├── utils/
 │       │   │   │   └── index.ts
@@ -1171,7 +1177,7 @@ MedicOS/
 │       │   │   │   │   │   │   │   │   └── SignosVitalesPacienteTab.tsx
 │       │   │   │   │   │   │   │   ├── ExpedienteBuscador.tsx
 │       │   │   │   │   │   │   │   ├── ExpedientePacienteHeader.tsx
-│       │   │   │   │   │   │   │   ├── ExpedienteResultados.tsx
+│       │   │   │   │   │   │   │   ├── ExpedienteResu>ltados.tsx
 │       │   │   │   │   │   │   │   ├── ExpedienteResumenClinico.tsx
 │       │   │   │   │   │   │   │   ├── ExpedienteTabs.tsx
 │       │   │   │   │   │   │   │   └── index.ts
@@ -1680,6 +1686,21 @@ MedicOS/
 │       │   │       │   │       └── MensajesMedicoPage.tsx
 │       │   │       │   ├── perfil/
 │       │   │       │   │   ├── contactos-emergencia/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── ContactoEmergenciaCard.tsx
+│       │   │       │   │   │   │   ├── ContactoEmergenciaForm.tsx
+│       │   │       │   │   │   │   ├── ContactoEmergenciaModal.tsx
+│       │   │       │   │   │   │   ├── ContactoPrincipalBadge.tsx
+│       │   │       │   │   │   │   ├── ContactosEmergenciaEmpty.tsx
+│       │   │       │   │   │   │   ├── ContactosEmergenciaError.tsx
+│       │   │       │   │   │   │   ├── ContactosEmergenciaHeader.tsx
+│       │   │       │   │   │   │   ├── ContactosEmergenciaInfoCard.tsx
+│       │   │       │   │   │   │   ├── ContactosEmergenciaList.tsx
+│       │   │       │   │   │   │   ├── ContactosEmergenciaLoading.tsx
+│       │   │       │   │   │   │   ├── EliminarContactoModal.tsx
+│       │   │       │   │   │   │   ├── index.ts
+│       │   │       │   │   │   │   ├── LineasEmergenciaNacionales.tsx
+│       │   │       │   │   │   │   └── ServicioEmergenciaSOS.tsx
 │       │   │       │   │   │   └── ContactosEmergenciaPage.tsx
 │       │   │       │   │   ├── datos-personales/
 │       │   │       │   │   │   ├── components/
@@ -1699,8 +1720,36 @@ MedicOS/
 │       │   │       │   │   │   │   └── PrivacidadPerfilCard.tsx
 │       │   │       │   │   │   └── DatosPersonalesPage.tsx
 │       │   │       │   │   ├── preferencias/
+│       │   │       │   │   │   ├── components/
+│       │   │       │   │   │   │   ├── AccesibilidadPreferenciasCard.tsx
+│       │   │       │   │   │   │   ├── AparienciaPreferenciasCard.tsx
+│       │   │       │   │   │   │   ├── ComunicacionPreferenciasCard.tsx
+│       │   │       │   │   │   │   ├── index.ts
+│       │   │       │   │   │   │   ├── NotificacionesPreferenciasCard.tsx
+│       │   │       │   │   │   │   ├── PreferenciaRow.tsx
+│       │   │       │   │   │   │   ├── PreferenciaSelect.tsx
+│       │   │       │   │   │   │   ├── PreferenciasError.tsx
+│       │   │       │   │   │   │   ├── PreferenciasHeader.tsx
+│       │   │       │   │   │   │   ├── PreferenciasLoading.tsx
+│       │   │       │   │   │   │   ├── PreferenciasResetModal.tsx
+│       │   │       │   │   │   │   ├── PreferenciasSection.tsx
+│       │   │       │   │   │   │   └── PreferenciaToggle.tsx
 │       │   │       │   │   │   └── PreferenciasPacientePage.tsx
 │       │   │       │   │   └── seguridad/
+│       │   │       │   │       ├── components/
+│       │   │       │   │       │   ├── ActividadSeguridadCard.tsx
+│       │   │       │   │       │   ├── CambiarContrasenaModal.tsx
+│       │   │       │   │       │   ├── CerrarSesionModal.tsx
+│       │   │       │   │       │   ├── EstadoSeguridadCard.tsx
+│       │   │       │   │       │   ├── index.ts
+│       │   │       │   │       │   ├── SeguridadError.tsx
+│       │   │       │   │       │   ├── SeguridadHeader.tsx
+│       │   │       │   │       │   ├── SeguridadLoading.tsx
+│       │   │       │   │       │   ├── SeguridadRow.tsx
+│       │   │       │   │       │   ├── SeguridadSection.tsx
+│       │   │       │   │       │   ├── SesionActivaItem.tsx
+│       │   │       │   │       │   ├── SesionesActivasCard.tsx
+│       │   │       │   │       │   └── VerificacionDosPasosModal.tsx
 │       │   │       │   │       └── SeguridadPacientePage.tsx
 │       │   │       │   ├── salud-materna/
 │       │   │       │   │   ├── citas-prenatales/

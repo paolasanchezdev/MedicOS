@@ -1,10 +1,11 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/shared/components/carnet/CarnetDigitalPaciente.tsx
-// DESCRIPCIÓN: Carnet Digital Oficial con dirección completa auto-escalable
-//              en tamaño micro sin recortes, y distrito exacto sin truncar.
+// DESCRIPCIÓN: Carnet Digital Oficial de Paciente con código QR real ISO 18004,
+//              giro 3D optimizado para móviles (iOS/Android) y estándar CR-80.
 // =========================================================================
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import QRCode from 'qrcode';
 import { 
   Printer, 
   RotateCw, 
@@ -141,7 +142,7 @@ function formatDate(d?: string | Date): string {
 function extractDistritoLimpio(p: PacienteCarnetData): string {
   if (p.distrito?.trim()) {
     const match = p.distrito.match(/Distrito\s+([^,]+)/i);
-    if (match) return match[1].trim();
+    if (match && match[1]) return match[1].trim();
     if (!p.distrito.includes(',')) {
       return p.distrito.trim().replace(/\s+(Costa|Norte|Sur|Este|Oeste|Centro)$/i, '');
     }
@@ -149,7 +150,7 @@ function extractDistritoLimpio(p: PacienteCarnetData): string {
 
   const rawAddr = p.direccion || p.address || '';
   const matchAddr = rawAddr.match(/Distrito\s+([^,]+)/i);
-  if (matchAddr) return matchAddr[1].trim();
+  if (matchAddr && matchAddr[1]) return matchAddr[1].trim();
 
   if (rawAddr.includes(',')) {
     const segments = rawAddr.split(',').map((s) => s.trim()).filter(Boolean);
@@ -176,85 +177,6 @@ function extractDistritoLimpio(p: PacienteCarnetData): string {
   return 'San Salvador';
 }
 
-function generateQRCodeMatrix(text: string): boolean[][] {
-  const size = 25;
-  const matrix: boolean[][] = Array.from({ length: size }, () => Array(size).fill(false));
-  const reserved: boolean[][] = Array.from({ length: size }, () => Array(size).fill(false));
-
-  const addFinderPattern = (row: number, col: number) => {
-    for (let r = -1; r <= 7; r++) {
-      for (let c = -1; c <= 7; c++) {
-        const nr = row + r;
-        const nc = col + c;
-        if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
-          reserved[nr][nc] = true;
-          if (r >= 0 && r <= 6 && c >= 0 && c <= 6) {
-            matrix[nr][nc] = (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4));
-          } else {
-            matrix[nr][nc] = false;
-          }
-        }
-      }
-    }
-  };
-
-  addFinderPattern(0, 0);
-  addFinderPattern(0, size - 7);
-  addFinderPattern(size - 7, 0);
-
-  for (let i = 8; i < size - 8; i++) {
-    matrix[6][i] = i % 2 === 0;
-    reserved[6][i] = true;
-    matrix[i][6] = i % 2 === 0;
-    reserved[i][6] = true;
-  }
-
-  const alignR = 18;
-  const alignC = 18;
-  for (let r = -2; r <= 2; r++) {
-    for (let c = -2; c <= 2; c++) {
-      reserved[alignR + r][alignC + c] = true;
-      matrix[alignR + r][alignC + c] = (Math.abs(r) === 2 || Math.abs(c) === 2 || (r === 0 && c === 0));
-    }
-  }
-
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-
-  const bitStream: boolean[] = [];
-  for (let i = 0; i < text.length; i++) {
-    const code = text.charCodeAt(i);
-    for (let b = 7; b >= 0; b--) {
-      bitStream.push(((code >> b) & 1) === 1);
-    }
-  }
-
-  while (bitStream.length < 320) {
-    hash = Math.imul(hash ^ (hash >>> 16), 0x45d9f3b);
-    bitStream.push((hash & 1) === 1);
-  }
-
-  let bitIdx = 0;
-  for (let col = size - 1; col > 0; col -= 2) {
-    if (col === 6) col--;
-    for (let r = 0; r < size; r++) {
-      const row = ((col + 1) / 2) % 2 === 0 ? size - 1 - r : r;
-      for (let c = 0; c < 2; c++) {
-        const currCol = col - c;
-        if (!reserved[row][currCol]) {
-          matrix[row][currCol] = bitStream[bitIdx % bitStream.length];
-          bitIdx++;
-        }
-      }
-    }
-  }
-
-  return matrix;
-}
-
 export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
   paciente,
   onPrint,
@@ -266,6 +188,7 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'interactive' | 'both'>('interactive');
   const [isCameraOpen, setIsCameraOpen] = useState<boolean>(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -308,8 +231,8 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
     }
 
     const cleanDui = (p.dui || '').replace(/[^0-9]/g, '');
-    const expedienteFinal = p.expediente || p.id || (cleanDui.length >= 4 ? `EXP-2026-${cleanDui.slice(-4)}` : 'EXP-2026-0001');
-    const direccionCompleta = p.direccion || p.address || [p.municipality, p.department].filter(Boolean).join(', ') || 'No registrada';
+    const expedienteFinal = p.expediente || (cleanDui.length >= 4 ? `EXP-2026-${cleanDui.slice(-4)}` : (p.id ? `EXP-${p.id.slice(0, 8).toUpperCase()}` : 'EXP-2026-0001'));
+    const direccionCompleta = p.direccion || p.address || [p.municipality, p.department].filter(Boolean).join(', ') || 'El Salvador';
     const distritoFinal = extractDistritoLimpio(p);
 
     const fechaNacRaw = p.fechaNacimiento || p.dateOfBirth || '2000-01-01';
@@ -335,11 +258,21 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
           observaciones = parsed.notes || parsed.observations || observaciones;
         }
       } catch {
-        // Fallback string
+        // Fallback
       }
     }
 
+    // Payload oficial para el QR (JSON estructurado ISO 18004 compatible con resolvePatientQR)
+    const finalQrPayload = p.qrPayload?.trim() || JSON.stringify({
+      v: 1,
+      type: 'PATIENT_ID',
+      id: p.id || '',
+      exp: expedienteFinal,
+      dui: p.dui || cleanDui || '',
+    });
+
     return {
+      id: p.id,
       expediente: expedienteFinal,
       dui: p.dui || 'Sin DUI',
       nombres: nombreFinal || 'Nombre',
@@ -363,9 +296,40 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
       },
       fechaCreacion: formatDate(fechaCreacionRaw),
       fechaExpiracion: p.fechaExpiracion || '02/01/2030',
-      qrPayload: p.qrPayload || `https://medicos.gob.sv/expediente/${expedienteFinal}`
+      qrPayload: finalQrPayload,
     };
   }, [paciente, fotoPersonalizada]);
+
+  // Generación en cliente de código QR estándar ISO/IEC 18004 (100% Offline)
+  useEffect(() => {
+    let isMounted = true;
+
+    const generateQR = async () => {
+      if (!datosPaciente.qrPayload) return;
+      try {
+        const url = await QRCode.toDataURL(datosPaciente.qrPayload, {
+          width: 320,
+          margin: 1,
+          errorCorrectionLevel: 'M',
+          color: {
+            dark: '#1C3138',
+            light: '#FFFFFF',
+          },
+        });
+        if (isMounted) {
+          setQrDataUrl(url);
+        }
+      } catch (err) {
+        console.error('Error generando QR del carnet:', err);
+      }
+    };
+
+    void generateQR();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [datosPaciente.qrPayload]);
 
   const persistirFoto = (base64String: string) => {
     setFotoPersonalizada(base64String);
@@ -446,10 +410,6 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
     setIsCameraOpen(false);
   };
 
-  const qrMatrix = useMemo(() => {
-    return generateQRCodeMatrix(datosPaciente.qrPayload || `https://medicos.gob.sv/expediente/${datosPaciente.expediente}`);
-  }, [datosPaciente.qrPayload, datosPaciente.expediente]);
-
   const handlePrint = () => {
     const originalTitle = document.title;
     const tituloExpediente = datosPaciente.expediente || 'EXP-2026-0001';
@@ -483,11 +443,11 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
       {/* Barra en Modo 3D con Soporte de Foto */}
       {only3D && (
         <div className="w-full flex items-center justify-between gap-2 mb-2.5 px-1 print:hidden">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-medicos-light-bg text-medicos-teal text-xs font-semibold rounded-xl border border-medicos-soft-border shadow-2xs transition active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-white hover:bg-slate-50 text-[#166E7A] text-[11px] sm:text-xs font-semibold rounded-xl border border-slate-200 shadow-2xs transition active:scale-95 cursor-pointer"
             >
               <Upload className="w-3.5 h-3.5" />
               <span>{fotoPersonalizada ? 'Cambiar Foto' : 'Subir Foto'}</span>
@@ -496,7 +456,7 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
             <button
               type="button"
               onClick={startCamera}
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-medicos-light-bg text-medicos-teal text-xs font-semibold rounded-xl border border-medicos-soft-border shadow-2xs transition active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-white hover:bg-slate-50 text-[#166E7A] text-[11px] sm:text-xs font-semibold rounded-xl border border-slate-200 shadow-2xs transition active:scale-95 cursor-pointer"
             >
               <Camera className="w-3.5 h-3.5" />
               <span>Cámara</span>
@@ -517,7 +477,7 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
           <button
             type="button"
             onClick={() => setIsFlipped(!isFlipped)}
-            className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-medicos-light-bg text-medicos-teal text-xs font-semibold rounded-xl border border-medicos-soft-border shadow-2xs transition active:scale-95 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-white hover:bg-slate-50 text-[#166E7A] text-[11px] sm:text-xs font-semibold rounded-xl border border-slate-200 shadow-2xs transition active:scale-95 cursor-pointer"
           >
             <RotateCw className={`w-3.5 h-3.5 transition-transform duration-500 ${isFlipped ? 'rotate-180' : ''}`} />
             <span>{isFlipped ? 'Ver Frontal' : 'Giro 3D'}</span>
@@ -527,14 +487,14 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
 
       {/* Barra de Controles Completa */}
       {!hideControls && !only3D && (
-        <div className="w-full flex flex-wrap items-center justify-between gap-3 mb-5 bg-white border border-medicos-soft-border shadow-xs p-3 rounded-2xl print:hidden">
+        <div className="w-full flex flex-wrap items-center justify-between gap-3 mb-5 bg-white border border-slate-200 shadow-xs p-3 rounded-2xl print:hidden">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-medicos-light-bg text-medicos-teal rounded-xl border border-medicos-soft-border">
+            <div className="p-2 bg-teal-50 text-[#166E7A] rounded-xl border border-teal-200/70">
               <HeartPulse className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-xs sm:text-sm font-bold text-medicos-dark-blue">Credencial Oficial MedicOS</h3>
-              <p className="text-[11px] text-medicos-muted">Expediente: <strong className="text-medicos-teal">{datosPaciente.expediente}</strong></p>
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900">Credencial Oficial MedicOS</h3>
+              <p className="text-[11px] text-slate-500">Expediente: <strong className="text-[#166E7A]">{datosPaciente.expediente}</strong></p>
             </div>
           </div>
 
@@ -542,7 +502,7 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-medicos-canvas hover:bg-medicos-light-bg text-medicos-teal text-xs font-semibold rounded-xl transition border border-medicos-soft-border cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-[#166E7A] text-xs font-semibold rounded-xl transition border border-slate-200 cursor-pointer"
             >
               <Upload className="w-3.5 h-3.5" />
               <span>Subir Foto</span>
@@ -551,7 +511,7 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
             <button
               type="button"
               onClick={startCamera}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-medicos-canvas hover:bg-medicos-light-bg text-medicos-teal text-xs font-semibold rounded-xl transition border border-medicos-soft-border cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-[#166E7A] text-xs font-semibold rounded-xl transition border border-slate-200 cursor-pointer"
             >
               <Camera className="w-3.5 h-3.5" />
               <span>Cámara</span>
@@ -573,7 +533,7 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
                 type="button"
                 onClick={() => setActiveTab('interactive')}
                 className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                  activeTab === 'interactive' ? 'bg-medicos-teal text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                  activeTab === 'interactive' ? 'bg-[#166E7A] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Giro 3D
@@ -582,7 +542,7 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
                 type="button"
                 onClick={() => setActiveTab('both')}
                 className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                  activeTab === 'both' ? 'bg-medicos-teal text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                  activeTab === 'both' ? 'bg-[#166E7A] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Ambas Caras
@@ -595,7 +555,7 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
                 onClick={() => setIsFlipped(!isFlipped)}
                 className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition border border-slate-300 cursor-pointer"
               >
-                <RotateCw className={`w-3.5 h-3.5 transition-transform duration-500 ${isFlipped ? 'rotate-180 text-medicos-teal' : ''}`} />
+                <RotateCw className={`w-3.5 h-3.5 transition-transform duration-500 ${isFlipped ? 'rotate-180 text-[#166E7A]' : ''}`} />
                 <span>{isFlipped ? 'Ver Frente' : 'Ver Reverso'}</span>
               </button>
             )}
@@ -614,7 +574,7 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
             <button
               type="button"
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-medicos-teal hover:bg-[#16646f] text-white text-xs font-bold rounded-xl shadow-xs transition active:scale-95 cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-[#166E7A] hover:bg-[#105F68] text-white text-xs font-bold rounded-xl shadow-xs transition active:scale-95 cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>Imprimir Hoja</span>
@@ -625,16 +585,16 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
 
       {/* Modal de Cámara */}
       {isCameraOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 backdrop-blur-xs">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 flex flex-col items-center shadow-2xl border border-slate-100">
             <div className="w-full flex justify-between items-center mb-4">
-              <h3 className="text-sm font-bold text-medicos-dark-blue">Tomar Fotografía del Paciente</h3>
+              <h3 className="text-sm font-bold text-slate-900">Tomar Fotografía del Paciente</h3>
               <button onClick={stopCamera} className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="relative w-64 h-64 rounded-full overflow-hidden border-4 border-medicos-teal shadow-inner bg-black mb-5">
+            <div className="relative w-64 h-64 rounded-full overflow-hidden border-4 border-[#166E7A] shadow-inner bg-black mb-5">
               <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
             </div>
 
@@ -651,7 +611,7 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
               <button
                 type="button"
                 onClick={capturePhoto}
-                className="px-5 py-2 bg-medicos-teal hover:bg-[#16646f] text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-2 cursor-pointer"
+                className="px-5 py-2 bg-[#166E7A] hover:bg-[#105F68] text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-2 cursor-pointer"
               >
                 <Camera className="w-4 h-4" />
                 Capturar y Guardar
@@ -661,30 +621,48 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
         </div>
       )}
 
-      {/* 2. Visualización 3D Interactiva */}
+      {/* 2. Visualización 3D Interactiva (Blindada contra flickering en iOS y WebKit) */}
       {(only3D || activeTab === 'interactive') ? (
         <div className="w-full flex flex-col items-center justify-center print:hidden">
           <div 
             className="relative w-full aspect-[1.586/1] cursor-pointer select-none group"
-            style={{ perspective: '1600px' }}
+            style={{ 
+              perspective: '1600px',
+              isolation: 'isolate',
+            }}
             onClick={() => setIsFlipped(!isFlipped)}
-            title="Haz clic para voltear el carnet"
+            title="Haz clic para voltear el carnet en 3D"
           >
             <div
-              className={`w-full h-full relative transition-transform duration-700 rounded-2xl sm:rounded-3xl shadow-lg border border-medicos-soft-border ${
+              className={`w-full h-full relative transition-transform duration-700 rounded-2xl sm:rounded-3xl shadow-lg border border-slate-200 ${
                 isFlipped ? 'transform-[rotateY(180deg)]' : ''
               }`}
-              style={{ transformStyle: 'preserve-3d' }}
+              style={{ 
+                transformStyle: 'preserve-3d',
+                WebkitTransformStyle: 'preserve-3d',
+              }}
             >
-              <div className="absolute inset-0 w-full h-full rounded-2xl sm:rounded-3xl overflow-hidden backface-hidden bg-[#F0F8FA]">
+              <div 
+                className="absolute inset-0 w-full h-full rounded-2xl sm:rounded-3xl overflow-hidden bg-[#F3F9FA]"
+                style={{ 
+                  backfaceVisibility: 'hidden',
+                  WebkitBackfaceVisibility: 'hidden',
+                }}
+              >
                 <CarnetFrontCard 
                   paciente={datosPaciente} 
-                  qrMatrix={qrMatrix} 
+                  qrDataUrl={qrDataUrl} 
                   onTriggerPhotoUpload={() => fileInputRef.current?.click()}
                 />
               </div>
 
-              <div className="absolute inset-0 w-full h-full rounded-2xl sm:rounded-3xl overflow-hidden backface-hidden transform-[rotateY(180deg)] bg-[#F0F8FA]">
+              <div 
+                className="absolute inset-0 w-full h-full rounded-2xl sm:rounded-3xl overflow-hidden transform-[rotateY(180deg)] bg-[#F3F9FA]"
+                style={{ 
+                  backfaceVisibility: 'hidden',
+                  WebkitBackfaceVisibility: 'hidden',
+                }}
+              >
                 <CarnetBackCard paciente={datosPaciente} />
               </div>
             </div>
@@ -692,29 +670,29 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
         </div>
       ) : (
         <div className="w-full flex flex-col items-center gap-6 py-2 print:hidden">
-          <div className="w-full aspect-[1.586/1] rounded-3xl overflow-hidden shadow-md border border-medicos-soft-border bg-[#F0F8FA]">
+          <div className="w-full aspect-[1.586/1] rounded-3xl overflow-hidden shadow-md border border-slate-200 bg-[#F3F9FA]">
             <CarnetFrontCard 
               paciente={datosPaciente} 
-              qrMatrix={qrMatrix} 
+              qrDataUrl={qrDataUrl} 
               onTriggerPhotoUpload={() => fileInputRef.current?.click()}
             />
           </div>
 
-          <div className="w-full aspect-[1.586/1] rounded-3xl overflow-hidden shadow-md border border-medicos-soft-border bg-[#F0F8FA]">
+          <div className="w-full aspect-[1.586/1] rounded-3xl overflow-hidden shadow-md border border-slate-200 bg-[#F3F9FA]">
             <CarnetBackCard paciente={datosPaciente} />
           </div>
         </div>
       )}
 
-      {/* 3. Hoja Oficial de Emisión de Carnet (Impresión / PDF) */}
+      {/* 3. Hoja Oficial de Emisión de Carnet (Impresión Física / PDF CR-80) */}
       <div id="hoja-oficial-medicos" className="hidden print:block w-full max-w-[210mm] mx-auto bg-white text-slate-800 p-8">
-        <div className="border-b-2 border-medicos-teal pb-4 mb-6 flex items-center justify-between">
+        <div className="border-b-2 border-[#166E7A] pb-4 mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo-sinNombre.png" alt="MedicOS" className="w-14 h-14 object-contain" />
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-2xl font-black text-medicos-dark-blue tracking-tight">Medic<span className="text-medicos-teal">OS</span></span>
-                <span className="text-xs font-bold uppercase tracking-wider bg-medicos-light-bg text-medicos-teal px-2 py-0.5 rounded-md border border-medicos-soft-border">Oficial</span>
+                <span className="text-2xl font-black text-slate-900 tracking-tight">Medic<span className="text-[#166E7A]">OS</span></span>
+                <span className="text-xs font-bold uppercase tracking-wider bg-teal-50 text-[#166E7A] px-2 py-0.5 rounded-md border border-teal-200">Oficial</span>
               </div>
               <p className="text-xs font-semibold text-slate-500">Sistema Nacional de Gestión en Salud Comunitaria y Brigadas</p>
               <p className="text-[10px] text-slate-400 font-medium">República de El Salvador • Registro Nominal de Pacientes</p>
@@ -723,13 +701,13 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
 
           <div className="text-right">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Documento de Acreditación</span>
-            <p className="text-base font-black text-medicos-teal">{datosPaciente.expediente}</p>
+            <p className="text-base font-black text-[#166E7A]">{datosPaciente.expediente}</p>
             <p className="text-xs font-medium text-slate-500">Emisión: {datosPaciente.fechaCreacion as string}</p>
           </div>
         </div>
 
         <div className="text-center mb-6">
-          <h1 className="text-lg font-black text-medicos-dark-blue tracking-wide uppercase">
+          <h1 className="text-lg font-black text-slate-900 tracking-wide uppercase">
             Hoja Oficial de Emisión de Carnet Territorial
           </h1>
           <p className="text-xs text-slate-500 max-w-lg mx-auto mt-1">
@@ -739,9 +717,9 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
 
         <div className="bg-slate-50/80 border border-dashed border-slate-300 rounded-2xl p-5 mb-6 relative">
           <div className="flex items-center justify-between mb-3 text-[11px] font-bold text-slate-500">
-            <span className="flex items-center gap-1.5 text-medicos-teal">
+            <span className="flex items-center gap-1.5 text-[#166E7A]">
               <Scissors className="w-4 h-4" />
-              Guía de corte y laminación para carnet de bolsillo (Estándar CR-80)
+              Guía de corte y laminación para carnet de bolsillo (Estándar CR-80: 85.6mm × 54mm)
             </span>
             <span>Cara Frontal y Cara Trasera</span>
           </div>
@@ -749,7 +727,7 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
           <div className="grid grid-cols-2 gap-4 justify-items-center">
             <div className="w-[85.6mm] h-[54mm] rounded-xl overflow-hidden shadow-sm border border-slate-300 relative bg-[#F3F9FA]">
               <div className="w-170 h-[428.75px] transform scale-[0.4757] origin-top-left absolute top-0 left-0">
-                <CarnetFrontCard paciente={datosPaciente} qrMatrix={qrMatrix} />
+                <CarnetFrontCard paciente={datosPaciente} qrDataUrl={qrDataUrl} />
               </div>
             </div>
 
@@ -779,20 +757,20 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
 
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Información Médica Crítica</span>
-            <p className="text-slate-600"><strong>Tipo de Sangre:</strong> <span className="font-bold text-medicos-teal">{datosPaciente.tipoSangre}</span></p>
+            <p className="text-slate-600"><strong>Tipo de Sangre:</strong> <span className="font-bold text-[#166E7A]">{datosPaciente.tipoSangre}</span></p>
             <p className="text-slate-600 line-clamp-1"><strong>Alergias:</strong> {datosPaciente.alergiasTexto}</p>
             <p className="text-slate-600 line-clamp-1"><strong>Enfermedades:</strong> {datosPaciente.enfermedadesTexto}</p>
             <p className="text-slate-600 mt-1"><strong>Contacto:</strong> {datosPaciente.contactoEmergencia?.nombre} ({datosPaciente.contactoEmergencia?.telefono})</p>
           </div>
         </div>
 
-        <div className="border border-medicos-soft-border bg-medicos-light-bg/30 rounded-2xl p-4 mb-8 flex items-center justify-between gap-4">
+        <div className="border border-teal-200 bg-teal-50/40 rounded-2xl p-4 mb-8 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-medicos-light-bg text-medicos-teal rounded-xl border border-medicos-soft-border">
+            <div className="p-2.5 bg-teal-100/70 text-[#166E7A] rounded-xl border border-teal-200">
               <CheckCircle2 className="w-6 h-6 stroke-[2.5]" />
             </div>
             <div>
-              <h4 className="text-xs font-black text-medicos-dark-blue uppercase tracking-wide">Validación Digital Centralizada</h4>
+              <h4 className="text-xs font-black text-slate-900 uppercase tracking-wide">Validación Digital Centralizada</h4>
               <p className="text-[11px] text-slate-600">El código QR integrado permite verificar en tiempo real el historial y las prescripciones en la base de datos de MedicOS.</p>
             </div>
           </div>
@@ -862,47 +840,43 @@ export const CarnetDigitalPaciente: React.FC<CarnetDigitalPacienteProps> = ({
 };
 
 /* =========================================================================
-   CARA FRONTAL: DIRECCIÓN COMPLETA AUTO-ESCALABLE Y DISTRITO VISIBLE
+   CARA FRONTAL: RESPONSIVE OPTIMIZADA PARA CELULARES Y CR-80
    ========================================================================= */
 const CarnetFrontCard: React.FC<{ 
   paciente: PacienteCarnetData; 
-  qrMatrix: boolean[][];
+  qrDataUrl: string;
   onTriggerPhotoUpload?: () => void;
-}> = ({ paciente, qrMatrix, onTriggerPhotoUpload }) => {
-  const qrSize = qrMatrix.length;
-  const cellSize = 110 / qrSize;
+}> = ({ paciente, qrDataUrl, onTriggerPhotoUpload }) => {
   const nombreTexto = `${paciente.nombres || ''} ${paciente.apellidos || ''}`.trim() || 'Paciente';
-
   const direccionCompleta = paciente.direccion || 'El Salvador';
-  const direccionEsLarga = direccionCompleta.length > 38;
 
   return (
-    <div className="w-full h-full bg-[#F3F9FA] flex flex-col justify-between p-3 sm:p-3.5 text-slate-800 select-none relative overflow-hidden font-sans">
+    <div className="w-full h-full bg-[#F3F9FA] flex flex-col justify-between p-2.5 xs:p-3 sm:p-3.5 text-slate-800 select-none relative overflow-hidden font-sans">
       
-      {/* 1. Header Blanco */}
-      <div className="bg-white rounded-2xl px-3.5 py-1.5 flex items-center justify-between shadow-xs border border-slate-100">
-        <div className="flex items-center gap-2">
-          <img src="/logo-sinNombre.png" alt="MedicOS Logo" className="w-8 h-8 object-contain" />
+      {/* 1. Header Oficial */}
+      <div className="bg-white rounded-xl sm:rounded-2xl px-2.5 xs:px-3 sm:px-3.5 py-1 sm:py-1.5 flex items-center justify-between shadow-xs border border-slate-100">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <img src="/logo-sinNombre.png" alt="MedicOS Logo" className="w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 object-contain" />
           <div className="flex flex-col">
-            <span className="text-base sm:text-lg font-black text-medicos-dark-blue leading-none tracking-tight">
-              Medic<span className="text-medicos-teal">OS</span>
+            <span className="text-xs xs:text-sm sm:text-base font-black text-slate-900 leading-none tracking-tight">
+              Medic<span className="text-[#166E7A]">OS</span>
             </span>
-            <span className="text-[8px] sm:text-[9px] font-semibold text-medicos-muted mt-0.5">
+            <span className="text-[7px] xs:text-[8px] sm:text-[9px] font-semibold text-slate-400 mt-0.5">
               Sistema de Gestión en Salud
             </span>
           </div>
         </div>
 
-        <div className="bg-medicos-teal text-white px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-xs">
-          <div className="flex items-center gap-1.5">
-            <CreditCard className="w-3.5 h-3.5 text-white stroke-[2.5]" />
-            <span className="text-[11px] sm:text-xs font-extrabold tracking-wider whitespace-nowrap">
+        <div className="bg-[#166E7A] text-white px-2 xs:px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl flex items-center gap-1.5 sm:gap-2 shadow-xs">
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            <CreditCard className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white stroke-[2.5]" />
+            <span className="text-[9px] xs:text-[10px] sm:text-xs font-extrabold tracking-wider whitespace-nowrap">
               CARNET DE PACIENTE
             </span>
           </div>
 
           <div className="hidden sm:flex items-center pl-2 border-l border-white/30">
-            <svg width="44" height="18" viewBox="0 0 60 24" className="overflow-visible">
+            <svg width="40" height="16" viewBox="0 0 60 24" className="overflow-visible">
               <path
                 d="M 0 12 L 15 12 L 20 2 L 26 22 L 32 6 L 37 16 L 42 12 L 55 12"
                 fill="none"
@@ -917,8 +891,9 @@ const CarnetFrontCard: React.FC<{
         </div>
       </div>
 
-      {/* 2. Cuerpo Principal */}
-      <div className="flex-1 flex items-center justify-between gap-3 px-1 py-1">
+      {/* 2. Cuerpo Principal (Distribución elástica para celulares) */}
+      <div className="flex-1 flex items-center justify-between gap-1.5 xs:gap-2.5 sm:gap-3 px-0.5 sm:px-1 py-0.5 sm:py-1">
+        
         {/* Avatar / Foto */}
         <div className="flex flex-col items-center justify-center shrink-0">
           <div 
@@ -929,142 +904,131 @@ const CarnetFrontCard: React.FC<{
               }
             }}
             title="Haz clic para subir o cambiar foto"
-            className="w-22 h-22 sm:w-26 sm:h-26 rounded-full p-1 bg-linear-to-tr from-medicos-teal to-medicos-cyan shadow-md flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
+            className="w-16 h-16 xs:w-20 xs:h-20 sm:w-24 sm:h-24 rounded-full p-0.5 sm:p-1 bg-linear-to-tr from-[#166E7A] to-[#25B4C4] shadow-md flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
           >
-            <div className="w-full h-full rounded-full overflow-hidden bg-medicos-canvas flex items-center justify-center relative group/avatar">
+            <div className="w-full h-full rounded-full overflow-hidden bg-slate-100 flex items-center justify-center relative group/avatar">
               {paciente.fotoUrl ? (
                 <img src={paciente.fotoUrl} alt={nombreTexto} className="w-full h-full object-cover" />
               ) : (
-                <User className="w-12 h-12 text-medicos-cyan" />
+                <User className="w-8 h-8 xs:w-10 xs:h-10 sm:w-12 sm:h-12 text-[#166E7A]/60" />
               )}
               {onTriggerPhotoUpload && (
                 <div className="absolute inset-0 bg-black/40 text-white flex flex-col items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
-                  <Camera className="w-5 h-5 mb-0.5" />
-                  <span className="text-[7px] font-bold uppercase tracking-wider">Foto</span>
+                  <Camera className="w-4 h-4 sm:w-5 sm:h-5 mb-0.5" />
+                  <span className="text-[6.5px] sm:text-[7px] font-bold uppercase tracking-wider">Foto</span>
                 </div>
               )}
             </div>
           </div>
-          <div className="grid grid-cols-4 gap-1 opacity-40 mt-1">
+          <div className="grid grid-cols-4 gap-0.5 sm:gap-1 opacity-40 mt-0.5 sm:mt-1">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="w-1 h-1 rounded-full bg-medicos-teal" />
+              <div key={i} className="w-0.5 h-0.5 sm:w-1 sm:h-1 rounded-full bg-[#166E7A]" />
             ))}
           </div>
         </div>
 
-        {/* Datos Personales */}
-        <div className="flex-1 min-w-0 flex flex-col justify-center px-1">
-          <h2 className="text-sm sm:text-base font-extrabold text-medicos-dark-blue leading-tight mb-1 truncate">
+        {/* Datos Personales (Protegidos contra desbordamiento en celular) */}
+        <div className="flex-1 min-w-0 flex flex-col justify-center px-0.5 sm:px-1">
+          <h2 className="text-xs xs:text-sm sm:text-base font-extrabold text-slate-900 leading-tight mb-0.5 sm:mb-1 truncate">
             {nombreTexto}
           </h2>
 
-          <div className="space-y-1 text-[11px] sm:text-xs">
-            <div className="flex items-center gap-2">
-              <User className="w-3.5 h-3.5 text-medicos-teal shrink-0 stroke-[2.5]" />
-              <span className="font-extrabold text-medicos-teal shrink-0">Sexo:</span>
-              <span className="font-medium text-slate-700">{paciente.sexo}</span>
+          <div className="space-y-0.5 sm:space-y-1 text-[9.5px] xs:text-[10px] sm:text-xs">
+            <div className="flex items-center gap-1.5 truncate">
+              <User className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-[#166E7A] shrink-0 stroke-[2.5]" />
+              <span className="font-extrabold text-[#166E7A] shrink-0">Sexo:</span>
+              <span className="font-medium text-slate-700 truncate">{paciente.sexo}</span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <FileText className="w-3.5 h-3.5 text-medicos-teal shrink-0 stroke-[2.5]" />
-              <span className="font-extrabold text-medicos-teal shrink-0">Expediente:</span>
-              <span className="font-mono font-bold text-slate-800">{paciente.expediente}</span>
+            <div className="flex items-center gap-1.5 truncate">
+              <FileText className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-[#166E7A] shrink-0 stroke-[2.5]" />
+              <span className="font-extrabold text-[#166E7A] shrink-0">Expediente:</span>
+              <span className="font-mono font-bold text-slate-900 truncate">{paciente.expediente}</span>
             </div>
 
-            {/* Dirección Completa Sin Cortes: Auto-escalable */}
             <div className="flex items-start gap-1.5 min-w-0">
-              <MapPin className="w-3.5 h-3.5 text-medicos-teal shrink-0 stroke-[2.5] mt-0.5" />
-              <div className="flex flex-col min-w-0 flex-1">
-                <div className="flex items-baseline gap-1 min-w-0">
-                  <span className="font-extrabold text-medicos-teal shrink-0">Dirección:</span>
-                  <span 
-                    className={`font-medium text-slate-700 leading-snug wrap-break-word text-left ${
-                      direccionEsLarga ? 'text-[9.5px] leading-tight line-clamp-3' : 'text-[11px] line-clamp-2'
-                    }`}
-                    title={direccionCompleta}
-                  >
-                    {direccionCompleta}
-                  </span>
-                </div>
+              <MapPin className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-[#166E7A] shrink-0 stroke-[2.5] mt-0.5" />
+              <div className="flex items-baseline gap-1 min-w-0 flex-1">
+                <span className="font-extrabold text-[#166E7A] shrink-0">Dirección:</span>
+                <span 
+                  className="font-medium text-slate-700 text-[8.5px] xs:text-[9.5px] sm:text-[11px] leading-tight line-clamp-2"
+                  title={direccionCompleta}
+                >
+                  {direccionCompleta}
+                </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Droplet className="w-3.5 h-3.5 text-medicos-teal fill-medicos-teal shrink-0" />
-              <span className="font-extrabold text-medicos-teal shrink-0">Grupo sanguíneo:</span>
+            <div className="flex items-center gap-1.5 truncate">
+              <Droplet className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-[#166E7A] fill-[#166E7A] shrink-0" />
+              <span className="font-extrabold text-[#166E7A] shrink-0">Grupo:</span>
               <span className="font-bold text-rose-700">{paciente.tipoSangre}</span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="w-3.5 h-3.5 text-medicos-teal shrink-0 stroke-[2.5]" />
-              <span className="font-extrabold text-medicos-teal shrink-0">Alergias:</span>
+            <div className="flex items-center gap-1.5 truncate">
+              <ShieldAlert className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-[#166E7A] shrink-0 stroke-[2.5]" />
+              <span className="font-extrabold text-[#166E7A] shrink-0">Alergias:</span>
               <span className="font-medium text-slate-700 truncate">{paciente.alergiasTexto}</span>
             </div>
           </div>
         </div>
 
-        {/* Código QR */}
-        <div className="bg-white rounded-2xl p-2 border border-slate-200 shadow-xs flex flex-col items-center justify-between w-26 sm:w-28 shrink-0 relative">
-          <div className="absolute top-1.5 left-1.5 w-2.5 h-2.5 border-t-2 border-l-2 border-medicos-teal rounded-tl-sm" />
-          <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 border-t-2 border-r-2 border-medicos-teal rounded-tr-sm" />
-          <div className="absolute bottom-8 left-1.5 w-2.5 h-2.5 border-b-2 border-l-2 border-medicos-teal rounded-bl-sm" />
-          <div className="absolute bottom-8 right-1.5 w-2.5 h-2.5 border-b-2 border-r-2 border-medicos-teal rounded-br-sm" />
+        {/* Código QR Real ISO 18004 */}
+        <div className="bg-white rounded-xl sm:rounded-2xl p-1 xs:p-1.5 sm:p-2 border border-slate-200 shadow-xs flex flex-col items-center justify-between w-20 xs:w-22 sm:w-26 md:w-28 shrink-0 relative">
+          <div className="absolute top-1 left-1 w-2 h-2 border-t-2 border-l-2 border-[#166E7A] rounded-tl-xs" />
+          <div className="absolute top-1 right-1 w-2 h-2 border-t-2 border-r-2 border-[#166E7A] rounded-tr-xs" />
+          <div className="absolute bottom-6 left-1 w-2 h-2 border-b-2 border-l-2 border-[#166E7A] rounded-bl-xs" />
+          <div className="absolute bottom-6 right-1 w-2 h-2 border-b-2 border-r-2 border-[#166E7A] rounded-br-xs" />
 
-          <div className="p-0.5 my-0.5">
-            <svg width={85} height={85} viewBox="0 0 110 110" className="block">
-              {qrMatrix.map((row, rIdx) =>
-                row.map((isDark, cIdx) =>
-                  isDark ? (
-                    <rect
-                      key={`${rIdx}-${cIdx}`}
-                      x={cIdx * cellSize}
-                      y={rIdx * cellSize}
-                      width={cellSize + 0.2}
-                      height={cellSize + 0.2}
-                      fill="#20343A"
-                    />
-                  ) : null
-                )
-              )}
-            </svg>
+          <div className="p-0.5 my-0.5 flex items-center justify-center">
+            {qrDataUrl ? (
+              <img 
+                src={qrDataUrl} 
+                alt="QR Carnet MedicOS" 
+                className="w-15 h-15 xs:w-17 xs:h-17 sm:w-20 sm:h-20 object-contain rounded-sm"
+              />
+            ) : (
+              <div className="w-15 h-15 xs:w-17 xs:h-17 sm:w-20 sm:h-20 bg-slate-100 rounded-sm animate-pulse flex items-center justify-center text-[8px] text-slate-400">
+                Generando...
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-1 mt-0.5">
-            <Smartphone className="w-3 h-3 text-medicos-teal stroke-[2.5]" />
-            <div className="text-[8px] font-bold text-medicos-teal leading-tight">
-              <span>Escanear</span>
-            </div>
+            <Smartphone className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#166E7A] stroke-[2.5]" />
+            <span className="text-[7px] xs:text-[7.5px] sm:text-[8px] font-bold text-[#166E7A] leading-tight">
+              Escanear
+            </span>
           </div>
         </div>
       </div>
 
-      {/* 3. Módulos Inferiores: Distrito Completo sin Truncar */}
-      <div className="bg-white rounded-2xl p-2 grid grid-cols-[1fr_1fr_1.6fr_1fr_1fr] divide-x divide-slate-100 shadow-xs border border-slate-100 items-center">
-        <div className="flex items-center gap-1 px-1.5 truncate">
-          <Calendar className="w-4 h-4 text-medicos-teal shrink-0 stroke-2" />
+      {/* 3. Módulos Inferiores: 5 Columnas con Auto-Escala */}
+      <div className="bg-white rounded-xl sm:rounded-2xl p-1 xs:p-1.5 sm:p-2 grid grid-cols-[1fr_1fr_1.3fr_1fr_1fr] divide-x divide-slate-100 shadow-xs border border-slate-100 items-center">
+        <div className="flex items-center gap-1 px-1 truncate">
+          <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-[#166E7A] shrink-0 stroke-2" />
           <div className="flex flex-col truncate">
-            <span className="text-[7.5px] font-bold text-slate-400 leading-tight">Nacimiento</span>
-            <span className="text-[9.5px] font-extrabold text-medicos-dark-blue mt-0.5 truncate">{formatDate(paciente.fechaNacimiento)}</span>
+            <span className="text-[6.5px] xs:text-[7px] sm:text-[7.5px] font-bold text-slate-400 leading-tight">Nacimiento</span>
+            <span className="text-[8px] xs:text-[8.5px] sm:text-[9.5px] font-extrabold text-slate-900 mt-0.5 truncate">{formatDate(paciente.fechaNacimiento)}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 px-1.5 truncate">
-          <div className="w-5 h-5 rounded-full bg-medicos-canvas border border-medicos-soft-border flex items-center justify-center shrink-0">
-            <PhoneCall className="w-3 h-3 text-medicos-teal stroke-[2.5]" />
+        <div className="flex items-center gap-1 px-1 truncate">
+          <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0">
+            <PhoneCall className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#166E7A] stroke-[2.5]" />
           </div>
           <div className="flex flex-col truncate">
-            <span className="text-[7.5px] font-bold text-slate-400 leading-tight">Teléfono</span>
-            <span className="text-[9.5px] font-extrabold text-medicos-dark-blue mt-0.5 truncate">{paciente.telefono}</span>
+            <span className="text-[6.5px] xs:text-[7px] sm:text-[7.5px] font-bold text-slate-400 leading-tight">Teléfono</span>
+            <span className="text-[8px] xs:text-[8.5px] sm:text-[9.5px] font-extrabold text-slate-900 mt-0.5 truncate">{paciente.telefono}</span>
           </div>
         </div>
 
-        {/* Columna Distrito: Espacio ampliado y texto sin puntos suspensivos */}
-        <div className="flex items-center gap-1.5 px-2 min-w-0">
-          <Home className="w-4 h-4 text-medicos-teal shrink-0 stroke-2" />
+        <div className="flex items-center gap-1 px-1 min-w-0">
+          <Home className="w-3 h-3 sm:w-4 sm:h-4 text-[#166E7A] shrink-0 stroke-2" />
           <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-[7.5px] font-bold text-slate-400 leading-tight">Distrito</span>
+            <span className="text-[6.5px] xs:text-[7px] sm:text-[7.5px] font-bold text-slate-400 leading-tight">Distrito</span>
             <span 
-              className="text-[9.5px] sm:text-[10px] font-black text-medicos-teal mt-0.5 wrap-break-word leading-tight" 
+              className="text-[8px] xs:text-[8.5px] sm:text-[9.5px] font-black text-[#166E7A] mt-0.5 truncate" 
               title={paciente.distrito || ''}
             >
               {paciente.distrito}
@@ -1072,32 +1036,32 @@ const CarnetFrontCard: React.FC<{
           </div>
         </div>
 
-        <div className="flex items-center gap-1 px-1.5 truncate">
-          <CalendarDays className="w-4 h-4 text-medicos-teal shrink-0 stroke-2" />
+        <div className="flex items-center gap-1 px-1 truncate">
+          <CalendarDays className="w-3 h-3 sm:w-4 sm:h-4 text-[#166E7A] shrink-0 stroke-2" />
           <div className="flex flex-col truncate">
-            <span className="text-[7.5px] font-bold text-slate-400 leading-tight">Creación</span>
-            <span className="text-[9.5px] font-extrabold text-medicos-dark-blue mt-0.5 truncate">{formatDate(paciente.fechaCreacion)}</span>
+            <span className="text-[6.5px] xs:text-[7px] sm:text-[7.5px] font-bold text-slate-400 leading-tight">Creación</span>
+            <span className="text-[8px] xs:text-[8.5px] sm:text-[9.5px] font-extrabold text-slate-900 mt-0.5 truncate">{formatDate(paciente.fechaCreacion)}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 px-1.5 truncate">
-          <Clock className="w-4 h-4 text-medicos-teal shrink-0 stroke-2" />
+        <div className="flex items-center gap-1 px-1 truncate">
+          <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-[#166E7A] shrink-0 stroke-2" />
           <div className="flex flex-col truncate">
-            <span className="text-[7.5px] font-bold text-slate-400 leading-tight">Expiración</span>
-            <span className="text-[9.5px] font-extrabold text-medicos-dark-blue mt-0.5 truncate">{paciente.fechaExpiracion}</span>
+            <span className="text-[6.5px] xs:text-[7px] sm:text-[7.5px] font-bold text-slate-400 leading-tight">Expiración</span>
+            <span className="text-[8px] xs:text-[8.5px] sm:text-[9.5px] font-extrabold text-slate-900 mt-0.5 truncate">{paciente.fechaExpiracion}</span>
           </div>
         </div>
       </div>
 
       {/* 4. Pie de Página */}
-      <div className="bg-medicos-teal text-white px-5 py-1.5 rounded-xl flex items-center justify-between shadow-xs">
-        <span className="text-[10px] italic font-medium text-medicos-light-bg">
+      <div className="bg-[#166E7A] text-white px-3 sm:px-5 py-1 sm:py-1.5 rounded-lg sm:rounded-xl flex items-center justify-between shadow-xs">
+        <span className="text-[8px] xs:text-[9px] sm:text-[10px] italic font-medium text-teal-100">
           Tu salud, nuestra prioridad
         </span>
-        <span className="text-sm font-black tracking-wide text-white">
+        <span className="text-xs sm:text-sm font-black tracking-wide text-white">
           MedicOS
         </span>
-        <span className="text-[10px] font-bold text-medicos-canvas">
+        <span className="text-[8px] xs:text-[9px] sm:text-[10px] font-bold text-teal-200">
           2026
         </span>
       </div>
@@ -1106,39 +1070,39 @@ const CarnetFrontCard: React.FC<{
 };
 
 /* =========================================================================
-   CARA TRASERA
+   CARA TRASERA: INFORMACIÓN MÉDICA Y DE EMERGENCIA
    ========================================================================= */
 const CarnetBackCard: React.FC<{ paciente: PacienteCarnetData }> = ({ paciente }) => {
   const contacto = paciente.contactoEmergencia || {};
 
   return (
-    <div className="w-full h-full bg-[#F3F9FA] flex flex-col justify-between p-3 sm:p-3.5 text-slate-800 select-none relative overflow-hidden font-sans">
+    <div className="w-full h-full bg-[#F3F9FA] flex flex-col justify-between p-2.5 xs:p-3 sm:p-3.5 text-slate-800 select-none relative overflow-hidden font-sans">
       
-      {/* 1. Header Blanco */}
-      <div className="bg-white rounded-2xl px-3.5 py-1.5 flex items-center justify-between shadow-xs border border-slate-100">
-        <div className="flex items-center gap-2">
-          <img src="/logo-sinNombre.png" alt="MedicOS Logo" className="w-8 h-8 object-contain" />
+      {/* 1. Header Oficial */}
+      <div className="bg-white rounded-xl sm:rounded-2xl px-2.5 xs:px-3 sm:px-3.5 py-1 sm:py-1.5 flex items-center justify-between shadow-xs border border-slate-100">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <img src="/logo-sinNombre.png" alt="MedicOS Logo" className="w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 object-contain" />
           <div className="flex flex-col">
-            <span className="text-base sm:text-lg font-black text-medicos-dark-blue leading-none tracking-tight">
-              Medic<span className="text-medicos-teal">OS</span>
+            <span className="text-xs xs:text-sm sm:text-base font-black text-slate-900 leading-none tracking-tight">
+              Medic<span className="text-[#166E7A]">OS</span>
             </span>
-            <span className="text-[8px] sm:text-[9px] font-semibold text-medicos-muted mt-0.5">
+            <span className="text-[7px] xs:text-[8px] sm:text-[9px] font-semibold text-slate-400 mt-0.5">
               Sistema de Gestión en Salud
             </span>
           </div>
         </div>
 
-        <div className="bg-medicos-teal text-white px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-xs">
-          <div className="flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-white stroke-[2.5]" />
-            <div className="text-left text-[11px] sm:text-xs font-extrabold tracking-wider leading-tight">
+        <div className="bg-[#166E7A] text-white px-2 xs:px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl flex items-center gap-1.5 sm:gap-2 shadow-xs">
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            <ShieldCheck className="w-3 h-3 sm:w-4 sm:h-4 text-white stroke-[2.5]" />
+            <div className="text-left text-[8.5px] xs:text-[9.5px] sm:text-xs font-extrabold tracking-wider leading-tight">
               <span>INFORMACIÓN MÉDICA</span><br/>
               <span>DE EMERGENCIA</span>
             </div>
           </div>
 
           <div className="hidden sm:flex items-center pl-2 border-l border-white/30">
-            <svg width="44" height="18" viewBox="0 0 60 24" className="overflow-visible">
+            <svg width="40" height="16" viewBox="0 0 60 24" className="overflow-visible">
               <path
                 d="M 0 12 L 15 12 L 20 2 L 26 22 L 32 6 L 37 16 L 42 12 L 55 12"
                 fill="none"
@@ -1153,120 +1117,122 @@ const CarnetBackCard: React.FC<{ paciente: PacienteCarnetData }> = ({ paciente }
         </div>
       </div>
 
-      {/* 2. Bloque Central */}
-      <div className="flex-1 grid grid-cols-2 gap-3 px-1 py-1 items-stretch">
-        <div className="bg-white rounded-2xl p-3 border border-medicos-soft-border shadow-xs flex flex-col justify-between">
-          <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100">
-            <div className="w-7 h-7 rounded-full bg-medicos-teal text-white flex items-center justify-center shadow-xs shrink-0">
-              <PhoneCall className="w-3.5 h-3.5 stroke-[2.5]" />
+      {/* 2. Bloque Central: Contacto + Crítica */}
+      <div className="flex-1 grid grid-cols-2 gap-2 sm:gap-3 px-0.5 sm:px-1 py-0.5 sm:py-1 items-stretch">
+        <div className="bg-white rounded-xl sm:rounded-2xl p-2 xs:p-2.5 sm:p-3 border border-slate-200 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center gap-1.5 pb-1 border-b border-slate-100">
+            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[#166E7A] text-white flex items-center justify-center shadow-xs shrink-0">
+              <PhoneCall className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
             </div>
-            <span className="text-xs font-black text-medicos-teal tracking-wide">
-              CONTACTO DE EMERGENCIA
+            <span className="text-[10px] sm:text-xs font-black text-[#166E7A] tracking-wide truncate">
+              CONTACTO EMERGENCIA
             </span>
           </div>
 
-          <div className="space-y-1.5 text-xs py-1">
-            <div className="flex items-start gap-2">
-              <User className="w-3.5 h-3.5 text-medicos-teal shrink-0 mt-0.5 stroke-[2.5]" />
-              <div className="flex flex-col">
-                <span className="text-[9px] font-bold text-slate-400">Nombre:</span>
-                <span className="font-bold text-medicos-dark-blue">{contacto.nombre || 'No asignado'}</span>
+          <div className="space-y-1 sm:space-y-1.5 text-[9px] xs:text-[10px] sm:text-xs py-0.5">
+            <div className="flex items-start gap-1.5">
+              <User className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#166E7A] shrink-0 mt-0.5 stroke-[2.5]" />
+              <div className="flex flex-col truncate">
+                <span className="text-[7.5px] sm:text-[9px] font-bold text-slate-400">Nombre:</span>
+                <span className="font-bold text-slate-900 truncate">{contacto.nombre || 'No asignado'}</span>
               </div>
             </div>
 
-            <div className="flex items-start gap-2">
-              <Phone className="w-3.5 h-3.5 text-medicos-teal shrink-0 mt-0.5 stroke-[2.5]" />
-              <div className="flex flex-col">
-                <span className="text-[9px] font-bold text-slate-400">Teléfono:</span>
-                <span className="font-bold text-medicos-dark-blue">{contacto.telefono || 'No registrado'}</span>
+            <div className="flex items-start gap-1.5">
+              <Phone className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#166E7A] shrink-0 mt-0.5 stroke-[2.5]" />
+              <div className="flex flex-col truncate">
+                <span className="text-[7.5px] sm:text-[9px] font-bold text-slate-400">Teléfono:</span>
+                <span className="font-bold text-slate-900 truncate">{contacto.telefono || 'No registrado'}</span>
               </div>
             </div>
 
-            <div className="flex items-start gap-2">
-              <Users className="w-3.5 h-3.5 text-medicos-teal shrink-0 mt-0.5 stroke-[2.5]" />
-              <div className="flex flex-col">
-                <span className="text-[9px] font-bold text-slate-400">Relación:</span>
-                <span className="font-bold text-medicos-dark-blue">{contacto.parentesco || 'Familiar'}</span>
+            <div className="flex items-start gap-1.5">
+              <Users className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#166E7A] shrink-0 mt-0.5 stroke-[2.5]" />
+              <div className="flex flex-col truncate">
+                <span className="text-[7.5px] sm:text-[9px] font-bold text-slate-400">Relación:</span>
+                <span className="font-bold text-slate-900 truncate">{contacto.parentesco || 'Familiar'}</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-3 border border-medicos-soft-border shadow-xs flex flex-col justify-between">
-          <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100">
-            <div className="w-7 h-7 rounded-full bg-medicos-dark-blue text-white flex items-center justify-center shadow-xs shrink-0">
-              <HeartPulse className="w-3.5 h-3.5 stroke-[2.5]" />
+        <div className="bg-white rounded-xl sm:rounded-2xl p-2 xs:p-2.5 sm:p-3 border border-slate-200 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center gap-1.5 pb-1 border-b border-slate-100">
+            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xs shrink-0">
+              <HeartPulse className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
             </div>
-            <span className="text-xs font-black text-medicos-dark-blue tracking-wide">
+            <span className="text-[10px] sm:text-xs font-black text-slate-800 tracking-wide truncate">
               INFORMACIÓN CRÍTICA
             </span>
           </div>
 
-          <div className="space-y-1.5 text-xs py-1">
-            <div className="flex items-start gap-2">
-              <ShieldAlert className="w-3.5 h-3.5 text-medicos-teal shrink-0 mt-0.5 stroke-[2.5]" />
-              <div className="flex flex-col">
-                <span className="text-[9px] font-bold text-slate-400">Enfermedades:</span>
-                <span className="font-bold text-medicos-dark-blue line-clamp-1">{paciente.enfermedadesTexto}</span>
+          <div className="space-y-1 sm:space-y-1.5 text-[9px] xs:text-[10px] sm:text-xs py-0.5">
+            <div className="flex items-start gap-1.5">
+              <ShieldAlert className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#166E7A] shrink-0 mt-0.5 stroke-[2.5]" />
+              <div className="flex flex-col truncate">
+                <span className="text-[7.5px] sm:text-[9px] font-bold text-slate-400">Enfermedades:</span>
+                <span className="font-bold text-slate-900 line-clamp-1">{paciente.enfermedadesTexto}</span>
               </div>
             </div>
 
-            <div className="flex items-start gap-2">
-              <Pill className="w-3.5 h-3.5 text-medicos-teal shrink-0 mt-0.5 stroke-[2.5]" />
-              <div className="flex flex-col">
-                <span className="text-[9px] font-bold text-slate-400">Medicación:</span>
-                <span className="font-bold text-medicos-dark-blue line-clamp-1">{paciente.medicacionTexto}</span>
+            <div className="flex items-start gap-1.5">
+              <Pill className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#166E7A] shrink-0 mt-0.5 stroke-[2.5]" />
+              <div className="flex flex-col truncate">
+                <span className="text-[7.5px] sm:text-[9px] font-bold text-slate-400">Medicación:</span>
+                <span className="font-bold text-slate-900 line-clamp-1">{paciente.medicacionTexto}</span>
               </div>
             </div>
 
-            <div className="flex items-start gap-2">
-              <ClipboardList className="w-3.5 h-3.5 text-medicos-teal shrink-0 mt-0.5 stroke-[2.5]" />
-              <div className="flex flex-col">
-                <span className="text-[9px] font-bold text-slate-400">Observaciones:</span>
-                <span className="font-medium text-slate-600 line-clamp-2 text-[10px] leading-tight">{paciente.observacionesTexto}</span>
+            <div className="flex items-start gap-1.5">
+              <ClipboardList className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#166E7A] shrink-0 mt-0.5 stroke-[2.5]" />
+              <div className="flex flex-col truncate">
+                <span className="text-[7.5px] sm:text-[9px] font-bold text-slate-400">Observaciones:</span>
+                <span className="font-medium text-slate-600 line-clamp-2 text-[8px] xs:text-[9px] sm:text-[10px] leading-tight">
+                  {paciente.observacionesTexto}
+                </span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 3. Bloque Inferior */}
-      <div className="grid grid-cols-2 gap-3 px-1 py-1 items-center">
-        <div className="bg-white rounded-2xl p-2 border border-medicos-soft-border shadow-xs flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-full bg-medicos-teal text-white font-black flex items-center justify-center text-xs shrink-0">
+      {/* 3. Bloque Inferior: Instrucciones */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 px-0.5 sm:px-1 py-0.5 sm:py-1 items-center">
+        <div className="bg-white rounded-xl sm:rounded-2xl p-1.5 sm:p-2 border border-slate-200 shadow-xs flex items-center gap-2">
+          <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[#166E7A] text-white font-black flex items-center justify-center text-[10px] sm:text-xs shrink-0">
             !
           </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-black text-medicos-teal tracking-wide">INSTRUCCIONES</span>
-            <span className="text-[9px] font-medium text-slate-600 leading-tight">
-              En caso de emergencia, escanear el código QR del frente o contactar al número indicado.
+          <div className="flex flex-col min-w-0">
+            <span className="text-[9px] sm:text-xs font-black text-[#166E7A] tracking-wide">INSTRUCCIONES</span>
+            <span className="text-[7.5px] xs:text-[8px] sm:text-[9px] font-medium text-slate-600 leading-tight line-clamp-2">
+              Escanear código QR frontal o contactar al número indicado.
             </span>
           </div>
         </div>
 
-        <div className="bg-medicos-light-bg rounded-2xl p-2 flex items-center gap-2.5 border border-medicos-soft-border">
-          <Lock className="w-5 h-5 text-medicos-teal shrink-0 stroke-[2.5]" />
-          <div className="flex flex-col">
-            <span className="text-xs font-black text-medicos-teal tracking-wide">CONFIDENCIAL</span>
-            <span className="text-[9px] font-medium text-medicos-dark-blue leading-tight">
-              La información de este carnet es personal y está protegida por MedicOS.
+        <div className="bg-teal-50/70 rounded-xl sm:rounded-2xl p-1.5 sm:p-2 flex items-center gap-2 border border-teal-200/80">
+          <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-[#166E7A] shrink-0 stroke-[2.5]" />
+          <div className="flex flex-col min-w-0">
+            <span className="text-[9px] sm:text-xs font-black text-[#166E7A] tracking-wide">CONFIDENCIAL</span>
+            <span className="text-[7.5px] xs:text-[8px] sm:text-[9px] font-medium text-slate-700 leading-tight line-clamp-2">
+              Identificación oficial protegida por la Red MedicOS.
             </span>
           </div>
         </div>
       </div>
 
       {/* 4. Pie de Página */}
-      <div className="bg-medicos-teal text-white px-5 py-1.5 rounded-xl flex items-center justify-between shadow-xs">
+      <div className="bg-[#166E7A] text-white px-3 sm:px-5 py-1 sm:py-1.5 rounded-lg sm:rounded-xl flex items-center justify-between shadow-xs">
         <div className="flex items-center gap-1.5">
-          <ShieldCheck className="w-3.5 h-3.5 text-white" />
-          <span className="text-[11px] italic font-medium text-medicos-light-bg">
+          <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
+          <span className="text-[8px] xs:text-[9px] sm:text-[11px] italic font-medium text-teal-100">
             Tu salud, nuestra prioridad
           </span>
         </div>
-        <span className="text-base font-black tracking-wide text-white">
+        <span className="text-xs sm:text-base font-black tracking-wide text-white">
           MedicOS
         </span>
-        <span className="text-[11px] font-bold text-medicos-canvas">
+        <span className="text-[8px] xs:text-[9px] sm:text-[11px] font-bold text-teal-200">
           2026
         </span>
       </div>

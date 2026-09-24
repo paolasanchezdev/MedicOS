@@ -1,7 +1,8 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/paciente/routes/PacienteRoutes.tsx
 // DESCRIPCIÓN: Enrutador del Portal Paciente con Centro de Notificaciones,
-//              Mensajes con el Médico, Datos Personales y Contactos de Emergencia oficiales.
+//              Mensajes con el Médico, Datos Personales, Contactos de Emergencia,
+//              Preferencias y Seguridad oficial del sistema.
 // =========================================================================
 
 import React from 'react';
@@ -39,9 +40,11 @@ import { DescargaExpedientePage } from '../pages/documentos/descarga-expediente/
 import { CentroNotificacionesPage } from '../pages/notificaciones/centro/CentroNotificacionesPage.js';
 import { MensajesMedicoPage } from '../pages/notificaciones/mensajes-medico/MensajesMedicoPage.js';
 
-// PÁGINAS OFICIALES DE PERFIL
+// PÁGINAS OFICIALES DE PERFIL Y SEGURIDAD
 import { DatosPersonalesPage } from '../pages/perfil/datos-personales/DatosPersonalesPage.js';
 import { ContactosEmergenciaPage } from '../pages/perfil/contactos-emergencia/ContactosEmergenciaPage.js';
+import { PreferenciasPacientePage } from '../pages/perfil/preferencias/PreferenciasPacientePage.js';
+import { SeguridadPacientePage } from '../pages/perfil/seguridad/SeguridadPacientePage.js';
 
 // COMPONENTE TEMPORAL PARA VISTAS EN DESARROLLO PENDIENTES
 const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
@@ -60,8 +63,6 @@ const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
 
 // STUBS DE PÁGINAS PENDIENTES RESTANTES
 export const TelemedicinaPage = () => <PlaceholderPage title="Consultas de Telemedicina" />;
-export const PreferenciasPacientePage = () => <PlaceholderPage title="Preferencias del Sistema" />;
-export const SeguridadPacientePage = () => <PlaceholderPage title="Configuración de Seguridad" />;
 
 export const PacienteRoutes: React.FC = () => {
   return (

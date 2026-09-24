@@ -1,7 +1,8 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/patients/patients.controller.ts
 // DESCRIPCIÓN: Controlador para endpoints de Pacientes, Signos Vitales,
-//              Contactos de Emergencia, Validaciones, Notificaciones y Mensajería.
+//              Contactos de Emergencia, Validaciones, Notificaciones, Mensajería
+//              y Resolución de Carnet QR Auditado.
 // =========================================================================
 
 import { Request, Response } from 'express';
@@ -9,6 +10,17 @@ import { patientsService } from './patients.service.js';
 import { patientDashboardService } from './patient-dashboard.service.js';
 import { patientNotificationsService } from './patient-notifications.service.js';
 import { clinicalMessagesService, type ClinicalMessageType, type ClinicalMessagePayload } from '../clinical-messages/clinical-messages.service.js';
+
+// Helper seguro para extraer la IP real del cliente
+const getClientIp = (req: Request): string => {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') {
+    const parts = forwarded.split(',');
+    const firstIp = parts[0];
+    if (firstIp) return firstIp.trim();
+  }
+  return req.socket.remoteAddress || req.ip || '127.0.0.1';
+};
 
 export class PatientsController {
   async getAllPatients(req: Request, res: Response) {
@@ -402,6 +414,52 @@ export class PatientsController {
       return res.json({ success: true, data: vitals });
     } catch (error: any) {
       return res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  // =========================================================================
+  // RESOLUCIÓN Y AUDITORÍA DE CARNET QR
+  // =========================================================================
+
+  async resolvePatientQR(req: Request, res: Response) {
+    try {
+      const user = (req as any).user;
+      if (!user?.id) {
+        return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+      }
+
+      const { qrPayload } = req.body;
+      if (!qrPayload || typeof qrPayload !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: 'El código o token QR a verificar es obligatorio.',
+        });
+      }
+
+      const clientIp = getClientIp(req);
+
+      const result = await patientsService.resolvePatientQR({
+        qrPayload,
+        clientIp,
+        scannerUser: {
+          id: user.id,
+          role: user.role,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        },
+      });
+
+      return res.status(200).json({ success: true, ...result });
+    } catch (error: any) {
+      const statusCode =
+        error.statusCode ||
+        (error.message?.includes('Acceso denegado')
+          ? 403
+          : error.message?.includes('No se encontró')
+          ? 404
+          : 400);
+
+      return res.status(statusCode).json({ success: false, error: error.message });
     }
   }
 }

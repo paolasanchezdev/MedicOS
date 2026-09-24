@@ -1,7 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/patients/patients.routes.ts
-// DESCRIPCIÓN: Rutas protegidas para Pacientes, Notificaciones, Mensajes Clínicos
-//              y Gestión Integral de Contactos de Emergencia.
+// DESCRIPCIÓN: Rutas protegidas para Pacientes, Notificaciones, Mensajes Clínicos,
+//              Gestión de Contactos de Emergencia y Resolución de Carnet QR.
 // =========================================================================
 
 import { Router } from 'express';
@@ -99,7 +99,14 @@ router.get(
   patientsController.checkEmail
 );
 
-// 4. Rutas Estáticas de Signos Vitales
+// 4. Resolución y Auditoría de Carnet QR (Personal Autorizado)
+router.post(
+  '/qr/resolve',
+  checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA'),
+  patientsController.resolvePatientQR
+);
+
+// 5. Rutas Estáticas de Signos Vitales
 router.get(
   '/vitals/today',
   checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'AUTHORITY'),
@@ -111,7 +118,7 @@ router.post(
   patientsController.createVitalSigns
 );
 
-// 5. Completado y actualización de Perfil Clínico del Paciente
+// 6. Completado y actualización de Perfil Clínico del Paciente
 router.put(
   '/perfil',
   checkRole('PATIENT', 'ADMIN', 'DOCTOR'),
@@ -119,7 +126,7 @@ router.put(
   patientsController.updateProfile
 );
 
-// 6. Listado general y creación de Pacientes
+// 7. Listado general y creación de Pacientes
 router.get(
   '/',
   checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'AUTHORITY'),
@@ -132,7 +139,7 @@ router.post(
   patientsController.createPatient
 );
 
-// 7. Rutas de Dashboard de Paciente
+// 8. Rutas de Dashboard de Paciente
 router.get(
   '/resumen',
   checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'),
@@ -154,7 +161,7 @@ router.get(
   patientsController.getPatientActivity
 );
 
-// 8. Gestión de Contactos de Emergencia del Paciente
+// 9. Gestión de Contactos de Emergencia del Paciente
 router.get(
   '/emergency-contacts',
   checkRole('PATIENT', 'ADMIN', 'DOCTOR'),
@@ -194,29 +201,25 @@ router.get(
 router.post(
   '/contactos-emergencia',
   checkRole('PATIENT', 'ADMIN', 'DOCTOR'),
-  validate(createEmergencyContactSchema),
   patientsController.createEmergencyContact
 );
 router.put(
   '/contactos-emergencia/:contactId',
   checkRole('PATIENT', 'ADMIN', 'DOCTOR'),
-  validate(updateEmergencyContactSchema),
   patientsController.updateEmergencyContact
 );
 router.delete(
   '/contactos-emergencia/:contactId',
   checkRole('PATIENT', 'ADMIN', 'DOCTOR'),
-  validate(emergencyContactIdParamSchema),
   patientsController.deleteEmergencyContact
 );
 router.patch(
   '/contactos-emergencia/:contactId/primary',
   checkRole('PATIENT', 'ADMIN', 'DOCTOR'),
-  validate(emergencyContactIdParamSchema),
   patientsController.setPrimaryEmergencyContact
 );
 
-// 9. Rutas parametrizadas por ID (al final para evitar conflictos de rutas)
+// 10. Rutas parametrizadas por ID (al final para evitar interceptar rutas estáticas)
 router.get(
   '/:id/actividad',
   checkRole('ADMIN', 'DOCTOR', 'BRIGADISTA', 'PATIENT'),

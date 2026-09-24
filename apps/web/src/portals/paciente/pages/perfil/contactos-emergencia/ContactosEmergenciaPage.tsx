@@ -1,6 +1,7 @@
 // =========================================================================
-// ARCHIVO: ContactosEmergenciaPage.tsx
-// DESCRIPCIÓN: Vista minimalista, limpia y aireada de Contactos de Emergencia.
+// ARCHIVO: apps/web/src/portals/paciente/pages/perfil/contactos-emergencia/ContactosEmergenciaPage.tsx
+// DESCRIPCIÓN: Vista principal fluida con líneas nacionales de auxilio en posición
+//              superior y directorio de contactos en formato vertical limpio.
 // =========================================================================
 
 import React from 'react';
@@ -40,40 +41,42 @@ export const ContactosEmergenciaPage: React.FC = () => {
   } = useEmergencyContacts();
 
   return (
-    <div className="w-full space-y-4 pb-16 animate-in fade-in duration-150">
-      {/* 1. Header Minimalista */}
+    <div className="w-full space-y-6 pb-20 animate-in fade-in duration-150">
+      {/* 1. Header Oficial Institucional */}
       <ContactosEmergenciaHeader
         onAddContact={() => setIsCreateModalOpen(true)}
       />
 
-      {/* 2. Acceso Rápido SOS */}
+      {/* 2. Barra de Asistencia Rápida SOS */}
       <ServicioEmergenciaSOS primaryContact={primaryContact} />
 
-      {/* 3. Micro-Banner de Privacidad */}
-      <ContactosEmergenciaInfoCard />
-
-      {/* 4. Lista de Contactos en Cuadrícula Limpia de 2 Columnas */}
-      {loading ? (
-        <ContactosEmergenciaLoading />
-      ) : error ? (
-        <ContactosEmergenciaError onRetry={refetch} />
-      ) : contacts.length === 0 ? (
-        <ContactosEmergenciaEmpty
-          onAddContact={() => setIsCreateModalOpen(true)}
-        />
-      ) : (
-        <ContactosEmergenciaList
-          contacts={contacts}
-          onEdit={(c: EmergencyContact) => setEditingContact(c)}
-          onDelete={(c: EmergencyContact) => setDeletingContact(c)}
-          onSetPrimary={(c: EmergencyContact) => void setPrimary(c.id)}
-        />
-      )}
-
-      {/* 5. Líneas Médicas Nacionales 24/7 */}
+      {/* 3. Líneas Médicas Nacionales 24/7 (Ubicación Prioritaria Superior) */}
       <LineasEmergenciaNacionales />
 
-      {/* 6. Modal para Agregar o Editar Contacto */}
+      {/* 4. Nota de Confidencialidad y Protección de Datos */}
+      <ContactosEmergenciaInfoCard />
+
+      {/* 5. Directorio de Contactos Personales en 3 Columnas Limpias */}
+      <div className="w-full pt-1">
+        {loading ? (
+          <ContactosEmergenciaLoading />
+        ) : error ? (
+          <ContactosEmergenciaError onRetry={refetch} />
+        ) : contacts.length === 0 ? (
+          <ContactosEmergenciaEmpty
+            onAddContact={() => setIsCreateModalOpen(true)}
+          />
+        ) : (
+          <ContactosEmergenciaList
+            contacts={contacts}
+            onEdit={(c: EmergencyContact) => setEditingContact(c)}
+            onDelete={(c: EmergencyContact) => setDeletingContact(c)}
+            onSetPrimary={(c: EmergencyContact) => void setPrimary(c.id)}
+          />
+        )}
+      </div>
+
+      {/* 6. Modal para Crear / Editar Contacto */}
       <ContactoEmergenciaModal
         isOpen={isCreateModalOpen || Boolean(editingContact)}
         onClose={() => {
@@ -96,7 +99,9 @@ export const ContactosEmergenciaPage: React.FC = () => {
         isOpen={Boolean(deletingContact)}
         onClose={() => setDeletingContact(null)}
         contactName={
-          deletingContact ? `${deletingContact.firstName} ${deletingContact.lastName}` : ''
+          deletingContact
+            ? `${deletingContact.firstName} ${deletingContact.lastName}`.trim()
+            : ''
         }
         loading={mutating}
         onConfirm={async () => {

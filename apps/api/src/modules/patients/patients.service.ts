@@ -1,12 +1,13 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/patients/patients.service.ts
 // DESCRIPCIÓN: Servicio de gestión de pacientes con normalización de DUI,
-//              Grupo Sanguíneo y administración completa de Contactos de Emergencia
-//              con auto-migración retrocompatible desde Patient y exactOptionalPropertyTypes.
+//              administración de Contactos de Emergencia y resolución segura
+//              y auditada de Carnet QR en base de datos PostgreSQL.
 // =========================================================================
 
 import { prisma } from '../../config/prisma.js';
 import { BaseService } from '../../services/base.service.js';
+import { AppError } from '../../middleware/error.middleware.js';
 import {
   BloodType,
   Role,
@@ -96,6 +97,17 @@ export interface UpdateEmergencyContactDTO {
   isPrimary?: boolean;
   isActive?: boolean;
   originDeviceId?: string;
+}
+
+export interface ResolvePatientQROptions {
+  qrPayload: string;
+  clientIp?: string;
+  scannerUser: {
+    id: string;
+    role: string | Role;
+    firstName?: string;
+    lastName?: string;
+  };
 }
 
 /**
@@ -661,7 +673,6 @@ export class PatientsService extends BaseService {
         update: clinicalRecordUpdateData,
       });
 
-      // Sincronizar hacia EmergencyContact si se proporcionaron datos de emergencia en Datos Personales
       if (data.emergencyName?.trim() && data.emergencyPhone?.trim()) {
         const partsName = data.emergencyName.trim().split(/\s+/);
         const contactFirst = partsName[0] || 'Contacto';
@@ -716,6 +727,212 @@ export class PatientsService extends BaseService {
         },
       });
     });
+  }
+
+  // =========================================================================
+  // RESOLUCIÓN Y AUDITORÍA DE CARNET QR DE PACIENTE
+  // =========================================================================
+
+  /**
+   * Resuelve el payload de un código QR o token, valida los permisos de quien escanea,
+   * registra la auditoría inmutable en PostgreSQL y entrega la información clínica autorizada.
+   */
+  async resolvePatientQR(options: ResolvePatientQROptions) {
+    const { qrPayload, clientIp, scannerUser } = options;
+
+    if (!qrPayload || !qrPayload.trim()) {
+      throw new AppError('El código o token QR a verificar es obligatorio.', 400);
+    }
+
+    // Regla de Seguridad estricta: Pacientes no pueden auditar ni escanear a otros
+    if (scannerUser.role === Role.PATIENT) {
+      throw new AppError('Acceso denegado: El perfil de paciente no tiene autorización para escanear credenciales clínicas.', 403);
+    }
+
+    let searchId: string | null = null;
+    let searchDui: string | null = null;
+    const cleanPayload = qrPayload.trim();
+
+    // 1. Detección de formato JSON estructurado
+    if (cleanPayload.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(cleanPayload);
+        if (parsed && typeof parsed === 'object') {
+          if (parsed.id && typeof parsed.id === 'string') searchId = parsed.id.trim();
+          if (parsed.patientId && typeof parsed.patientId === 'string') searchId = parsed.patientId.trim();
+          if (parsed.dui && typeof parsed.dui === 'string') searchDui = normalizarDui(parsed.dui);
+        }
+      } catch {
+        // Fallback a texto plano
+      }
+    }
+
+    // 2. Detección de URL institucional o Identificador directo
+    if (!searchId && !searchDui) {
+      const urlExpMatch = cleanPayload.match(/\/expediente\/([^\/\s\?]+)/i);
+      const urlPacMatch = cleanPayload.match(/\/paciente\/([^\/\s\?]+)/i);
+      const segment = urlExpMatch?.[1] || urlPacMatch?.[1];
+
+      if (segment) {
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segment)) {
+          searchId = segment;
+        } else {
+          searchDui = normalizarDui(segment);
+          if (!searchDui && segment.startsWith('EXP-')) {
+            const lastPart = segment.split('-').pop();
+            if (lastPart && /^\d{4}$/.test(lastPart)) {
+              searchDui = lastPart; // Búsqueda por terminación de DUI
+            }
+          }
+        }
+      } else if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanPayload)) {
+        searchId = cleanPayload;
+      } else {
+        searchDui = normalizarDui(cleanPayload);
+      }
+    }
+
+    // 3. Consulta del expediente en PostgreSQL
+    let patient = null;
+
+    if (searchId) {
+      patient = await prisma.patient.findFirst({
+        where: { id: searchId, deletedAt: null },
+        include: {
+          clinicalRecord: true,
+          emergencyContacts: {
+            where: { deletedAt: null, isActive: true },
+            orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+          },
+          vitalSigns: {
+            where: { deletedAt: null },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
+      });
+    }
+
+    if (!patient && searchDui) {
+      patient = await prisma.patient.findFirst({
+        where: {
+          deletedAt: null,
+          OR: [
+            { dui: searchDui },
+            { dui: { endsWith: searchDui } },
+          ],
+        },
+        include: {
+          clinicalRecord: true,
+          emergencyContacts: {
+            where: { deletedAt: null, isActive: true },
+            orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+          },
+          vitalSigns: {
+            where: { deletedAt: null },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
+      });
+    }
+
+    if (!patient) {
+      throw new AppError('No se encontró ningún expediente clínico activo para el carnet escaneado.', 404);
+    }
+
+    // 4. Registro de Auditoría Inmutable en PostgreSQL
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: scannerUser.id,
+          action: 'SCAN_PATIENT_QR',
+          entity: 'Patient',
+          entityId: patient.id,
+          ipAddress: clientIp || null,
+          changedFields: {
+            scannerRole: scannerUser.role,
+            patientName: `${patient.firstName} ${patient.lastName}`,
+            patientDui: patient.dui,
+            resolvedAt: new Date().toISOString(),
+          },
+        },
+      });
+    } catch {
+      // No bloquea la atención médica si la inserción de auditoría falla
+    }
+
+    // 5. Normalización de Metadatos de Salud
+    let alergias = 'Ninguna registrada';
+    let cronicas = 'Ninguna registrada';
+    let medicacion = 'Ninguna activa';
+    let observaciones = 'Sin observaciones adicionales';
+
+    if (patient.clinicalRecord?.observations) {
+      try {
+        const obs = JSON.parse(patient.clinicalRecord.observations);
+        if (obs && typeof obs === 'object') {
+          alergias = obs.allergies || alergias;
+          cronicas = obs.chronicDiseases || cronicas;
+          medicacion = obs.medication || medicacion;
+          observaciones = obs.notes || observaciones;
+        }
+      } catch {
+        alergias = patient.clinicalRecord.observations;
+      }
+    }
+
+    const cleanDuiDigits = (patient.dui || '').replace(/\D/g, '');
+    const numExpediente = cleanDuiDigits.length >= 4
+      ? `EXP-2026-${cleanDuiDigits.slice(-4)}`
+      : `EXP-${patient.id.slice(0, 8).toUpperCase()}`;
+
+    const primaryContact = patient.emergencyContacts[0] || null;
+    const latestVitals = patient.vitalSigns[0] || null;
+
+    // 6. Entrega de Información Autorizada según el Rol
+    const isDoctorOrAdmin = scannerUser.role === Role.DOCTOR || scannerUser.role === Role.ADMIN;
+
+    return {
+      matchType: 'QR_VALIDATED',
+      scannerRole: scannerUser.role,
+      patient: {
+        id: patient.id,
+        expediente: numExpediente,
+        dui: patient.dui,
+        firstName: patient.firstName,
+        lastName: patient.lastName,
+        fullName: `${patient.firstName} ${patient.lastName}`,
+        dateOfBirth: patient.dateOfBirth.toISOString(),
+        sex: patient.sex,
+        phone: patient.phone,
+        address: patient.address,
+        bloodType: patient.clinicalRecord?.bloodType || BloodType.UNKNOWN,
+        emergencyContact: primaryContact ? {
+          name: `${primaryContact.firstName} ${primaryContact.lastName}`.trim(),
+          phone: primaryContact.primaryPhone,
+          relationship: formatRelationLabel(primaryContact.relationship, primaryContact.customRelation),
+        } : (patient.emergencyName ? {
+          name: patient.emergencyName,
+          phone: patient.emergencyPhone || 'Sin número',
+          relationship: patient.emergencyRelation || 'Familiar',
+        } : null),
+        healthSummary: {
+          allergies: alergias,
+          chronicDiseases: cronicas,
+          ...(isDoctorOrAdmin ? { medication: medicacion, observations: observaciones } : {}),
+        },
+        clinicalRecordId: patient.clinicalRecord?.id || null,
+        lastVitalSigns: latestVitals ? {
+          systolic: latestVitals.systolic,
+          diastolic: latestVitals.diastolic,
+          heartRate: latestVitals.heartRate,
+          temperature: latestVitals.temperature,
+          oxygenSat: latestVitals.oxygenSat,
+          createdAt: latestVitals.createdAt.toISOString(),
+        } : null,
+      },
+    };
   }
 
   // =========================================================================

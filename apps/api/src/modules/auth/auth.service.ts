@@ -1,8 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/auth/auth.service.ts
-// DESCRIPCIÓN: Servicio de lógica de negocio para autenticación, hashing
-//              seguro de contraseñas, emisión de tokens JWT y vinculación
-//              atómica de expedientes clínicos en MedicOS.
+// DESCRIPCIÓN: Servicio de autenticación con cambio seguro de contraseña,
+//              registro de eventos en AuditLog y consulta de seguridad real.
 // =========================================================================
 
 import { BaseService } from "../../services/base.service.js";
@@ -44,6 +43,7 @@ export interface UserResponse {
   role: string;
   status?: string;
   createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface AuthResponse {
@@ -148,6 +148,7 @@ export class AuthService extends BaseService {
           role: true,
           status: true,
           createdAt: true,
+          updatedAt: true,
         },
       });
 
@@ -198,7 +199,7 @@ export class AuthService extends BaseService {
     };
   }
 
-  async iniciarSesion(credenciales: LoginDTO): Promise<AuthResponse> {
+  async iniciarSesion(credenciales: LoginDTO, clientIp?: string): Promise<AuthResponse> {
     if (!credenciales) {
       throw new AppError("El correo y la contraseña son obligatorios.", 400);
     }
@@ -227,6 +228,21 @@ export class AuthService extends BaseService {
       throw new AppError("Credenciales incorrectas.", 401);
     }
 
+    // Registro real de inicio de sesión en AuditLog
+    try {
+      await this.db.auditLog.create({
+        data: {
+          userId: usuario.id,
+          action: "LOGIN",
+          entity: "User",
+          entityId: usuario.id,
+          ipAddress: clientIp || null,
+        },
+      });
+    } catch {
+      // No bloquea el inicio de sesión si la auditoría falla
+    }
+
     const secret = process.env.JWT_SECRET;
     if (!secret) {
       throw new AppError("Error interno del servidor: Llave secreta no configurada.", 500);
@@ -253,6 +269,105 @@ export class AuthService extends BaseService {
         status: usuario.status,
       },
       token,
+    };
+  }
+
+  /**
+   * Cambia la contraseña en PostgreSQL validando la actual y registrando la auditoría.
+   */
+  async cambiarContrasena(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+    ipAddress?: string
+  ): Promise<{ ok: boolean; message: string }> {
+    if (!currentPassword || !newPassword) {
+      throw new AppError("Debes ingresar la contraseña actual y la nueva.", 400);
+    }
+
+    if (newPassword.length < 8) {
+      throw new AppError("La nueva contraseña debe tener al menos 8 caracteres.", 400);
+    }
+
+    const usuario = await this.db.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!usuario) {
+      throw new AppError("Usuario no encontrado.", 404);
+    }
+
+    const esValida = await bcrypt.compare(currentPassword, usuario.passwordHash);
+    if (!esValida) {
+      throw new AppError("La contraseña actual es incorrecta.", 400);
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const nuevoHash = await bcrypt.hash(newPassword, salt);
+
+    // Actualiza la contraseña y el campo updatedAt en la base de datos
+    await this.db.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: nuevoHash,
+      },
+    });
+
+    // Registrar evento de seguridad en la tabla AuditLog
+    try {
+      await this.db.auditLog.create({
+        data: {
+          userId,
+          action: "PASSWORD_CHANGED",
+          entity: "User",
+          entityId: userId,
+          ipAddress: ipAddress || null,
+        },
+      });
+    } catch {
+      // Ignorar fallo de inserción de auditoría
+    }
+
+    return {
+      ok: true,
+      message: "Contraseña actualizada exitosamente en MedicOS.",
+    };
+  }
+
+  /**
+   * Obtiene el estado real de seguridad y los registros de auditoría de PostgreSQL.
+   */
+  async obtenerResumenSeguridad(userId: string) {
+    const usuario = await this.db.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!usuario) {
+      throw new AppError("Usuario no encontrado.", 404);
+    }
+
+    const logs = await this.db.auditLog.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+    });
+
+    return {
+      passwordLastChanged: usuario.updatedAt,
+      accountCreatedAt: usuario.createdAt,
+      twoFactorEnabled: false,
+      auditLogs: logs.map((log: any) => ({
+        id: log.id,
+        action: log.action,
+        entity: log.entity,
+        ipAddress: log.ipAddress,
+        createdAt: log.createdAt,
+      })),
     };
   }
 }

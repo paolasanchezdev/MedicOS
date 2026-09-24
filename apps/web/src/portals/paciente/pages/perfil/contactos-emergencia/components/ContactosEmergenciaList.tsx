@@ -1,7 +1,6 @@
 // =========================================================================
-// ARCHIVO: ContactosEmergenciaList.tsx
-// DESCRIPCIÓN: Organiza los contactos en una cuadrícula amplia de 2 columnas
-//              aprovechando todo el ancho de la pantalla sin huecos vacíos.
+// ARCHIVO: apps/web/src/portals/paciente/pages/perfil/contactos-emergencia/components/ContactosEmergenciaList.tsx
+// DESCRIPCIÓN: Rejilla fluida de 3 columnas que llena el ancho de forma armónica.
 // =========================================================================
 
 import React from 'react';
@@ -22,16 +21,20 @@ export const ContactosEmergenciaList: React.FC<ContactosEmergenciaListProps> = (
   onSetPrimary,
 }) => {
   return (
-    <div className="w-full space-y-3.5 pt-1">
-      {/* Título de la sección */}
+    <div className="space-y-3.5 w-full">
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-[#52656C]">
-          Contactos registrados · {contacts.length}
-        </h2>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+            Contactos Registrados
+          </span>
+          <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-[#EBF6F5] text-[#105F68]">
+            {contacts.length}
+          </span>
+        </div>
       </div>
 
-      {/* Grid de 2 columnas a todo lo ancho */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 w-full">
+      {/* Cuadrícula de 3 columnas que abarca todo el ancho sin dejar huecos vacíos */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 w-full">
         {contacts.map((contact) => (
           <ContactoEmergenciaCard
             key={contact.id}

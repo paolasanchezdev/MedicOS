@@ -1,7 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/auth/auth.controller.ts
-// DESCRIPCIÓN: Controlador de autenticación con soporte para cookies cross-site,
-//              cierre de sesión y verificación de usuario activo en MedicOS.
+// DESCRIPCIÓN: Controlador de autenticación con soporte para cambio de contraseña,
+//              consulta de seguridad y eventos de auditoría reales.
 // =========================================================================
 
 import { Request, Response, NextFunction } from "express";
@@ -19,6 +19,19 @@ export const getCookieOptions = () => ({
   maxAge: 24 * 60 * 60 * 1000, // 24 horas
   path: "/",
 });
+
+// Helper seguro para extraer la IP real del cliente evitando accesos undefined
+const getClientIp = (req: Request): string => {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (typeof forwarded === "string") {
+    const parts = forwarded.split(",");
+    const firstIp = parts[0];
+    if (firstIp) {
+      return firstIp.trim();
+    }
+  }
+  return req.socket.remoteAddress || req.ip || "127.0.0.1";
+};
 
 // ==========================================
 // CONTROLADOR: Registro
@@ -47,9 +60,9 @@ export const register = async (req: Request, res: Response, next: NextFunction):
 // ==========================================
 export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const resultado = await authService.iniciarSesion(req.body);
+    const clientIp = getClientIp(req);
+    const resultado = await authService.iniciarSesion(req.body, clientIp);
     
-    // 🔒 Adjuntar la cookie 'token' a la respuesta HTTP
     if (resultado?.token) {
       res.cookie("token", resultado.token, getCookieOptions());
     }
@@ -69,7 +82,6 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 // ==========================================
 export const logout = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Destruimos la cookie 'token' en el navegador con las mismas directivas
     res.clearCookie("token", {
       httpOnly: true,
       secure: isProduction,
@@ -103,6 +115,52 @@ export const getMe = async (req: Request, res: Response, next: NextFunction): Pr
       ok: true,
       user: req.user,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==========================================
+// CONTROLADOR: Obtener Estado Real de Seguridad
+// ==========================================
+export const getSecurityStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (!req.user?.id) {
+      res.status(401).json({ ok: false, message: "No autenticado." });
+      return;
+    }
+
+    const data = await authService.obtenerResumenSeguridad(req.user.id);
+    res.status(200).json({
+      ok: true,
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==========================================
+// CONTROLADOR: Cambiar Contraseña en PostgreSQL
+// ==========================================
+export const changePassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (!req.user?.id) {
+      res.status(401).json({ ok: false, message: "No autenticado." });
+      return;
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    const clientIp = getClientIp(req);
+
+    const resultado = await authService.cambiarContrasena(
+      req.user.id,
+      currentPassword,
+      newPassword,
+      clientIp
+    );
+
+    res.status(200).json(resultado);
   } catch (error) {
     next(error);
   }
