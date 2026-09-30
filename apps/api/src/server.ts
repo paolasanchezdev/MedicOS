@@ -1,11 +1,22 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/server.ts
-// DESCRIPCIÓN: Punto de entrada del servidor API de MedicOS con verificación
-//              automática de base de datos y Graceful Shutdown.
+// DESCRIPCIÓN: Punto de entrada del servidor API de MedicOS con carga robusta
+//              de variables de entorno para monorepo, verificación de base
+//              de datos, estado del motor de IA y Graceful Shutdown.
 // =========================================================================
 
 import dotenv from "dotenv";
-dotenv.config();
+import path from "path";
+import { fileURLToPath } from "url";
+
+// Resolución de rutas absolutas para garantizar la lectura de .env en Monorepo Turborepo
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 1. Carga el .env propio de apps/api
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+// 2. Carga el .env de la raíz del proyecto como respaldo
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
 import type { Server } from "http";
 import app from "./app.js";
@@ -55,10 +66,30 @@ async function verifyDatabaseReadiness(): Promise<boolean> {
 }
 
 // =========================================================================
+// VERIFICACIÓN DEL MOTOR DE INTELIGENCIA ARTIFICIAL (GEMINI)
+// =========================================================================
+function verifyAIEngineConfig(): void {
+  const geminiKey =
+    process.env.GEMINI_API_KEY?.trim() ||
+    process.env.GOOGLE_API_KEY?.trim() ||
+    process.env.VITE_GEMINI_API_KEY?.trim();
+
+  if (geminiKey && geminiKey.length > 10) {
+    const maskedKey = `${geminiKey.substring(0, 6)}...${geminiKey.slice(-4)}`;
+    console.log(`🧠 Motor IA Gemini: Configurado y activo con credencial (${maskedKey})`);
+  } else {
+    console.warn(
+      "⚠️ Motor IA Gemini: GEMINI_API_KEY no detectada en .env. El Asistente Educativo operará con respuestas clínicas de contingencia local."
+    );
+  }
+}
+
+// =========================================================================
 // ARRANQUE DEL SERVIDOR
 // =========================================================================
 async function bootstrap() {
   await verifyDatabaseReadiness();
+  verifyAIEngineConfig();
 
   server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 API de MedicOS ejecutándose en http://localhost:${PORT}`);

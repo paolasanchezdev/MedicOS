@@ -323,7 +323,7 @@ ${specificContextText}`;
       let startedWithUser = false;
 
       for (const h of historyItems) {
-        const role = h.role === 'user' ? 'user' : 'model';
+        const role: 'user' | 'model' = h.role === 'user' ? 'user' : 'model';
 
         if (!startedWithUser) {
           if (role === 'user') {
@@ -332,9 +332,11 @@ ${specificContextText}`;
           }
           // Si el mensaje inicial del historial era del asistente/modelo, se ignora
         } else {
-          const lastIndex = contents.length - 1;
-          if (contents[lastIndex]?.role === role) {
-            contents[lastIndex].parts[0].text += `\n\n${h.content}`;
+          const lastEntry = contents[contents.length - 1];
+          const firstPart = lastEntry?.parts[0];
+
+          if (lastEntry && lastEntry.role === role && firstPart) {
+            firstPart.text += `\n\n${h.content}`;
           } else {
             contents.push({ role, parts: [{ text: h.content }] });
           }
@@ -343,9 +345,11 @@ ${specificContextText}`;
     }
 
     // Agregar el mensaje actual del usuario garantizando la alternancia
-    const lastIndex = contents.length - 1;
-    if (lastIndex >= 0 && contents[lastIndex].role === 'user') {
-      contents[lastIndex].parts[0].text += `\n\n${dto.message}`;
+    const lastEntry = contents[contents.length - 1];
+    const firstPart = lastEntry?.parts[0];
+
+    if (lastEntry && lastEntry.role === 'user' && firstPart) {
+      firstPart.text += `\n\n${dto.message}`;
     } else {
       contents.push({
         role: 'user',
