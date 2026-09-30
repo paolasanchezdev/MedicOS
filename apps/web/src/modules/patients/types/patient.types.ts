@@ -1,7 +1,8 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/modules/patients/types/patient.types.ts
 // DESCRIPCIÓN: Tipos de datos para el dominio de pacientes con soporte de
-//              distrito separado y expediente clínico ampliado.
+//              cuenta digital (IAM), expediente clínico ampliado, diagnósticos,
+//              prescripciones, laboratorios e imagenología.
 // =========================================================================
 
 export type BloodType =
@@ -140,8 +141,16 @@ export interface ClinicalRecordData {
   observations?: string | null;
 }
 
+export interface PatientUserSummary {
+  id: string;
+  email: string;
+  role?: string;
+}
+
 export interface PatientRecord {
   id: string;
+  userId?: string | null;
+  user?: PatientUserSummary | null;
   firstName: string;
   lastName: string;
   dateOfBirth: string;
@@ -209,9 +218,84 @@ export interface ConsultationRecord {
   vitalSigns: VitalSignsRecord[];
 }
 
+export interface PrescriptionItemRecord {
+  id: string;
+  prescriptionId: string;
+  medicine: string;
+  dosage: string;
+  route: string;
+  frequency: string;
+  duration: string;
+  instructions?: string | null;
+  startDate: string;
+  endDate: string;
+}
+
+export interface PrescriptionRecord {
+  id: string;
+  code: string;
+  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  notes?: string | null;
+  issuedAt: string;
+  doctor?: DoctorSummary;
+  brigade?: BrigadeSummary | null;
+  items: PrescriptionItemRecord[];
+}
+
+export interface DiagnosisRecord {
+  id: string;
+  code?: string | null;
+  description: string;
+  status: 'ACTIVE' | 'HISTORICAL' | 'RESOLVED';
+  notes?: string | null;
+  diagnosedAt: string;
+  resolvedAt?: string | null;
+}
+
+export interface LaboratoryAnalyteRecord {
+  id: string;
+  name: string;
+  value: string;
+  unit: string;
+  referenceMin?: number | null;
+  referenceMax?: number | null;
+  referenceText?: string | null;
+  interpretationStatus: 'WITHIN_RANGE' | 'ABOVE_RANGE' | 'BELOW_RANGE' | 'UNEVALUATED';
+}
+
+export interface LaboratoryStudyRecord {
+  id: string;
+  code: string;
+  name: string;
+  category?: string | null;
+  establishmentName: string;
+  status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
+  performedAt: string;
+  observations?: string | null;
+  analytes: LaboratoryAnalyteRecord[];
+}
+
+export interface MedicalImagingStudyRecord {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  bodyRegion: string;
+  establishmentName: string;
+  status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
+  performedAt: string;
+  findings?: string | null;
+  conclusion?: string | null;
+  imageUrl?: string | null;
+}
+
 export interface PatientHistoryData {
   patient: PatientRecord;
   consultations: ConsultationRecord[];
+  prescriptions?: PrescriptionRecord[];
+  diagnoses?: DiagnosisRecord[];
+  laboratoryStudies?: LaboratoryStudyRecord[];
+  medicalImagingStudies?: MedicalImagingStudyRecord[];
   standaloneVitalSigns: VitalSignsRecord[];
 }
 

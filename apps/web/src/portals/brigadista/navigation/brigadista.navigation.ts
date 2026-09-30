@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/navigation/brigadista.navigation.ts
 // DESCRIPCIÓN: Configuración de rutas y navegación operativa del promotor de salud.
+//              Organizada con Dashboard principal e inicio de turno de campo.
 // =========================================================================
 
 import type { LucideIcon } from 'lucide-react';
@@ -18,123 +19,101 @@ export interface BrigadistaNavigationItem {
 }
 
 export const BRIGADISTA_NAVIGATION: BrigadistaNavigationItem[] = [
+  // 1. Dashboard Principal (Centro de Mando Personal)
   {
     title: 'Dashboard',
     path: '/brigadista/dashboard/resumen',
     children: [
-      { title: 'Resumen', path: '/brigadista/dashboard/resumen' },
-      { title: 'Actividad', path: '/brigadista/dashboard/actividad' },
+      { title: 'Resumen Operativo', path: '/brigadista/dashboard/resumen' },
     ],
   },
+
+  // 2. Mi Jornada (Operativa viva del turno)
+  {
+    title: 'Mi Jornada',
+    path: '/brigadista/brigada/jornada',
+    children: [
+      { title: 'Jornada de Hoy', path: '/brigadista/brigada/jornada' },
+      { title: 'Pacientes de Hoy', path: '/brigadista/brigada/pacientes' },
+      { title: 'Bitácora de Campo', path: '/brigadista/dashboard/actividad' },
+    ],
+  },
+
+  // 3. Brigada (Marco institucional macro y despliegue)
   {
     title: 'Brigada',
     path: '/brigadista/brigada/resumen',
     children: [
-      { title: 'Resumen de Brigada', path: '/brigadista/brigada/resumen' },
-      { title: 'Jornada', path: '/brigadista/brigada/jornada' },
-      { title: 'Pacientes de la Brigada', path: '/brigadista/brigada/pacientes' },
+      { title: 'Información de Brigada', path: '/brigadista/brigada/resumen' },
     ],
   },
+
+  // 4. Padrón Comunitario (Censo, identificación y archivo)
   {
-    title: 'Pacientes',
+    title: 'Padrón Comunitario',
     path: '/brigadista/pacientes/buscar',
     children: [
-      { title: 'Buscar Paciente', path: '/brigadista/pacientes/buscar' },
-      { title: 'Registrar Paciente', path: '/brigadista/pacientes/registrar' },
+      { title: 'Buscar Persona', path: '/brigadista/pacientes/buscar' },
+      { title: 'Registrar Persona', path: '/brigadista/pacientes/registrar' },
       { title: 'Escanear QR / ID', path: '/brigadista/pacientes/escanear' },
-      { title: 'Expediente del Paciente', path: '/brigadista/pacientes/expediente' },
+      { title: 'Expediente Clínico', path: '/brigadista/pacientes/expediente' },
     ],
   },
+
+  // 5. Atención (Intervenciones clínicas en campo)
   {
     title: 'Atención',
     path: '/brigadista/atencion/nueva',
     children: [
       { title: 'Nueva Atención', path: '/brigadista/atencion/nueva' },
-      { title: 'Atenciones Pendientes', path: '/brigadista/atencion/pendientes' },
       { title: 'Historial de Atenciones', path: '/brigadista/atencion/historial' },
+      { title: 'Bandeja Outbox / Offline', path: '/brigadista/atencion/pendientes' },
     ],
   },
+
+  // 6. Promoción y Prevención (Salud pública comunitaria)
   {
     title: 'Promoción y Prevención',
-    path: '/brigadista/promocion-prevencion/vacunacion',
+    path: '/brigadista/promocion-prevencion/vacunacion/resumen',
     children: [
-      { title: 'Vacunación', path: '/brigadista/promocion-prevencion/vacunacion' },
+      { title: 'Vacunación', path: '/brigadista/promocion-prevencion/vacunacion/resumen' },
       { title: 'Materno-Infantil', path: '/brigadista/promocion-prevencion/materno-infantil' },
-      { title: 'Nutrición', path: '/brigadista/promocion-prevencion/nutricion' },
+      { title: 'Nutrición Comunitaria', path: '/brigadista/promocion-prevencion/nutricion' },
       { title: 'Educación y Prevención', path: '/brigadista/promocion-prevencion/educacion-prevencion' },
     ],
   },
+
+  // 7. Continuidad (Seguimiento, visitas y derivaciones)
   {
-    title: 'Seguimiento',
+    title: 'Continuidad',
     path: '/brigadista/seguimiento/pacientes',
     children: [
       { title: 'Pacientes en Seguimiento', path: '/brigadista/seguimiento/pacientes' },
-      { title: 'Controles', path: '/brigadista/seguimiento/controles' },
-      { title: 'Alertas', path: '/brigadista/seguimiento/alertas' },
+      { title: 'Visitas Domiciliarias', path: '/brigadista/visitas/programadas' },
+      { title: 'Referencias a la Red', path: '/brigadista/referencias/pendientes' },
     ],
   },
+
+  // 8. Herramientas (Soporte geográfico y logístico)
   {
-    title: 'Visitas',
-    path: '/brigadista/visitas/nueva',
-    children: [
-      { title: 'Nueva Visita', path: '/brigadista/visitas/nueva' },
-      { title: 'Visitas Programadas', path: '/brigadista/visitas/programadas' },
-      { title: 'Visitas Realizadas', path: '/brigadista/visitas/realizadas' },
-    ],
-  },
-  {
-    title: 'Referencias',
-    path: '/brigadista/referencias/nueva',
-    children: [
-      { title: 'Nueva Referencia', path: '/brigadista/referencias/nueva' },
-      { title: 'Referencias Pendientes', path: '/brigadista/referencias/pendientes' },
-      { title: 'Historial de Referencias', path: '/brigadista/referencias/historial' },
-    ],
-  },
-  {
-    title: 'Mapa',
+    title: 'Herramientas',
     path: '/brigadista/mapa/ubicacion',
     children: [
-      { title: 'Ubicación', path: '/brigadista/mapa/ubicacion' },
-      { title: 'Pacientes', path: '/brigadista/mapa/pacientes' },
-      { title: 'Establecimientos', path: '/brigadista/mapa/establecimientos' },
+      { title: 'Mapa Territorial', path: '/brigadista/mapa/ubicacion' },
+      { title: 'Establecimientos de Salud', path: '/brigadista/mapa/establecimientos' },
     ],
   },
-  {
-    title: 'Sincronización',
-    path: '/brigadista/sincronizacion/estado',
-    children: [
-      { title: 'Estado', path: '/brigadista/sincronizacion/estado' },
-      { title: 'Pendientes', path: '/brigadista/sincronizacion/pendientes' },
-      { title: 'Historial', path: '/brigadista/sincronizacion/historial' },
-    ],
-  },
-  {
-    title: 'Notificaciones',
-    path: '/brigadista/notificaciones/centro',
-    children: [
-      { title: 'Centro de Notificaciones', path: '/brigadista/notificaciones/centro' },
-      { title: 'Alertas', path: '/brigadista/notificaciones/alertas' },
-    ],
-  },
+
+  // 9. Reportes (Consolidación y sustitución de papelería física)
   {
     title: 'Reportes',
     path: '/brigadista/reportes/brigada',
     children: [
-      { title: 'Reportes de Brigada', path: '/brigadista/reportes/brigada' },
-      { title: 'Reportes de Pacientes', path: '/brigadista/reportes/pacientes' },
-      { title: 'Reportes de Atención', path: '/brigadista/reportes/atencion' },
-      { title: 'Reportes de Seguimiento', path: '/brigadista/reportes/seguimiento' },
-      { title: 'Reportes de Visitas', path: '/brigadista/reportes/visitas' },
-    ],
-  },
-  {
-    title: 'Perfil',
-    path: '/brigadista/perfil/datos',
-    children: [
-      { title: 'Mis Datos', path: '/brigadista/perfil/datos' },
-      { title: 'Preferencias', path: '/brigadista/perfil/preferencias' },
-      { title: 'Seguridad', path: '/brigadista/perfil/seguridad' },
+      { title: 'Reporte de Brigada', path: '/brigadista/reportes/brigada' },
+      { title: 'Reporte de Pacientes', path: '/brigadista/reportes/pacientes' },
+      { title: 'Reporte de Atención', path: '/brigadista/reportes/atencion' },
+      { title: 'Reporte de Seguimiento', path: '/brigadista/reportes/seguimiento' },
+      { title: 'Reporte de Visitas', path: '/brigadista/reportes/visitas' },
     ],
   },
 ];

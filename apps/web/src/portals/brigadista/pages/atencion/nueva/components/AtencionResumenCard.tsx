@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/atencion/nueva/components/AtencionResumenCard.tsx
-// DESCRIPCIÓN: Paso 9: Resumen estructurado por bloques con botones de edición rápida en cuadrícula 2 columnas.
+// DESCRIPCIÓN: Paso 9: Resumen estructurado por bloques con botones de edición rápida en cuadrícula 4x2.
 // =========================================================================
 
 import React from 'react';
@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   GraduationCap,
   CalendarClock,
-  Send,
+  Smartphone,
   Save,
   Loader2,
 } from 'lucide-react';
@@ -33,7 +33,7 @@ export const AtencionResumenCard: React.FC<AtencionResumenCardProps> = ({
   onGuardar,
   isLoading = false,
 }) => {
-  const { patient, motivoCategoria, motivoDescripcion, evaluacion, acciones, seguimiento } = formData;
+  const { patient, motivoCategoria, motivoDescripcion, evaluacion, acciones, seguimiento, cuenta } = formData;
   const nombreCompleto = patient ? `${patient.firstName} ${patient.lastName}`.trim() : 'No seleccionado';
 
   const sintomasActivos = Object.entries(evaluacion.sintomas)
@@ -67,7 +67,7 @@ export const AtencionResumenCard: React.FC<AtencionResumenCardProps> = ({
         tomaSignos: 'Toma de signos vitales',
         primerosAuxilios: 'Primeros auxilios',
         curacionBasica: 'Curación básica',
-        orientacionSanitaria: 'Orientación sanitaria',
+        orientacionSanitaria: 'Orientación en salud',
         adherenciaTratamiento: 'Verificación de tratamiento',
         apoyoVacunacion: 'Apoyo en vacunación',
         otraAccion: acciones.otraAccionDetalle ? `Otra (${acciones.otraAccionDetalle})` : 'Otra acción',
@@ -83,9 +83,16 @@ export const AtencionResumenCard: React.FC<AtencionResumenCardProps> = ({
         educacionNutricion: 'Nutrición saludable',
         educacionDengue: 'Prevención de dengue',
         educacionSignosAlarma: 'Signos de alarma',
+        educacionSaludMaterna: 'Salud reproductiva / familiar',
+        educacionVacunacion: 'Esquema de vacunación',
+        educacionTratamiento: 'Adherencia a tratamientos',
+        educacionAccidentes: 'Prevención de accidentes',
+        educacionOtra: 'Otra consejería comunitaria',
       };
       return labels[k] || k;
     });
+
+  const tieneCuenta = Boolean(patient?.userId || patient?.user?.email);
 
   return (
     <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/70 p-4 sm:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:border-slate-300 transition-all duration-200 h-full flex flex-col justify-between space-y-2.5">
@@ -96,7 +103,7 @@ export const AtencionResumenCard: React.FC<AtencionResumenCardProps> = ({
         </div>
         <div>
           <span className="text-[11px] font-bold uppercase tracking-wider text-teal-700 block">
-            Paso 8 de 8 • Revisión Final
+            Paso 9 de 9 • Revisión Final
           </span>
           <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight leading-snug">
             Resumen Integral de la Atención
@@ -253,14 +260,20 @@ export const AtencionResumenCard: React.FC<AtencionResumenCardProps> = ({
           </button>
         </div>
 
-        {/* 7. Seguimiento */}
+        {/* 7. Seguimiento & Desenlace */}
         <div className="p-2.5 sm:p-3 bg-slate-50/80 border border-slate-200/80 rounded-xl flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1 space-y-0.5">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-              <CalendarClock className="w-3.5 h-3.5 text-teal-600 shrink-0" /> 7. Seguimiento
+              <CalendarClock className="w-3.5 h-3.5 text-teal-600 shrink-0" /> 7. Seguimiento & Destino
             </span>
             <p className="text-xs font-bold text-slate-900 truncate">
-              {seguimiento.requiereSeguimiento ? `Sí — ${seguimiento.fechaSeguimiento}` : 'No requerido'}
+              {seguimiento.desenlace === 'PASE_MEDICO'
+                ? 'Pase a Consulta Médica'
+                : seguimiento.desenlace === 'REFERENCIA' || seguimiento.requiereReferencia
+                ? `Referencia: ${seguimiento.establecimientoDestinoNombre || 'Red MINSAL'}`
+                : seguimiento.desenlace === 'SEGUIMIENTO' || seguimiento.requiereSeguimiento
+                ? `Seguimiento: ${seguimiento.fechaSeguimiento || 'Por coordinar'}`
+                : 'Atención Resuelta en Terreno'}
             </p>
           </div>
           <button
@@ -272,16 +285,20 @@ export const AtencionResumenCard: React.FC<AtencionResumenCardProps> = ({
           </button>
         </div>
 
-        {/* 8. Referencia */}
+        {/* 8. Cuenta Digital MedicOS */}
         <div className="p-2.5 sm:p-3 bg-slate-50/80 border border-slate-200/80 rounded-xl flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1 space-y-0.5">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-              <Send className="w-3.5 h-3.5 text-amber-600 shrink-0" /> 8. Referencia
+              <Smartphone className="w-3.5 h-3.5 text-teal-600 shrink-0" /> 8. Cuenta MedicOS
             </span>
             <p className="text-xs font-bold text-slate-900 truncate">
-              {seguimiento.requiereReferencia
-                ? `Sí — ${seguimiento.establecimientoDestinoNombre || 'Establecimiento'}`
-                : 'No requerida'}
+              {tieneCuenta
+                ? `Activa (${patient?.user?.email || 'Cuenta nominal'})`
+                : cuenta?.crearCuenta && cuenta.email.trim()
+                ? `Por habilitar (${cuenta.email.trim()})`
+                : cuenta?.crearCuenta
+                ? 'Por habilitar'
+                : 'No solicitada (Omitida)'}
             </p>
           </div>
           <button

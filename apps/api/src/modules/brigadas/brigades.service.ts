@@ -1,7 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/brigadas/brigades.service.ts
-// DESCRIPCIÓN: Servicio para gestión, resumen, jornada y padrón de pacientes
-//              100% PostgreSQL con exclusión de eliminados lógicos y registros web.
+// DESCRIPCIÓN: Servicio para gestión, resumen, jornada y registro de pacientes de hoy
+//              100% PostgreSQL con soporte para sala de espera y visita domiciliaria.
 // =========================================================================
 
 import { prisma } from '../../config/prisma.js';
@@ -95,10 +95,12 @@ function esReferenciaMedica(consulta: { treatmentPlan: string; diagnosisDesc: st
 
 export class BrigadesService extends BaseService {
   /**
-   * Obtiene el padrón de pacientes vinculados a la brigada excluyendo eliminados lógicamente y cuentas web no atendidas
+   * Obtiene la nómina de pacientes atendidos o en espera en la jornada de hoy (Registro del Día).
+   * Soporta tanto el Puesto Fijo (Sala de Espera) como la Visita Domiciliaria (Atención Directa).
    */
   async getPacientesBrigada(userId: string) {
     const ahora = new Date();
+    const inicioHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0, 0);
 
     const sesionActiva = await prisma.workSession.findFirst({
       where: {
@@ -109,7 +111,16 @@ export class BrigadesService extends BaseService {
       orderBy: { startedAt: 'desc' },
     });
 
-    let brigada: Brigade | null = sesionActiva?.brigade ?? null;
+    const sesionHoy = sesionActiva ?? await prisma.workSession.findFirst({
+      where: {
+        brigadistaId: userId,
+        startedAt: { gte: inicioHoy },
+      },
+      include: { brigade: true },
+      orderBy: { startedAt: 'desc' },
+    });
+
+    let brigada: Brigade | null = sesionHoy?.brigade ?? null;
 
     if (!brigada) {
       const miembro = await prisma.brigadeMember.findFirst({
@@ -143,9 +154,28 @@ export class BrigadesService extends BaseService {
       return null;
     }
 
-    const enCurso = brigada.status === BrigadeStatus.ACTIVE || Boolean(sesionActiva);
+    const enCurso = Boolean(sesionActiva);
 
-    // Solo pacientes censados en terreno o que tengan consultas registradas en esta brigada
+    // Condiciones de consulta médica para el turno o brigada
+    const condicionesTurno: Prisma.ConsultationWhereInput[] = [
+      {
+        brigadeId: brigada.id,
+        deletedAt: null,
+        createdAt: { gte: inicioHoy },
+      },
+    ];
+
+    if (sesionHoy?.id) {
+      condicionesTurno.push({
+        workSessionId: sesionHoy.id,
+        deletedAt: null,
+      });
+    }
+
+    // CRITERIO AMPLIADO DE ASISTENCIA DEL DÍA:
+    // 1. Pacientes con consulta clínica en este turno, O
+    // 2. Pacientes empadronados físicamente hoy en terreno (pasan directo a sala de espera), O
+    // 3. Pacientes con toma de constantes vitales registradas hoy.
     const pacientes = await prisma.patient.findMany({
       where: { 
         deletedAt: null,
@@ -157,27 +187,36 @@ export class BrigadesService extends BaseService {
           {
             consultations: {
               some: {
-                brigadeId: brigada.id,
-                deletedAt: null,
+                OR: condicionesTurno,
               },
             },
           },
           {
-            originDeviceId: {
-              notIn: DISPOSITIVOS_WEB_EXCLUIDOS,
+            createdAt: { gte: inicioHoy },
+            originDeviceId: { notIn: DISPOSITIVOS_WEB_EXCLUIDOS },
+          },
+          {
+            vitalSigns: {
+              some: {
+                createdAt: { gte: inicioHoy },
+                deletedAt: null,
+              },
             },
           },
         ],
       },
       include: {
         vitalSigns: {
-          where: { deletedAt: null },
+          where: { 
+            deletedAt: null,
+            createdAt: { gte: inicioHoy },
+          },
           orderBy: { createdAt: 'desc' },
         },
         consultations: {
           where: { 
             deletedAt: null,
-            status: { in: ['COMPLETED', 'IN_PROGRESS'] }
+            OR: condicionesTurno,
           },
           orderBy: { createdAt: 'desc' },
         },
@@ -192,7 +231,6 @@ export class BrigadesService extends BaseService {
 
     const listaPacientes = pacientes.map((p) => {
       const tieneSignos = p.vitalSigns.length > 0;
-      const tieneConsultaValida = p.consultations.length > 0;
       const ultimaEvaluacion = p.vitalSigns[0] ?? null;
       const ultimaConsulta = p.consultations[0] ?? null;
 
@@ -207,7 +245,8 @@ export class BrigadesService extends BaseService {
 
       let estadoBrigada: 'EVALUADO' | 'PENDIENTE' | 'SEGUIMIENTO' | 'REFERIDO' = 'PENDIENTE';
 
-      if (!tieneSignos && !tieneConsultaValida) {
+      // Si no hay consulta o está en borrador/en proceso -> PENDIENTE (En sala de espera)
+      if (!ultimaConsulta || ultimaConsulta.status === 'IN_PROGRESS' || ultimaConsulta.status === 'DRAFT') {
         estadoBrigada = 'PENDIENTE';
         pendientesCount++;
       } else if (esReferido) {
@@ -229,7 +268,7 @@ export class BrigadesService extends BaseService {
       }
 
       let ultimaAtencionFormatted = '—';
-      if (tieneConsultaValida && ultimaConsulta) {
+      if (ultimaConsulta) {
         ultimaAtencionFormatted = new Date(ultimaConsulta.createdAt).toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit',
@@ -312,10 +351,13 @@ export class BrigadesService extends BaseService {
   }
 
   /**
-   * Obtiene los datos detallados de la Jornada Territorial activa excluyendo eliminados
+   * Obtiene los datos detallados de la Jornada Territorial del brigadista
+   * gobernados 1:1 por el ciclo de vida de su WorkSession real en PostgreSQL,
+   * filtrando estrictamente los eventos a la fecha de hoy.
    */
   async getJornadaBrigada(userId: string) {
     const ahora = new Date();
+    const inicioHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0, 0);
 
     const sesionActiva = await prisma.workSession.findFirst({
       where: {
@@ -330,7 +372,23 @@ export class BrigadesService extends BaseService {
       orderBy: { startedAt: 'desc' },
     });
 
-    let brigada: BrigadeJornadaPayload | null = sesionActiva?.brigade ?? null;
+    const sesionFinalizadaHoy = !sesionActiva
+      ? await prisma.workSession.findFirst({
+          where: {
+            brigadistaId: userId,
+            status: 'ENDED',
+            startedAt: { gte: inicioHoy },
+          },
+          include: {
+            brigade: {
+              include: brigadeJornadaInclude,
+            },
+          },
+          orderBy: { endedAt: 'desc' },
+        })
+      : null;
+
+    let brigada: BrigadeJornadaPayload | null = sesionActiva?.brigade ?? sesionFinalizadaHoy?.brigade ?? null;
 
     if (!brigada) {
       const miembro = await prisma.brigadeMember.findFirst({
@@ -373,14 +431,13 @@ export class BrigadesService extends BaseService {
       return null;
     }
 
-    const estaEnCurso = Boolean(sesionActiva) || (brigada.status === BrigadeStatus.ACTIVE && !brigada.endDate);
-    const estaFinalizada = brigada.status === BrigadeStatus.COMPLETED || (!sesionActiva && Boolean(brigada.endDate));
-
     let tiempoTranscurrido = '0 h 0 min';
     let horaInicioFormatted = '';
     let horaFinFormatted: string | null = null;
+    let estadoFinal: 'PROGRAMADA' | 'EN_CURSO' | 'FINALIZADA' = 'PROGRAMADA';
 
     if (sesionActiva) {
+      estadoFinal = 'EN_CURSO';
       const inicio = new Date(sesionActiva.startedAt);
       const diffMs = Math.max(0, ahora.getTime() - inicio.getTime());
       const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
@@ -388,17 +445,10 @@ export class BrigadesService extends BaseService {
       tiempoTranscurrido = `${diffHrs} h ${diffMins} min`;
       horaInicioFormatted = inicio.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       horaFinFormatted = null;
-    } else if (estaEnCurso) {
-      const inicio = new Date(brigada.startDate);
-      const diffMs = Math.max(0, ahora.getTime() - inicio.getTime());
-      const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-      const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-      tiempoTranscurrido = `${diffHrs} h ${diffMins} min`;
-      horaInicioFormatted = inicio.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      horaFinFormatted = null;
-    } else if (estaFinalizada) {
-      const inicio = new Date(brigada.startDate);
-      const fin = brigada.endDate ? new Date(brigada.endDate) : ahora;
+    } else if (sesionFinalizadaHoy && sesionFinalizadaHoy.endedAt) {
+      estadoFinal = 'FINALIZADA';
+      const inicio = new Date(sesionFinalizadaHoy.startedAt);
+      const fin = new Date(sesionFinalizadaHoy.endedAt);
       const diffMs = Math.max(0, fin.getTime() - inicio.getTime());
       const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
       const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
@@ -406,16 +456,18 @@ export class BrigadesService extends BaseService {
       horaInicioFormatted = inicio.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       horaFinFormatted = fin.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } else {
-      const inicio = new Date(brigada.startDate);
-      horaInicioFormatted = inicio.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      estadoFinal = 'PROGRAMADA';
       tiempoTranscurrido = '0 h 0 min';
+      horaInicioFormatted = '—';
       horaFinFormatted = null;
     }
 
+    // FILTRO ESTRICTO AL DÍA DE HOY:
     const [evaluaciones, pacientes, consultas, sesiones] = await Promise.all([
       prisma.vitalSigns.findMany({
         where: { 
           deletedAt: null,
+          createdAt: { gte: inicioHoy },
           patient: {
             deletedAt: null,
             user: { status: UserStatus.ACTIVE, deletedAt: null },
@@ -429,6 +481,7 @@ export class BrigadesService extends BaseService {
       prisma.patient.findMany({
         where: { 
           deletedAt: null,
+          createdAt: { gte: inicioHoy },
           user: { status: UserStatus.ACTIVE, deletedAt: null },
           originDeviceId: { notIn: DISPOSITIVOS_WEB_EXCLUIDOS },
         },
@@ -438,6 +491,7 @@ export class BrigadesService extends BaseService {
       prisma.consultation.findMany({
         where: { 
           deletedAt: null,
+          createdAt: { gte: inicioHoy },
           brigadeId: brigada.id,
           patient: { deletedAt: null, user: { status: UserStatus.ACTIVE, deletedAt: null } },
         },
@@ -446,7 +500,10 @@ export class BrigadesService extends BaseService {
         take: 15,
       }),
       prisma.workSession.findMany({
-        where: { brigadeId: brigada.id },
+        where: { 
+          brigadeId: brigada.id,
+          startedAt: { gte: inicioHoy },
+        },
         include: { brigadista: true },
         orderBy: { startedAt: 'desc' },
         take: 5,
@@ -606,12 +663,6 @@ export class BrigadesService extends BaseService {
       year: 'numeric',
     });
 
-    const estadoFinal: 'PROGRAMADA' | 'EN_CURSO' | 'FINALIZADA' = estaFinalizada
-      ? 'FINALIZADA'
-      : estaEnCurso
-      ? 'EN_CURSO'
-      : 'PROGRAMADA';
-
     return {
       identificacion: {
         id: brigada.id,
@@ -661,11 +712,11 @@ export class BrigadesService extends BaseService {
   }
 
   /**
-   * Resumen colectivo de la Brigada Médica excluyendo pacientes eliminados lógicamente y registros web
+   * Resumen colectivo de la Brigada Médica gobernado por la misión real en PostgreSQL,
+   * con recuperación de jornadas reales (WorkSessions) y sin datos ficticios.
    */
   async getResumenBrigada(userId: string) {
     const ahora = new Date();
-    const inicioHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0, 0);
 
     const sesionActiva = await prisma.workSession.findFirst({
       where: {
@@ -673,12 +724,14 @@ export class BrigadesService extends BaseService {
         status: 'STARTED',
       },
       include: {
-        brigade: true,
+        brigade: {
+          include: { leader: true },
+        },
       },
       orderBy: { startedAt: 'desc' },
     });
 
-    let brigada: Brigade | null = sesionActiva?.brigade ?? null;
+    let brigada = sesionActiva?.brigade ?? null;
 
     if (!brigada) {
       const miembro = await prisma.brigadeMember.findFirst({
@@ -689,7 +742,11 @@ export class BrigadesService extends BaseService {
             deletedAt: null,
           },
         },
-        include: { brigade: true },
+        include: {
+          brigade: {
+            include: { leader: true },
+          },
+        },
       });
       brigada = miembro?.brigade ?? null;
     }
@@ -700,6 +757,7 @@ export class BrigadesService extends BaseService {
           deletedAt: null,
           status: { in: [BrigadeStatus.ACTIVE, BrigadeStatus.PLANNED] },
         },
+        include: { leader: true },
         orderBy: { startDate: 'desc' },
       });
     }
@@ -707,6 +765,7 @@ export class BrigadesService extends BaseService {
     if (!brigada) {
       brigada = await prisma.brigade.findFirst({
         where: { deletedAt: null },
+        include: { leader: true },
         orderBy: { startDate: 'desc' },
       });
     }
@@ -726,6 +785,10 @@ export class BrigadesService extends BaseService {
             year: 'numeric',
           }),
           enCurso: false,
+          estadoBrigada: BrigadeStatus.PLANNED,
+          fechaInicio: '—',
+          fechaFin: null,
+          responsable: 'Coordinación Médica',
         },
         metricas: {
           pacientes: 0,
@@ -735,7 +798,7 @@ export class BrigadesService extends BaseService {
         },
         estado: {
           enCurso: false,
-          horaInicio: '08:00 AM',
+          horaInicio: '—',
           tiempoTranscurrido: '0 h 0 min',
           evaluacionesRealizadas: 0,
           totalPacientes: 0,
@@ -744,12 +807,13 @@ export class BrigadesService extends BaseService {
           seguimientosPendientes: 0,
           referenciasRealizadas: 0,
         },
+        jornadas: [],
       };
     }
 
-    const enCurso = brigada.status === BrigadeStatus.ACTIVE || Boolean(sesionActiva);
+    const enCurso = Boolean(sesionActiva);
 
-    const [evaluaciones, pacientes, consultas] = await Promise.all([
+    const [evaluaciones, pacientes, consultas, sesiones] = await Promise.all([
       prisma.vitalSigns.findMany({
         where: { 
           deletedAt: null,
@@ -796,6 +860,19 @@ export class BrigadesService extends BaseService {
         },
         orderBy: { createdAt: 'desc' },
       }),
+      prisma.workSession.findMany({
+        where: { brigadeId: brigada.id },
+        include: {
+          brigadista: {
+            select: { firstName: true, lastName: true },
+          },
+          _count: {
+            select: { consultations: true },
+          },
+        },
+        orderBy: { startedAt: 'desc' },
+        take: 6,
+      }),
     ] as const);
 
     const riesgos = evaluaciones.filter(
@@ -808,21 +885,53 @@ export class BrigadesService extends BaseService {
 
     const totalReferenciasReales = consultas.filter((c) => esReferenciaMedica(c)).length;
 
-    const fechaInicioTurno = sesionActiva?.startedAt || new Date(inicioHoy.getTime() + 8 * 60 * 60 * 1000);
-    const diffMs = enCurso ? Math.max(0, ahora.getTime() - new Date(fechaInicioTurno).getTime()) : 0;
-    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    const tiempoTranscurrido = `${diffHrs} h ${diffMins} min`;
-    const horaInicio = new Date(fechaInicioTurno).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    let tiempoTranscurrido = '0 h 0 min';
+    let horaInicio = '—';
+
+    if (sesionActiva) {
+      const inicio = new Date(sesionActiva.startedAt);
+      const diffMs = Math.max(0, ahora.getTime() - inicio.getTime());
+      const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      tiempoTranscurrido = `${diffHrs} h ${diffMins} min`;
+      horaInicio = inicio.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
 
     const fechaFormateada = ahora.toLocaleDateString('es-SV', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
       year: 'numeric',
+    });
+
+    const jornadasReales = sesiones.map((s) => {
+      const inicio = new Date(s.startedAt);
+      const fin = s.endedAt ? new Date(s.endedAt) : null;
+      let duracion = 'En curso';
+      if (fin) {
+        const diffMs = Math.max(0, fin.getTime() - inicio.getTime());
+        const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        duracion = `${diffHrs} h ${diffMins} min`;
+      }
+
+      return {
+        id: s.id,
+        fecha: inicio.toLocaleDateString('es-SV', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        }),
+        horaInicio: inicio.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        horaFin: fin ? fin.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
+        duracion,
+        estado: s.status as 'STARTED' | 'ENDED',
+        responsable: `${s.brigadista.firstName} ${s.brigadista.lastName}`,
+        totalConsultas: s._count.consultations,
+      };
     });
 
     return {
@@ -834,6 +943,22 @@ export class BrigadesService extends BaseService {
         departamento: brigada.department,
         fecha: fechaFormateada.charAt(0).toUpperCase() + fechaFormateada.slice(1),
         enCurso,
+        estadoBrigada: brigada.status,
+        fechaInicio: new Date(brigada.startDate).toLocaleDateString('es-SV', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        }),
+        fechaFin: brigada.endDate
+          ? new Date(brigada.endDate).toLocaleDateString('es-SV', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            })
+          : null,
+        responsable: brigada.leader
+          ? `${brigada.leader.firstName} ${brigada.leader.lastName}`
+          : 'Coordinación Médica',
       },
       metricas: {
         pacientes: pacientes.length,
@@ -844,7 +969,7 @@ export class BrigadesService extends BaseService {
       estado: {
         enCurso,
         horaInicio,
-        tiempoTranscurrido: enCurso ? tiempoTranscurrido : '0 h 0 min',
+        tiempoTranscurrido,
         evaluacionesRealizadas: evaluaciones.length,
         totalPacientes: pacientes.length,
       },
@@ -852,6 +977,7 @@ export class BrigadesService extends BaseService {
         seguimientosPendientes: riesgos.length,
         referenciasRealizadas: totalReferenciasReales,
       },
+      jornadas: jornadasReales,
     };
   }
 

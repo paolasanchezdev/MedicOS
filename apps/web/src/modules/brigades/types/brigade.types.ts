@@ -143,6 +143,17 @@ export interface BrigadeFiltersState {
 }
 
 // --- Contrato para Resumen Colectivo de Brigada ---
+export interface ResumenJornadaItem {
+  id: string;
+  fecha: string;
+  horaInicio: string;
+  horaFin: string | null;
+  duracion: string;
+  estado: 'STARTED' | 'ENDED';
+  responsable: string;
+  totalConsultas: number;
+}
+
 export interface ResumenBrigadaIdentificacion {
   id: string;
   nombre: string;
@@ -151,6 +162,10 @@ export interface ResumenBrigadaIdentificacion {
   departamento: string;
   fecha: string;
   enCurso: boolean;
+  estadoBrigada: BrigadeStatus;
+  fechaInicio?: string;
+  fechaFin?: string | null;
+  responsable?: string;
 }
 
 export interface ResumenBrigadaMetricas {
@@ -178,6 +193,7 @@ export interface ResumenBrigadaData {
   metricas: ResumenBrigadaMetricas;
   estado: ResumenBrigadaEstado;
   requiereAtencion: ResumenBrigadaRequiereAtencion;
+  jornadas: ResumenJornadaItem[];
 }
 
 export interface ResumenBrigadaResponse {

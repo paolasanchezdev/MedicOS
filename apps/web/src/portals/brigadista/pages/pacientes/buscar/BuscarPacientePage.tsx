@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/pacientes/buscar/BuscarPacientePage.tsx
-// DESCRIPCIÓN: Página principal de búsqueda y localización de pacientes.
+// DESCRIPCIÓN: Página principal de búsqueda y localización de pacientes
+//              con espaciado responsive mobile-first para brigadas.
 // =========================================================================
 
 import React from 'react';
@@ -27,7 +28,7 @@ export const BuscarPacientePage: React.FC = () => {
   } = useSearchPatients();
 
   return (
-    <div className="w-full p-6 space-y-6 max-w-[1700px] mx-auto animate-in fade-in duration-200">
+    <div className="w-full p-3 sm:p-6 space-y-3.5 sm:space-y-6 max-w-[1700px] mx-auto animate-in fade-in duration-200">
       {/* 1. Cabecera Contextual */}
       <BuscarPacienteHeader totalResultados={results.length} />
 

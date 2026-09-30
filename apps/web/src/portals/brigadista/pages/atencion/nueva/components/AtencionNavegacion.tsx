@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/atencion/nueva/components/AtencionNavegacion.tsx
-// DESCRIPCIÓN: Barra horizontal lineal optimizada para 8 pasos.
+// DESCRIPCIÓN: Barra horizontal lineal optimizada para el flujo oficial de 9 pasos.
 // =========================================================================
 
 import React from 'react';
@@ -25,13 +25,14 @@ const PASOS_CONFIG = [
   { id: 4, label: 'Observaciones' },
   { id: 5, label: 'Acciones' },
   { id: 6, label: 'Educación' },
-  { id: 7, label: 'Seguimiento & Ref.' },
-  { id: 8, label: 'Resumen' },
+  { id: 7, label: 'Seguimiento' },
+  { id: 8, label: 'Cuenta App' },
+  { id: 9, label: 'Resumen' },
 ];
 
 export const AtencionNavegacion: React.FC<AtencionNavegacionProps> = ({
   currentStep,
-  totalSteps = 8,
+  totalSteps = 9,
   isLoading,
   canContinue,
   completedSteps = [],
@@ -54,7 +55,7 @@ export const AtencionNavegacion: React.FC<AtencionNavegacionProps> = ({
         <span className="hidden sm:inline">Anterior</span>
       </button>
 
-      {/* Grid de 8 pasos */}
+      {/* Grid de 9 pasos */}
       <div className="flex flex-1 items-center justify-center overflow-x-auto scrollbar-none px-2 gap-1">
         {PASOS_CONFIG.map(({ id, label }, index) => {
           const isCompleted = completedSteps.includes(id) || id < currentStep;
@@ -122,3 +123,5 @@ export const AtencionNavegacion: React.FC<AtencionNavegacionProps> = ({
     </div>
   );
 };
+
+export default AtencionNavegacion;

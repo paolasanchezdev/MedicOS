@@ -1,13 +1,13 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/consultations/consultations.service.ts
-// DESCRIPCIÓN: Servicio de consultas SOAP y atenciones comunitarias con creación
-//              automática de diagnósticos formales y emisión transaccional
-//              de constancias médicas oficiales (MedicalCertificate).
+// DESCRIPCIÓN: Servicio de consultas SOAP y atenciones comunitarias con
+//              auto-vinculación a WorkSession (Jornada Territorial),
+//              diagnósticos formales y constancias médicas oficiales.
 // =========================================================================
 
 import { prisma } from '../../config/prisma.js';
 import { BaseService } from '../../services/base.service.js';
-import { CertificateType, CertificateStatus, SyncStatus } from '@prisma/client';
+import { CertificateType, CertificateStatus, SyncStatus, SessionStatus, Role } from '@prisma/client';
 
 export interface VitalsInputDTO {
   systolic: number;
@@ -42,6 +42,7 @@ export interface GetAllConsultationsFilters {
   category?: string | undefined;
   status?: string | undefined;
   brigadeId?: string | undefined;
+  workSessionId?: string | undefined;
   page?: number | undefined;
   limit?: number | undefined;
 }
@@ -66,14 +67,12 @@ export class ConsultationsService extends BaseService {
     return newRecord.id;
   }
 
-  // 1. Crear Consulta Médica / Atención Comunitaria (SOAP)
+  // 1. Crear Consulta Médica / Atención Comunitaria (SOAP) con resolución de Jornada
   async createConsultation(data: CreateConsultationDTO) {
     const {
       patientId,
       doctorId,
-      brigadeId,
       appointmentId,
-      workSessionId,
       chiefComplaint,
       physicalExam,
       diagnosisCode,
@@ -84,7 +83,10 @@ export class ConsultationsService extends BaseService {
       originDeviceId,
     } = data;
 
-    const [patient, doctor] = await Promise.all([
+    let targetBrigadeId = data.brigadeId || null;
+    let targetWorkSessionId = data.workSessionId || null;
+
+    const [patient, user] = await Promise.all([
       prisma.patient.findFirst({ where: { id: patientId, deletedAt: null } }),
       prisma.user.findFirst({
         where: {
@@ -96,21 +98,55 @@ export class ConsultationsService extends BaseService {
     ]);
 
     if (!patient) throw new Error('El paciente especificado no existe.');
-    if (!doctor) throw new Error('El usuario responsable no existe o no tiene permisos para registrar la atención.');
+    if (!user) throw new Error('El usuario responsable no existe o no tiene permisos para registrar la atención.');
+
+    // Auto-resolución de Jornada Activa para Brigadistas
+    if (user.role === Role.BRIGADISTA) {
+      const activeSession = await prisma.workSession.findFirst({
+        where: {
+          brigadistaId: user.id,
+          status: SessionStatus.STARTED,
+        },
+        include: { brigade: true },
+        orderBy: { startedAt: 'desc' },
+      });
+
+      if (!activeSession) {
+        throw new Error(
+          'No se puede registrar la atención comunitaria: debes iniciar tu jornada operativa de hoy antes de atender pacientes.'
+        );
+      }
+
+      targetWorkSessionId = activeSession.id;
+      if (!targetBrigadeId) {
+        targetBrigadeId = activeSession.brigadeId;
+      }
+    } else if (!targetWorkSessionId && targetBrigadeId) {
+      // Si un médico atiende dentro de una brigada, enlazar con la sesión abierta si existe
+      const sessionInBrigade = await prisma.workSession.findFirst({
+        where: {
+          brigadeId: targetBrigadeId,
+          status: SessionStatus.STARTED,
+        },
+        orderBy: { startedAt: 'desc' },
+      });
+      if (sessionInBrigade) {
+        targetWorkSessionId = sessionInBrigade.id;
+      }
+    }
 
     let establishmentId: string | null = null;
     if (appointmentId) {
-      const db = prisma as any;
-      const appointment = await db.appointment.findFirst({
+      const appointment = await prisma.appointment.findFirst({
         where: { id: appointmentId, deletedAt: null },
       });
       if (!appointment) throw new Error('La cita médica referenciada no existe.');
       establishmentId = appointment.establishmentId || null;
     }
 
-    if (brigadeId) {
+    if (targetBrigadeId) {
       const brigade = await prisma.brigade.findFirst({
-        where: { id: brigadeId, deletedAt: null },
+        where: { id: targetBrigadeId, deletedAt: null },
       });
       if (!brigade) throw new Error('La brigada médica referenciada no existe.');
     }
@@ -119,7 +155,7 @@ export class ConsultationsService extends BaseService {
     const deviceId = originDeviceId || 'SERVER_CENTRAL';
     const parsedFollowUp = followUpDate ? new Date(followUpDate) : null;
 
-    return prisma.$transaction(async (tx: any) => {
+    return prisma.$transaction(async (tx) => {
       const consultation = await tx.consultation.create({
         data: {
           patientId,
@@ -132,9 +168,9 @@ export class ConsultationsService extends BaseService {
           treatmentPlan,
           status: 'COMPLETED',
           completedAt: new Date(),
-          ...(brigadeId ? { brigadeId } : {}),
+          ...(targetBrigadeId ? { brigadeId: targetBrigadeId } : {}),
           ...(appointmentId ? { appointmentId } : {}),
-          ...(workSessionId ? { workSessionId } : {}),
+          ...(targetWorkSessionId ? { workSessionId: targetWorkSessionId } : {}),
           ...(parsedFollowUp ? { followUpDate: parsedFollowUp } : {}),
           originDeviceId: deviceId,
           lastModifiedByDeviceId: deviceId,
@@ -162,13 +198,13 @@ export class ConsultationsService extends BaseService {
           data: {
             patientId,
             consultationId: consultation.id,
-            systolic: vitalSigns.systolic,
-            diastolic: vitalSigns.diastolic,
-            heartRate: vitalSigns.heartRate,
-            temperature: vitalSigns.temperature,
-            oxygenSat: vitalSigns.oxygenSat,
-            weight: vitalSigns.weight ?? null,
-            height: vitalSigns.height ?? null,
+            systolic: Math.round(vitalSigns.systolic),
+            diastolic: Math.round(vitalSigns.diastolic),
+            heartRate: Math.round(vitalSigns.heartRate),
+            temperature: Number(vitalSigns.temperature),
+            oxygenSat: Math.round(vitalSigns.oxygenSat),
+            weight: vitalSigns.weight ? Number(vitalSigns.weight) : null,
+            height: vitalSigns.height ? Number(vitalSigns.height) : null,
             originDeviceId: deviceId,
             lastModifiedByDeviceId: deviceId,
           },
@@ -185,7 +221,7 @@ export class ConsultationsService extends BaseService {
         });
       }
 
-      // EMISIÓN AUTOMÁTICA DE CONSTANCIA MÉDICA OFICIAL EN POSTGRESQL
+      // Emisión oficial de constancia médica en PostgreSQL
       const randomSuffix = Math.floor(100000 + Math.random() * 900000);
       const certCode = `CM-2026-${randomSuffix}`;
       const qrHash = `MEDICOS-VERIFY-${certCode}`;
@@ -202,7 +238,7 @@ export class ConsultationsService extends BaseService {
         chiefLower.includes('embarazo')
       ) {
         certType = CertificateType.PRENATAL_CONTROL;
-      } else if (brigadeId) {
+      } else if (targetBrigadeId) {
         certType = CertificateType.MEDICAL_ATTENTION;
       }
 
@@ -244,6 +280,7 @@ export class ConsultationsService extends BaseService {
           appointment: true,
           diagnoses: true,
           medicalCertificates: true,
+          workSession: true,
         },
       });
     });
@@ -258,6 +295,7 @@ export class ConsultationsService extends BaseService {
       category,
       status,
       brigadeId,
+      workSessionId,
       page = 1,
       limit = 50,
     } = filters;
@@ -268,6 +306,10 @@ export class ConsultationsService extends BaseService {
 
     if (brigadeId) {
       where.brigadeId = brigadeId;
+    }
+
+    if (workSessionId) {
+      where.workSessionId = workSessionId;
     }
 
     if (status && status !== 'ALL') {
@@ -344,6 +386,7 @@ export class ConsultationsService extends BaseService {
           },
           vitalSigns: true,
           diagnoses: true,
+          workSession: true,
         },
         orderBy: { consultationDate: 'desc' },
         skip,
@@ -362,8 +405,7 @@ export class ConsultationsService extends BaseService {
 
   // 3. Historial de Consultas de un Paciente por ID clínico
   async getConsultationsByPatient(patientId: string) {
-    const db = prisma as any;
-    return db.consultation.findMany({
+    return prisma.consultation.findMany({
       where: {
         patientId,
         deletedAt: null,
@@ -401,6 +443,7 @@ export class ConsultationsService extends BaseService {
             status: true,
           },
         },
+        workSession: true,
       },
       orderBy: { consultationDate: 'desc' },
     });
@@ -420,10 +463,9 @@ export class ConsultationsService extends BaseService {
     return this.getConsultationsByPatient(patient.id);
   }
 
-  // 5. Obtener Consulta por ID con verificación estricta de autorización
+  // 5. Obtener Consulta por ID
   async getConsultationById(id: string, requestingUser?: { id: string; role: string }) {
-    const db = prisma as any;
-    const consultation = await db.consultation.findFirst({
+    const consultation = await prisma.consultation.findFirst({
       where: { id, deletedAt: null },
       include: {
         patient: {
@@ -470,6 +512,7 @@ export class ConsultationsService extends BaseService {
             status: true,
           },
         },
+        workSession: true,
       },
     });
 

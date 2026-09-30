@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/dashboard/actividad/ActividadBrigadistaPage.tsx
-// DESCRIPCIÓN: Centro Operativo de Despacho y Bitácora del Brigadista con estilo Admin.
+// DESCRIPCIÓN: Centro Operativo de Despacho y Bitácora del Brigadista con
+//              espaciado adaptativo mobile-first y soporte responsivo en terreno.
 // =========================================================================
 
 import React, { useState, useMemo, useRef } from 'react';
@@ -93,19 +94,19 @@ export const ActividadBrigadistaPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="w-full p-6 space-y-6 animate-pulse max-w-[1700px] mx-auto">
-        <div className="h-32 bg-slate-200/60 rounded-2xl" />
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          <div className="h-28 bg-white rounded-2xl border border-slate-200/80" />
-          <div className="h-28 bg-white rounded-2xl border border-slate-200/80" />
-          <div className="h-28 bg-white rounded-2xl border border-slate-200/80" />
-          <div className="h-28 bg-white rounded-2xl border border-slate-200/80" />
-          <div className="h-28 bg-white rounded-2xl border border-slate-200/80" />
+      <div className="w-full p-3.5 sm:p-6 space-y-4 sm:space-y-6 animate-pulse max-w-[1700px] mx-auto">
+        <div className="h-24 sm:h-32 bg-slate-200/60 rounded-2xl" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-4">
+          <div className="h-24 sm:h-28 bg-white rounded-2xl border border-slate-200/80" />
+          <div className="h-24 sm:h-28 bg-white rounded-2xl border border-slate-200/80" />
+          <div className="h-24 sm:h-28 bg-white rounded-2xl border border-slate-200/80" />
+          <div className="h-24 sm:h-28 bg-white rounded-2xl border border-slate-200/80" />
+          <div className="h-24 sm:h-28 bg-white rounded-2xl border border-slate-200/80" />
         </div>
-        <div className="h-24 bg-white rounded-2xl border border-slate-200/80" />
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-7 h-96 bg-white rounded-2xl border border-slate-200/80" />
-          <div className="lg:col-span-5 h-96 bg-white rounded-2xl border border-slate-200/80" />
+        <div className="h-20 sm:h-24 bg-white rounded-2xl border border-slate-200/80" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+          <div className="lg:col-span-7 h-80 sm:h-96 bg-white rounded-2xl border border-slate-200/80" />
+          <div className="lg:col-span-5 h-80 sm:h-96 bg-white rounded-2xl border border-slate-200/80" />
         </div>
       </div>
     );
@@ -113,12 +114,12 @@ export const ActividadBrigadistaPage: React.FC = () => {
 
   if (error || !data) {
     return (
-      <div className="p-8 max-w-lg mx-auto text-center my-12 bg-white rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
-        <div className="w-12 h-12 bg-teal-50 text-[#2B7A78] rounded-2xl flex items-center justify-center mx-auto border border-teal-100 shadow-xs">
+      <div className="p-6 sm:p-8 max-w-lg mx-auto text-center my-8 sm:my-12 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
+        <div className="w-12 h-12 bg-teal-50 text-[#2B7A78] rounded-2xl flex items-center justify-center mx-auto border border-teal-100 shadow-2xs">
           <Database className="w-6 h-6" />
         </div>
         <div className="space-y-1">
-          <h2 className="text-lg font-bold text-slate-900">Sin conexión con la Base de Datos</h2>
+          <h2 className="text-base sm:text-lg font-bold text-slate-900">Sin conexión con la Base de Datos</h2>
           <p className="text-xs text-slate-500 leading-relaxed">
             {error || 'No se pudo sincronizar la bitácora operacional de actividades del brigadista.'}
           </p>
@@ -127,7 +128,7 @@ export const ActividadBrigadistaPage: React.FC = () => {
           type="button"
           onClick={() => void refresh()}
           disabled={refreshing}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2B7A78] hover:bg-[#236866] text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2B7A78] hover:bg-[#236866] text-white text-xs font-bold rounded-xl transition-all shadow-xs active:scale-95 cursor-pointer disabled:opacity-50"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
           <span>Reintentar Conexión</span>
@@ -137,7 +138,7 @@ export const ActividadBrigadistaPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full p-6 space-y-6 max-w-[1700px] mx-auto animate-in fade-in duration-200">
+    <div className="w-full p-3.5 sm:p-6 space-y-3.5 sm:space-y-6 max-w-[1700px] mx-auto animate-in fade-in duration-200">
       {/* 1. Encabezado de Identificación con Banner Oficial Teal */}
       <ActividadHeader
         nombreJornada={data.contexto.nombreJornada}
@@ -177,7 +178,7 @@ export const ActividadBrigadistaPage: React.FC = () => {
       />
 
       {/* 4. Cuadrícula Balanceada: Últimos Movimientos y Próxima Actividad */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-6 items-stretch">
         <div className="lg:col-span-7 flex flex-col">
           <ActividadTimeline
             actividades={actividadesFiltradas}

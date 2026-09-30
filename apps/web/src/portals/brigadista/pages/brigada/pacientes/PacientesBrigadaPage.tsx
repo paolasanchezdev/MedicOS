@@ -1,11 +1,13 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/brigada/pacientes/PacientesBrigadaPage.tsx
-// DESCRIPCIÓN: Página principal de Pacientes de la Brigada con filtrado estricto e independiente.
+// DESCRIPCIÓN: Registro de pacientes atendidos y en espera en la jornada de hoy.
+//              Permite registrar personas in situ, escanear QR y operar triage.
 // =========================================================================
 
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { usePacientesBrigada } from '../../../../../modules/brigades';
-import { Database, RefreshCw } from 'lucide-react';
+import { Database, RefreshCw, QrCode, UserSearch, PlusCircle, Users, UserPlus } from 'lucide-react';
 
 import {
   PacientesBrigadaHeader,
@@ -16,6 +18,7 @@ import {
 import type { FiltroEstadoPaciente } from './components/PacientesBrigadaFiltros';
 
 export const PacientesBrigadaPage: React.FC = () => {
+  const navigate = useNavigate();
   const { data, loading, error, refreshing, refresh } = usePacientesBrigada();
 
   const [busqueda, setBusqueda] = useState<string>('');
@@ -23,12 +26,10 @@ export const PacientesBrigadaPage: React.FC = () => {
 
   const rawPacientes = data?.pacientes;
 
-  // Filtrado 1:1 estricto con cada pestaña y tarjeta
   const pacientesFiltrados = useMemo(() => {
     if (!rawPacientes) return [];
 
     return rawPacientes.filter((p) => {
-      // 1. Búsqueda por Nombre o DUI
       if (busqueda.trim()) {
         const q = busqueda.toLowerCase().trim();
         const coincideNombre = p.nombreCompleto.toLowerCase().includes(q);
@@ -36,7 +37,6 @@ export const PacientesBrigadaPage: React.FC = () => {
         if (!coincideNombre && !coincideDui) return false;
       }
 
-      // 2. Filtro estricto por pestañas de estado
       if (filtroEstado === 'PENDIENTES') return p.estadoBrigada === 'PENDIENTE';
       if (filtroEstado === 'EVALUADOS') return p.estadoBrigada === 'EVALUADO';
       if (filtroEstado === 'SEGUIMIENTO') return p.estadoBrigada === 'SEGUIMIENTO';
@@ -94,7 +94,7 @@ export const PacientesBrigadaPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full p-6 space-y-6 max-w-[1700px] mx-auto animate-in fade-in duration-200">
+    <div className="w-full p-4 sm:p-6 space-y-6 max-w-[1700px] mx-auto animate-in fade-in duration-200">
       {/* 1. Encabezado Contextual */}
       <PacientesBrigadaHeader
         nombreBrigada={data.identificacion.nombre}
@@ -106,20 +106,112 @@ export const PacientesBrigadaPage: React.FC = () => {
         isRefreshing={refreshing}
       />
 
-      {/* 2. Resumen del Padrón */}
+      {/* 2. Barra de Acciones Operativas con Acceso Directo a Registrar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/70 shadow-2xs">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#2B7A78]" />
+          <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+            Control de Asistencia del Día
+          </h3>
+          <span className="text-xs text-slate-500 font-medium">
+            (Sala de espera y atenciones registradas hoy)
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => navigate('/brigadista/pacientes/registrar')}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-teal-50 hover:bg-teal-100 text-[#2B7A78] border border-teal-200/80 text-xs font-bold rounded-xl transition cursor-pointer active:scale-95"
+          >
+            <UserPlus className="w-3.5 h-3.5 text-[#2B7A78]" />
+            <span>Registrar Persona</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/brigadista/pacientes/escanear')}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer active:scale-95"
+          >
+            <QrCode className="w-3.5 h-3.5 text-[#2B7A78]" />
+            <span>Escanear QR</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/brigadista/pacientes/buscar')}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer active:scale-95"
+          >
+            <UserSearch className="w-3.5 h-3.5 text-[#2B7A78]" />
+            <span>Buscar en Padrón</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/brigadista/atencion/nueva')}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#2B7A78] hover:bg-[#236866] text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer active:scale-95"
+          >
+            <PlusCircle className="w-3.5 h-3.5" />
+            <span>Nueva Atención</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 3. Resumen Operativo de la Jornada */}
       <PacientesBrigadaResumen resumen={data.resumen} />
 
-      {/* 3. Búsqueda y Pestañas de Filtro */}
-      <PacientesBrigadaFiltros
-        busqueda={busqueda}
-        setBusqueda={setBusqueda}
-        filtroEstado={filtroEstado}
-        setFiltroEstado={setFiltroEstado}
-        onLimpiar={handleLimpiarFiltros}
-      />
-
-      {/* 4. Padrón de Pacientes */}
-      <PacientesBrigadaTabla pacientes={pacientesFiltrados} />
+      {/* 4. Lista de Pacientes o Estado Vacío */}
+      {data.pacientes.length > 0 ? (
+        <>
+          <PacientesBrigadaFiltros
+            busqueda={busqueda}
+            setBusqueda={setBusqueda}
+            filtroEstado={filtroEstado}
+            setFiltroEstado={setFiltroEstado}
+            onLimpiar={handleLimpiarFiltros}
+          />
+          <PacientesBrigadaTabla pacientes={pacientesFiltrados} />
+        </>
+      ) : (
+        <div className="p-10 text-center bg-white rounded-3xl border border-slate-200/80 shadow-2xs space-y-4 max-w-xl mx-auto my-6">
+          <div className="w-14 h-14 bg-teal-50 text-[#2B7A78] rounded-2xl flex items-center justify-center mx-auto border border-teal-100">
+            <Users className="w-7 h-7" />
+          </div>
+          <div className="space-y-1.5">
+            <h3 className="text-base font-extrabold text-slate-900">
+              Aún no hay pacientes en la sala de espera de hoy
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto">
+              Si estás en un <strong>puesto fijo</strong>, registra a la persona o escanea su carnet QR
+              para que pase a la cola de espera. Si estás en <strong>visita domiciliaria</strong>, registra y
+              atiende directamente en la vivienda.
+            </p>
+          </div>
+          <div className="pt-2 flex items-center justify-center gap-2.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => navigate('/brigadista/pacientes/registrar')}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-teal-50 hover:bg-teal-100 text-[#2B7A78] border border-teal-200/80 text-xs font-bold rounded-xl transition cursor-pointer active:scale-95"
+            >
+              <UserPlus className="w-4 h-4 text-[#2B7A78]" />
+              <span>Registrar Paciente Nuevo</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/brigadista/pacientes/escanear')}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer active:scale-95"
+            >
+              <QrCode className="w-4 h-4 text-[#2B7A78]" />
+              <span>Escanear Carnet QR</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/brigadista/atencion/nueva')}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-[#2B7A78] hover:bg-[#236866] text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer active:scale-95"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>Atención Directa</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

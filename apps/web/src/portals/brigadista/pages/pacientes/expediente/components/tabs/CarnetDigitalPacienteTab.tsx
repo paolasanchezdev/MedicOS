@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/pacientes/expediente/components/tabs/CarnetDigitalPacienteTab.tsx
-// DESCRIPCIÓN: Pestaña que integra el Carnet Digital y la Hoja Oficial de Emisión.
+// DESCRIPCIÓN: Pestaña que integra el Carnet Digital y la Hoja Oficial de Emisión
+//              con padding optimizado para teléfonos y pantallas compactas.
 // =========================================================================
 
 import React from 'react';
@@ -38,8 +39,10 @@ export const CarnetDigitalPacienteTab: React.FC<CarnetDigitalPacienteTabProps> =
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-6 shadow-sm">
+    <div className="bg-white/95 rounded-2xl border border-slate-200/80 p-2 sm:p-5 shadow-xs">
       <CarnetDigitalPaciente paciente={pacienteData} />
     </div>
   );
 };
+
+export default CarnetDigitalPacienteTab;

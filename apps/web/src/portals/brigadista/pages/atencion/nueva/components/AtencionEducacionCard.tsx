@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/atencion/nueva/components/AtencionEducacionCard.tsx
-// DESCRIPCIÓN: Paso 6: Educación y consejería comunitaria con selección de tarjetas y chips desacoplados del área de texto libre.
+// DESCRIPCIÓN: Paso 6: Educación y consejería comunitaria con selección desacoplada,
+//              inicialización vacía por defecto y adaptación al perfil de la persona.
 // =========================================================================
 
 import React, { useState } from 'react';
@@ -21,10 +22,12 @@ import {
   Plus,
 } from 'lucide-react';
 import type { AccionesFormState } from '../../../../../../modules/atencion/types/atencion.types';
+import type { PatientRecord } from '../../../../../../modules/patients/types/patient.types';
 
 interface AtencionEducacionCardProps {
   acciones: AccionesFormState;
   onChangeEducacion: (field: keyof AccionesFormState, value: boolean | string) => void;
+  patient?: PatientRecord | null;
 }
 
 interface ItemTemaEducativo {
@@ -70,7 +73,7 @@ const TEMAS_EDUCATIVOS: ItemTemaEducativo[] = [
     bgClass: 'bg-rose-50 border-rose-100',
   },
   {
-    key: 'orientacionSanitaria',
+    key: 'educacionSaludMaterna',
     label: 'Salud Materna y Reproductiva',
     desc: 'Control prenatal, puerperio y planificación familiar.',
     icon: Baby,
@@ -78,15 +81,15 @@ const TEMAS_EDUCATIVOS: ItemTemaEducativo[] = [
     bgClass: 'bg-pink-50 border-pink-100',
   },
   {
-    key: 'apoyoVacunacion',
+    key: 'educacionVacunacion',
     label: 'Esquema de Vacunación',
-    desc: 'Promoción del esquema regular e inmunización.',
+    desc: 'Promoción del esquema regular e inmunización comunitaria.',
     icon: Syringe,
     colorClass: 'text-indigo-600',
     bgClass: 'bg-indigo-50 border-indigo-100',
   },
   {
-    key: 'adherenciaTratamiento',
+    key: 'educacionTratamiento',
     label: 'Adherencia a Tratamientos',
     desc: 'Cumplimiento de recetas y control de enfermedades crónicas.',
     icon: Pill,
@@ -94,7 +97,7 @@ const TEMAS_EDUCATIVOS: ItemTemaEducativo[] = [
     bgClass: 'bg-teal-50 border-teal-100',
   },
   {
-    key: 'primerosAuxilios',
+    key: 'educacionAccidentes',
     label: 'Prevención de Accidentes',
     desc: 'Seguridad en el hogar, prevención de caídas y quemaduras.',
     icon: HeartHandshake,
@@ -102,7 +105,7 @@ const TEMAS_EDUCATIVOS: ItemTemaEducativo[] = [
     bgClass: 'bg-orange-50 border-orange-100',
   },
   {
-    key: 'otraAccion',
+    key: 'educacionOtra',
     label: 'Otra Consejería Sanitaria',
     desc: 'Orientación en salud mental, bucal o ambiental.',
     icon: Sparkles,
@@ -122,6 +125,7 @@ const RECOMENDACIONES_RAPIDAS = [
 export const AtencionEducacionCard: React.FC<AtencionEducacionCardProps> = ({
   acciones,
   onChangeEducacion,
+  patient,
 }) => {
   const [selectedChips, setSelectedChips] = useState<string[]>([]);
 
@@ -130,6 +134,8 @@ export const AtencionEducacionCard: React.FC<AtencionEducacionCardProps> = ({
       prev.includes(chip) ? prev.filter((c) => c !== chip) : [...prev, chip]
     );
   };
+
+  const esMasculino = patient?.sex === 'MALE';
 
   return (
     <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/70 p-4 sm:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:border-slate-300 transition-all duration-200 h-full flex flex-col justify-between space-y-2.5">
@@ -157,7 +163,7 @@ export const AtencionEducacionCard: React.FC<AtencionEducacionCardProps> = ({
               Temáticas educativas orientadas a la persona o su familia:
             </label>
             <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
-              Selección múltiple
+              Selección voluntaria múltiple
             </span>
           </div>
 
@@ -166,6 +172,16 @@ export const AtencionEducacionCard: React.FC<AtencionEducacionCardProps> = ({
             {TEMAS_EDUCATIVOS.map((tema) => {
               const isChecked = Boolean(acciones[tema.key]);
               const Icon = tema.icon;
+
+              const isMaternalTheme = tema.key === 'educacionSaludMaterna';
+              const displayLabel =
+                isMaternalTheme && esMasculino
+                  ? 'Salud Reproductiva y Familiar'
+                  : tema.label;
+              const displayDesc =
+                isMaternalTheme && esMasculino
+                  ? 'Planificación familiar, salud reproductiva y prevención en el hogar.'
+                  : tema.desc;
 
               return (
                 <button
@@ -182,7 +198,7 @@ export const AtencionEducacionCard: React.FC<AtencionEducacionCardProps> = ({
                     className={`w-9.5 h-9.5 sm:w-10 sm:h-10 rounded-xl border flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 ${
                       isChecked
                         ? 'bg-white border-teal-300 text-[#2B7A78] shadow-2xs'
-                        : `${tema.bgClass} ${tema.colorClass}`
+                        : `${tema.bgClass}${tema.colorClass}`
                     }`}
                   >
                     <Icon className="w-5 h-5" />
@@ -195,7 +211,7 @@ export const AtencionEducacionCard: React.FC<AtencionEducacionCardProps> = ({
                           isChecked ? 'text-[#1B5250]' : 'text-slate-900'
                         }`}
                       >
-                        {tema.label}
+                        {displayLabel}
                       </span>
                       {isChecked ? (
                         <CheckCircle2 className="w-4 h-4 text-[#2B7A78] shrink-0 ml-1" />
@@ -204,8 +220,13 @@ export const AtencionEducacionCard: React.FC<AtencionEducacionCardProps> = ({
                       )}
                     </div>
                     <p className="text-xs text-slate-500 leading-relaxed mt-0.5 line-clamp-2">
-                      {tema.desc}
+                      {displayDesc}
                     </p>
+                    {isMaternalTheme && esMasculino && (
+                      <span className="inline-block mt-1 text-[10px] font-semibold text-pink-700 bg-pink-50 px-1.5 py-0.2 rounded border border-pink-100">
+                        Orientación a pareja / familiar
+                      </span>
+                    )}
                   </div>
                 </button>
               );
@@ -225,7 +246,7 @@ export const AtencionEducacionCard: React.FC<AtencionEducacionCardProps> = ({
           </span>
         </div>
 
-        {/* Chips de Consejería Rápida (Selección interactiva independiente) */}
+        {/* Chips de Consejería Rápida */}
         <div className="flex flex-wrap gap-1.5">
           {RECOMENDACIONES_RAPIDAS.map((rec) => {
             const active = selectedChips.includes(rec);
@@ -251,7 +272,7 @@ export const AtencionEducacionCard: React.FC<AtencionEducacionCardProps> = ({
           })}
         </div>
 
-        {/* Área de texto exclusiva para notas libres sin autocompletados invasivos */}
+        {/* Área de texto para notas libres */}
         <textarea
           rows={2}
           value={acciones.recomendacionesGenerales}

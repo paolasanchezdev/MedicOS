@@ -1,10 +1,11 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/dashboard/actividad/components/ActividadFiltros.tsx
-// DESCRIPCIÓN: Barra de filtros de búsqueda con diseño unificado al Admin.
+// DESCRIPCIÓN: Barra de filtros de búsqueda con diseño unificado al Admin,
+//              incorporando un acordeón desplegable optimizado para teléfonos móviles.
 // =========================================================================
 
-import React from 'react';
-import { Search, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, X, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ActividadFiltrosProps {
   busqueda: string;
@@ -39,10 +40,12 @@ export const ActividadFiltros: React.FC<ActividadFiltrosProps> = ({
   onLimpiar,
   hasActiveFilters,
 }) => {
+  const [showMobileFilters, setShowMobileFilters] = useState<boolean>(false);
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-4">
+    <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 sm:p-5 shadow-xs space-y-3 sm:space-y-4">
       {/* Barra superior de búsqueda y selector de temporalidad */}
-      <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+      <div className="flex flex-col md:flex-row gap-2.5 sm:gap-3 items-stretch md:items-center justify-between">
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
@@ -50,16 +53,16 @@ export const ActividadFiltros: React.FC<ActividadFiltrosProps> = ({
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar por persona, familia, territorio, resultado o motivo..."
-            className="w-full bg-slate-50/70 hover:bg-slate-50 focus:bg-white border border-slate-200/80 rounded-xl pl-9 pr-4 py-2.5 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-[#2B7A78]/20 focus:border-[#2B7A78] transition-all"
+            className="w-full bg-slate-50/70 hover:bg-slate-50 focus:bg-white border border-slate-200/80 rounded-xl pl-9 pr-4 py-2 text-xs sm:py-2.5 sm:text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-[#2B7A78]/20 focus:border-[#2B7A78] transition-all"
           />
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200/60 text-xs font-bold">
+        <div className="flex items-center justify-between sm:justify-start gap-2 shrink-0">
+          <div className="flex rounded-xl bg-slate-100 p-0.5 sm:p-1 border border-slate-200/60 text-xs font-bold">
             <button
               type="button"
               onClick={() => setTemporalidad('HOY')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1 rounded-lg transition-all cursor-pointer ${
                 temporalidad === 'HOY'
                   ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -70,7 +73,7 @@ export const ActividadFiltros: React.FC<ActividadFiltrosProps> = ({
             <button
               type="button"
               onClick={() => setTemporalidad('JORNADA')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1 rounded-lg transition-all cursor-pointer ${
                 temporalidad === 'JORNADA'
                   ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -81,7 +84,7 @@ export const ActividadFiltros: React.FC<ActividadFiltrosProps> = ({
             <button
               type="button"
               onClick={() => setTemporalidad('TODAS')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1 rounded-lg transition-all cursor-pointer ${
                 temporalidad === 'TODAS'
                   ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -91,11 +94,27 @@ export const ActividadFiltros: React.FC<ActividadFiltrosProps> = ({
             </button>
           </div>
 
+          {/* Botón táctil para desplegar filtros avanzados en móvil */}
+          <button
+            type="button"
+            onClick={() => setShowMobileFilters(!showMobileFilters)}
+            className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-xl border transition cursor-pointer sm:hidden ${
+              hasActiveFilters || showMobileFilters
+                ? 'bg-teal-50 text-[#2B7A78] border-teal-200'
+                : 'bg-slate-100 text-slate-700 border-slate-200'
+            }`}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <span>Filtros</span>
+            {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-[#2B7A78]" />}
+            {showMobileFilters ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+
           {hasActiveFilters && (
             <button
               type="button"
               onClick={onLimpiar}
-              className="inline-flex items-center gap-1 px-3 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 rounded-xl transition-all cursor-pointer"
+              className="hidden sm:inline-flex items-center gap-1 px-3 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 rounded-xl transition-all cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
               <span>Limpiar</span>
@@ -104,8 +123,8 @@ export const ActividadFiltros: React.FC<ActividadFiltrosProps> = ({
         </div>
       </div>
 
-      {/* Selectores de Categoría y Rango de Fechas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1 border-t border-slate-100">
+      {/* Selectores de Categoría y Rango de Fechas (Visible en PC o desplegado en Celular) */}
+      <div className={`pt-2 border-t border-slate-100 ${showMobileFilters ? 'block' : 'hidden sm:grid'} grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-in fade-in duration-150`}>
         <div className="space-y-1">
           <label className="block text-[11px] font-semibold text-slate-500">
             Tipo de Actividad
@@ -166,7 +185,22 @@ export const ActividadFiltros: React.FC<ActividadFiltrosProps> = ({
             className="w-full bg-white border border-slate-200/80 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 shadow-2xs focus:outline-hidden focus:ring-2 focus:ring-[#2B7A78]/20 focus:border-[#2B7A78] transition-all"
           />
         </div>
+
+        {hasActiveFilters && (
+          <div className="col-span-full pt-1 sm:hidden flex justify-end">
+            <button
+              type="button"
+              onClick={onLimpiar}
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 rounded-xl"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Limpiar filtros activos</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 };
+
+export default ActividadFiltros;

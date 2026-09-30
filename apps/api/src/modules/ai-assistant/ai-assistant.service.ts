@@ -2,6 +2,7 @@
 // ARCHIVO: apps/api/src/modules/ai-assistant/ai-assistant.service.ts
 // DESCRIPCIÓN: Servicio de IA con recolección clínica completa del paciente:
 //              diagnósticos, síntomas, hábitos de vida, recetas y signos.
+//              Conexión directa con Google Gemini con roles sanitizados y cascada.
 // =========================================================================
 
 import { prisma } from '../../config/prisma.js';
@@ -14,12 +15,17 @@ import type {
 
 export class AIAssistantService extends BaseService {
   private readonly fallbackModels = [
-    'gemini-3.6-flash',
-    'gemini-flash-latest',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
   ];
 
   private getApiKey(): string | undefined {
-    return process.env.GEMINI_API_KEY?.trim();
+    return (
+      process.env.GEMINI_API_KEY?.trim() ||
+      process.env.GOOGLE_API_KEY?.trim() ||
+      process.env.VITE_GEMINI_API_KEY?.trim()
+    );
   }
 
   private async resolvePatient(userId: string) {
@@ -257,8 +263,10 @@ ${specificContextText}`;
           ],
         };
       } catch (error) {
-        console.error('❌ Error en llamada al motor de IA:', error);
+        console.error('❌ Error en llamada al motor de IA de Gemini:', error);
       }
+    } else {
+      console.warn('⚠️ GEMINI_API_KEY o GOOGLE_API_KEY no encontrada en variables de entorno. Activando modo educativo local.');
     }
 
     const fallbackResponse = this.generateEducationalFallback(dto.message, patientName);
@@ -289,15 +297,12 @@ ${specificContextText}`;
       } catch (err) {
         lastError = err as Error;
         const msg = (err as Error).message || '';
-        if (msg.includes('503') || msg.includes('429') || msg.includes('404')) {
-          console.warn(`⚠️ Modelo ${model} no disponible (${msg}). Probando siguiente alternativa...`);
-          continue;
-        }
-        throw err;
+        console.warn(`⚠️ Modelo ${model} no completó la consulta (${msg}). Evaluando siguiente alternativa...`);
+        continue;
       }
     }
 
-    throw lastError || new Error('No fue posible obtener respuesta del motor de IA');
+    throw lastError || new Error('No fue posible obtener respuesta del motor de IA tras evaluar los modelos configurados.');
   }
 
   private async executeGeminiRequest(
@@ -306,22 +311,47 @@ ${specificContextText}`;
     systemPrompt: string,
     dto: SendChatMessageDTO
   ): Promise<string> {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-    const contents: any[] = [];
+    // Sanitización estricta del historial para cumplir el protocolo de Gemini:
+    // 1. Debe iniciar siempre con un mensaje con role: 'user' (se descarta el saludo inicial del bot).
+    // 2. No pueden existir dos turnos seguidos con el mismo rol.
+    const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
+
     if (dto.conversationHistory && dto.conversationHistory.length > 0) {
-      dto.conversationHistory.slice(-4).forEach((h) => {
-        contents.push({
-          role: h.role === 'user' ? 'user' : 'model',
-          parts: [{ text: h.content }],
-        });
-      });
+      const historyItems = dto.conversationHistory.slice(-6);
+      let startedWithUser = false;
+
+      for (const h of historyItems) {
+        const role = h.role === 'user' ? 'user' : 'model';
+
+        if (!startedWithUser) {
+          if (role === 'user') {
+            startedWithUser = true;
+            contents.push({ role, parts: [{ text: h.content }] });
+          }
+          // Si el mensaje inicial del historial era del asistente/modelo, se ignora
+        } else {
+          const lastIndex = contents.length - 1;
+          if (contents[lastIndex]?.role === role) {
+            contents[lastIndex].parts[0].text += `\n\n${h.content}`;
+          } else {
+            contents.push({ role, parts: [{ text: h.content }] });
+          }
+        }
+      }
     }
 
-    contents.push({
-      role: 'user',
-      parts: [{ text: dto.message }],
-    });
+    // Agregar el mensaje actual del usuario garantizando la alternancia
+    const lastIndex = contents.length - 1;
+    if (lastIndex >= 0 && contents[lastIndex].role === 'user') {
+      contents[lastIndex].parts[0].text += `\n\n${dto.message}`;
+    } else {
+      contents.push({
+        role: 'user',
+        parts: [{ text: dto.message }],
+      });
+    }
 
     const body = {
       systemInstruction: {
@@ -338,7 +368,7 @@ ${specificContextText}`;
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-goog-api-key': apiKey,
+        'x-goog-api-key': apiKey,
       },
       body: JSON.stringify(body),
     });
@@ -350,7 +380,15 @@ ${specificContextText}`;
 
     const json = (await res.json()) as any;
     const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error(`Respuesta vacía o bloqueada en modelo ${model}`);
+
+    if (!text) {
+      const finishReason = json.candidates?.[0]?.finishReason;
+      const blockReason = json.promptFeedback?.blockReason;
+      throw new Error(
+        `Respuesta vacía o filtrada en modelo ${model} (finishReason: ${finishReason || 'N/A'}, blockReason: ${blockReason || 'N/A'})`
+      );
+    }
+
     return text;
   }
 

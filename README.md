@@ -1,3 +1,5 @@
+
+
 ## Project Structure
 
 ```text
@@ -613,6 +615,15 @@ MedicOS/
 │       │   │   │   ├── types/
 │       │   │   │   │   └── prescription.types.ts
 │       │   │   │   └── index.ts
+│       │   │   ├── qr/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── QRScannerCard.tsx
+│       │   │   │   │   └── QRScanResultModal.tsx
+│       │   │   │   ├── services/
+│       │   │   │   │   └── qr.service.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── qr.types.ts
+│       │   │   │   └── index.ts
 │       │   │   ├── references/
 │       │   │   │   ├── hooks/
 │       │   │   │   │   └── useReferences.ts
@@ -1177,7 +1188,7 @@ MedicOS/
 │       │   │   │   │   │   │   │   │   └── SignosVitalesPacienteTab.tsx
 │       │   │   │   │   │   │   │   ├── ExpedienteBuscador.tsx
 │       │   │   │   │   │   │   │   ├── ExpedientePacienteHeader.tsx
-│       │   │   │   │   │   │   │   ├── ExpedienteResu>ltados.tsx
+│       │   │   │   │   │   │   │   ├── ExpedienteResultados.tsx
 │       │   │   │   │   │   │   │   ├── ExpedienteResumenClinico.tsx
 │       │   │   │   │   │   │   │   ├── ExpedienteTabs.tsx
 │       │   │   │   │   │   │   │   └── index.ts

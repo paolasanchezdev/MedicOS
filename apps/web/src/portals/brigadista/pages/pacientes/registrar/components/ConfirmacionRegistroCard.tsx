@@ -1,11 +1,11 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/pacientes/registrar/components/ConfirmacionRegistroCard.tsx
 // DESCRIPCIÓN: Resumen previo y consentimiento de registro para el Paso 5 con
-//              formateo legible de grupo sanguíneo, teléfono y parentesco.
+//              formateo legible y aviso de despacho dual (Jornada o Domicilio).
 // =========================================================================
 
 import React from 'react';
-import { ShieldCheck, AlertCircle, User, Mail, MapPin, Heart, Phone, Users } from 'lucide-react';
+import { ShieldCheck, AlertCircle, User, Mail, MapPin, Heart, Phone, Users, Info } from 'lucide-react';
 import type { PatientFormState } from '../../../../../../modules/patients';
 
 interface ConfirmacionRegistroCardProps {
@@ -73,7 +73,7 @@ export const ConfirmacionRegistroCard: React.FC<ConfirmacionRegistroCardProps> =
 
         <div className="space-y-1 sm:col-span-2 pt-2 border-t border-slate-200/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 text-slate-700">
-            <MapPin className="w-3.5 h-3.5 text-[#2B7A78] shrink-0" />
+            <MapPin className="w-3.5 h-3.5 text-[#2B7A78]" />
             <span className="truncate max-w-md">
               {formData.address}, {formData.district ? `${formData.district}, ` : ''}
               {formData.municipality}, {formData.department}
@@ -94,7 +94,6 @@ export const ConfirmacionRegistroCard: React.FC<ConfirmacionRegistroCardProps> =
           </div>
         </div>
 
-        {/* Contacto de Emergencia en el Resumen si existe */}
         {formData.emergencyName && (
           <div className="sm:col-span-2 pt-2 border-t border-slate-200/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-slate-600">
             <span className="flex items-center gap-1.5">
@@ -108,6 +107,16 @@ export const ConfirmacionRegistroCard: React.FC<ConfirmacionRegistroCardProps> =
             )}
           </div>
         )}
+      </div>
+
+      {/* Nota Operativa de Despacho */}
+      <div className="p-3.5 bg-blue-50/70 border border-blue-200/70 rounded-xl flex items-start gap-2.5 text-xs text-blue-900">
+        <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+        <p className="leading-relaxed">
+          Al confirmar, el paciente quedará empadronado. Podrás optar por{' '}
+          <strong>enviarlo a la sala de espera de la jornada</strong> (puesto fijo) o{' '}
+          <strong>atenderlo de inmediato in situ</strong> (visita domiciliaria).
+        </p>
       </div>
 
       {/* Consentimiento */}
@@ -140,3 +149,5 @@ export const ConfirmacionRegistroCard: React.FC<ConfirmacionRegistroCardProps> =
     </div>
   );
 };
+
+export default ConfirmacionRegistroCard;

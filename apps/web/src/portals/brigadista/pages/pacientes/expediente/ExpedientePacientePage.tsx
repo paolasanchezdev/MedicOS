@@ -1,6 +1,6 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/pacientes/expediente/ExpedientePacientePage.tsx
-// DESCRIPCIÓN: Vista principal de Expediente con Live Search y Pacientes Recientes por defecto.
+// DESCRIPCIÓN: Vista principal de Expediente con Live Search y diseño responsivo para móviles.
 // =========================================================================
 
 import React, { useState, useEffect, useCallback, useTransition } from 'react';
@@ -28,7 +28,7 @@ export const ExpedientePacientePage: React.FC = () => {
 
   const { historyData, loading: recordLoading, error: recordError } = usePatientRecord(selectedPatientId);
 
-  // 1. Cargar pacientes iniciales (al menos 5-6 recientes)
+  // 1. Cargar pacientes iniciales
   useEffect(() => {
     let isMounted = true;
 
@@ -53,7 +53,7 @@ export const ExpedientePacientePage: React.FC = () => {
     };
   }, []);
 
-  // 2. Live Search con filtrado instantáneo y búsqueda en API
+  // 2. Live Search con filtrado instantáneo
   const handleQueryChange = useCallback((newQuery: string) => {
     setQuery(newQuery);
 
@@ -63,7 +63,6 @@ export const ExpedientePacientePage: React.FC = () => {
       return;
     }
 
-    // Filtrado local inmediato
     startTransition(() => {
       const matched = allPatients.filter((p) => {
         const fullName = `${p.firstName} ${p.lastName}`.toLowerCase();
@@ -78,7 +77,6 @@ export const ExpedientePacientePage: React.FC = () => {
       setFilteredPatients(matched);
     });
 
-    // Búsqueda remota si hay más de 2 caracteres para asegurar sincronización
     if (clean.length >= 2) {
       setSearchLoading(true);
       const timer = setTimeout(async () => {
@@ -107,8 +105,8 @@ export const ExpedientePacientePage: React.FC = () => {
   };
 
   return (
-    <div className="w-full space-y-6 animate-in fade-in duration-200">
-      {/* Encabezado contextual */}
+    <div className="w-full space-y-2.5 sm:space-y-4 animate-in fade-in duration-200">
+      {/* Encabezado contextual compacto */}
       <ExpedientePacienteHeader
         hasActivePatient={Boolean(selectedPatientId)}
         onClearPatient={handleClearPatient}
@@ -117,33 +115,33 @@ export const ExpedientePacientePage: React.FC = () => {
       {/* Si hay un paciente seleccionado */}
       {selectedPatientId ? (
         recordLoading ? (
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center space-y-3 shadow-xs">
-            <Loader2 className="w-7 h-7 animate-spin text-[#00838F] mx-auto" />
-            <h3 className="text-sm font-bold text-slate-800">Cargando expediente clínico...</h3>
-            <p className="text-xs text-slate-400">Consultando registros y antecedentes médicos.</p>
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-8 text-center space-y-2 shadow-xs">
+            <Loader2 className="w-6 h-6 animate-spin text-[#00838F] mx-auto" />
+            <h3 className="text-xs font-bold text-slate-800">Cargando expediente clínico...</h3>
+            <p className="text-[11px] text-slate-400">Consultando registros en base de datos.</p>
           </div>
         ) : recordError ? (
-          <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-semibold flex items-center justify-between gap-3 shadow-xs">
+          <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-semibold flex items-center justify-between gap-3 shadow-xs">
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
               <span>{recordError}</span>
             </div>
             <button
               onClick={handleClearPatient}
-              className="px-3 py-1 bg-white border border-rose-300 text-rose-800 rounded-lg font-bold hover:bg-rose-100 transition-colors"
+              className="px-2.5 py-1 bg-white border border-rose-300 text-rose-800 rounded-lg font-bold hover:bg-rose-100 transition-colors"
             >
-              Volver a buscar
+              Volver
             </button>
           </div>
         ) : historyData ? (
-          <div className="space-y-4">
+          <div className="space-y-2.5 sm:space-y-4">
             <ExpedienteResumenClinico historyData={historyData} />
             <ExpedienteTabs historyData={historyData} />
           </div>
         ) : null
       ) : (
         /* Vista de Búsqueda Live y Pacientes Recientes */
-        <div className="space-y-4">
+        <div className="space-y-3">
           <ExpedienteBuscador
             query={query}
             onQueryChange={handleQueryChange}
@@ -151,8 +149,8 @@ export const ExpedientePacientePage: React.FC = () => {
           />
 
           {initialLoading ? (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-10 text-center space-y-2 shadow-xs">
-              <Loader2 className="w-6 h-6 animate-spin text-[#00838F] mx-auto" />
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-8 text-center space-y-2 shadow-xs">
+              <Loader2 className="w-5 h-5 animate-spin text-[#00838F] mx-auto" />
               <p className="text-xs text-slate-500 font-medium">Cargando pacientes de la brigada...</p>
             </div>
           ) : (

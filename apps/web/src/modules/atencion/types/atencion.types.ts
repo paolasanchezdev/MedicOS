@@ -1,11 +1,12 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/modules/atencion/types/atencion.types.ts
-// DESCRIPCIÓN: Contratos de datos, DTOs y tipos de estado para el dominio de Atención, Sincronización e Historial.
+// DESCRIPCIÓN: Contratos de datos, DTOs y tipos de estado para el dominio de Atención,
+//              Sincronización, Historial, Cuenta Digital y Desenlace Operativo.
 // =========================================================================
 
 import type { PatientRecord } from '../../patients/types/patient.types';
 
-export type AtencionPaso = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+export type AtencionPaso = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 export type MotivoAtencionCategoria =
   | 'MALESTAR_SINTOMAS'
@@ -17,6 +18,12 @@ export type MotivoAtencionCategoria =
   | 'ORIENTACION_SALUD'
   | 'PRIMEROS_AUXILIOS'
   | 'OTRO';
+
+export type DesenlaceAtencion =
+  | 'RESUELTO'
+  | 'PASE_MEDICO'
+  | 'SEGUIMIENTO'
+  | 'REFERENCIA';
 
 export interface SignosVitalesFormState {
   systolic: string;
@@ -51,22 +58,33 @@ export interface EvaluacionFormState {
 }
 
 export interface AccionesFormState {
+  // Paso 5: Intervención en terreno
   tomaSignos: boolean;
   primerosAuxilios: boolean;
   curacionBasica: boolean;
   orientacionSanitaria: boolean;
-  educacionHigiene: boolean;
-  educacionNutricion: boolean;
-  educacionDengue: boolean;
-  educacionSignosAlarma: boolean;
   adherenciaTratamiento: boolean;
   apoyoVacunacion: boolean;
   otraAccion: boolean;
   otraAccionDetalle: string;
+
+  // Paso 6: Educación y consejería comunitaria (desacopladas)
+  educacionHigiene: boolean;
+  educacionNutricion: boolean;
+  educacionDengue: boolean;
+  educacionSignosAlarma: boolean;
+  educacionSaludMaterna: boolean;
+  educacionVacunacion: boolean;
+  educacionTratamiento: boolean;
+  educacionAccidentes: boolean;
+  educacionOtra: boolean;
+
+  // Observaciones y recomendaciones
   recomendacionesGenerales: string;
 }
 
 export interface SeguimientoFormState {
+  desenlace: DesenlaceAtencion;
   requiereSeguimiento: boolean;
   fechaSeguimiento: string;
   motivoSeguimiento: string;
@@ -76,6 +94,14 @@ export interface SeguimientoFormState {
   establecimientoDestinoNombre: string;
   motivoReferencia: string;
   observacionesReferencia: string;
+  paseMedicoMotivo?: string;
+}
+
+export interface CuentaPacienteFormState {
+  crearCuenta: boolean;
+  email: string;
+  password?: string;
+  confirmPassword?: string;
 }
 
 export interface NuevaAtencionFormState {
@@ -85,6 +111,7 @@ export interface NuevaAtencionFormState {
   evaluacion: EvaluacionFormState;
   acciones: AccionesFormState;
   seguimiento: SeguimientoFormState;
+  cuenta?: CuentaPacienteFormState;
 }
 
 export interface VitalsPayloadDTO {

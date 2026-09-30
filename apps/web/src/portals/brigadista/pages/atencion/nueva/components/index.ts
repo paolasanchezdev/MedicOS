@@ -15,6 +15,7 @@ export * from './AtencionObservacionesCard';
 export * from './AtencionAccionesCard';
 export * from './AtencionEducacionCard';
 export * from './AtencionSeguimientoReferenciaCard';
+export * from './AtencionCuentaCard';
 export * from './AtencionResumenCard';
 export * from './AtencionNavegacion';
 export * from './AtencionGuardarModal';

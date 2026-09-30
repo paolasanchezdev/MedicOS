@@ -1,6 +1,8 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/atencion/nueva/NuevaAtencionPage.tsx
-// DESCRIPCIÓN: Orquestador general de Nueva Atención Comunitaria con persistencia de borrador en localStorage y ciclo de vida de guardado completo.
+// DESCRIPCIÓN: Orquestador general de Nueva Atención Comunitaria con persistencia
+//              de borrador en localStorage, vinculación con Jornada (WorkSession),
+//              flujo completo de 9 pasos con barra al 100% y ciclo de guardado.
 // =========================================================================
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -21,12 +23,17 @@ import {
   HeartPulse,
   Droplet,
   ShieldAlert,
+  PlayCircle,
+  Clock,
+  Briefcase,
+  RotateCw,
 } from 'lucide-react';
 import { useAuth } from '../../../../../core/context/useAuth';
 import { useCreateAttention } from '../../../../../modules/atencion/hooks/useCreateAttention';
 import type { NuevaAtencionFormState } from '../../../../../modules/atencion/types/atencion.types';
 import type { PatientRecord } from '../../../../../modules/patients/types/patient.types';
 import { useSearchPatients } from '../../../../../modules/patients/hooks/useSearchPatients';
+import { useJornadaBrigada } from '../../../../../modules/brigades';
 
 import {
   AtencionHeader,
@@ -37,6 +44,7 @@ import {
   AtencionAccionesCard,
   AtencionEducacionCard,
   AtencionSeguimientoReferenciaCard,
+  AtencionCuentaCard,
   AtencionResumenCard,
   AtencionNavegacion,
   AtencionGuardarModal,
@@ -55,8 +63,45 @@ const INITIAL_FORM_STATE: NuevaAtencionFormState = {
     observacionesClinicas: '',
     condicionVivienda: '',
   },
-  acciones: { tomaSignos: false, primerosAuxilios: false, curacionBasica: false, orientacionSanitaria: false, educacionHigiene: false, educacionNutricion: false, educacionDengue: false, educacionSignosAlarma: false, adherenciaTratamiento: false, apoyoVacunacion: false, otraAccion: false, otraAccionDetalle: '', recomendacionesGenerales: '' },
-  seguimiento: { requiereSeguimiento: false, fechaSeguimiento: '', motivoSeguimiento: '', requiereReferencia: false, prioridadReferencia: 'MEDIUM', establecimientoDestinoId: '', establecimientoDestinoNombre: '', motivoReferencia: '', observacionesReferencia: '' },
+  acciones: {
+    tomaSignos: false,
+    primerosAuxilios: false,
+    curacionBasica: false,
+    orientacionSanitaria: false,
+    adherenciaTratamiento: false,
+    apoyoVacunacion: false,
+    otraAccion: false,
+    otraAccionDetalle: '',
+    educacionHigiene: false,
+    educacionNutricion: false,
+    educacionDengue: false,
+    educacionSignosAlarma: false,
+    educacionSaludMaterna: false,
+    educacionVacunacion: false,
+    educacionTratamiento: false,
+    educacionAccidentes: false,
+    educacionOtra: false,
+    recomendacionesGenerales: '',
+  },
+  seguimiento: {
+    desenlace: 'RESUELTO',
+    requiereSeguimiento: false,
+    fechaSeguimiento: '',
+    motivoSeguimiento: '',
+    requiereReferencia: false,
+    prioridadReferencia: 'MEDIUM',
+    establecimientoDestinoId: '',
+    establecimientoDestinoNombre: '',
+    motivoReferencia: '',
+    observacionesReferencia: '',
+    paseMedicoMotivo: '',
+  },
+  cuenta: {
+    crearCuenta: false,
+    email: '',
+    password: '',
+    confirmPassword: '',
+  },
 };
 
 function formatBloodType(bt?: string): string {
@@ -81,13 +126,58 @@ export const NuevaAtencionPage: React.FC = () => {
   const { createAttention, isLoading, error: mutationError } = useCreateAttention();
   const { executeSearch, results, loading: loadingSearch } = useSearchPatients();
 
-  // 1. Inicialización de Estado con soporte para Restauración de Borrador Local
+  // Conexión con la Jornada Territorial de la Brigada
+  const {
+    data: jornadaData,
+    loading: loadingJornada,
+    actionLoading: actionLoadingJornada,
+    iniciarJornada,
+  } = useJornadaBrigada();
+
+  // 1. Inicialización de Estado con soporte para Restauración Limpia y Segura de Borrador Local
   const [formData, setFormData] = useState<NuevaAtencionFormState>(() => {
     try {
       const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
       if (savedDraft) {
         const parsed = JSON.parse(savedDraft);
-        if (parsed?.formData) return parsed.formData;
+        if (parsed?.formData) {
+          return {
+            ...INITIAL_FORM_STATE,
+            ...parsed.formData,
+            evaluacion: {
+              ...INITIAL_FORM_STATE.evaluacion,
+              ...parsed.formData.evaluacion,
+              signosVitales: {
+                ...INITIAL_FORM_STATE.evaluacion.signosVitales,
+                ...parsed.formData.evaluacion?.signosVitales,
+              },
+              sintomas: {
+                ...INITIAL_FORM_STATE.evaluacion.sintomas,
+                ...parsed.formData.evaluacion?.sintomas,
+              },
+            },
+            acciones: {
+              ...INITIAL_FORM_STATE.acciones,
+              ...parsed.formData.acciones,
+              educacionSaludMaterna: Boolean(parsed.formData.acciones?.educacionSaludMaterna),
+              educacionVacunacion: Boolean(parsed.formData.acciones?.educacionVacunacion),
+              educacionTratamiento: Boolean(parsed.formData.acciones?.educacionTratamiento),
+              educacionAccidentes: Boolean(parsed.formData.acciones?.educacionAccidentes),
+              educacionOtra: Boolean(parsed.formData.acciones?.educacionOtra),
+            },
+            seguimiento: {
+              ...INITIAL_FORM_STATE.seguimiento,
+              ...parsed.formData.seguimiento,
+              desenlace: parsed.formData.seguimiento?.desenlace || 'RESUELTO',
+            },
+            cuenta: {
+              ...INITIAL_FORM_STATE.cuenta,
+              ...parsed.formData.cuenta,
+              crearCuenta: Boolean(parsed.formData.cuenta?.crearCuenta),
+              email: parsed.formData.cuenta?.email || '',
+            },
+          };
+        }
       }
     } catch {
       // Ignorar fallo de parseo
@@ -195,7 +285,16 @@ export const NuevaAtencionPage: React.FC = () => {
   };
 
   const handleSelectPatient = (selected: PatientRecord) => {
-    setFormData((prev) => ({ ...prev, patient: selected }));
+    setFormData((prev) => ({
+      ...prev,
+      patient: selected,
+      cuenta: {
+        crearCuenta: false,
+        email: selected.user?.email || '',
+        password: '',
+        confirmPassword: '',
+      },
+    }));
     setShowSearchModal(false);
     if (!completedSteps.includes(1)) {
       setCompletedSteps((prev) => [...prev, 1]);
@@ -218,7 +317,7 @@ export const NuevaAtencionPage: React.FC = () => {
   const handleNext = () => {
     if (!validateStep(currentStep)) return;
     if (!completedSteps.includes(currentStep)) setCompletedSteps((prev) => [...prev, currentStep]);
-    if (currentStep < 8) setCurrentStep((prev) => prev + 1);
+    if (currentStep < 9) setCurrentStep((prev) => prev + 1);
   };
 
   const handlePrevious = () => {
@@ -233,7 +332,14 @@ export const NuevaAtencionPage: React.FC = () => {
   const handleConfirmarGuardar = async () => {
     try {
       setModalEstado('GUARDANDO');
-      await createAttention(formData, { brigadeId: null, workSessionId: null, doctorId: user?.id });
+      const targetBrigadeId = jornadaData?.identificacion?.id || null;
+      const targetWorkSessionId = jornadaData?.control?.sesionId || null;
+
+      await createAttention(formData, {
+        brigadeId: targetBrigadeId,
+        workSessionId: targetWorkSessionId,
+        doctorId: user?.id,
+      });
       clearLocalDraft();
       setModalEstado('EXITO');
     } catch {
@@ -251,6 +357,13 @@ export const NuevaAtencionPage: React.FC = () => {
     setSemanasGestacion('');
     setIsModalOpen(false);
     setModalEstado('CONFIRMAR');
+  };
+
+  const handleVolverJornada = () => {
+    clearLocalDraft();
+    setFormData(INITIAL_FORM_STATE);
+    setIsModalOpen(false);
+    navigate('/brigadista/brigada/jornada');
   };
 
   const handleConfirmarCancelacion = () => {
@@ -279,20 +392,75 @@ export const NuevaAtencionPage: React.FC = () => {
 
   return (
     <div className="w-full max-w-[1700px] mx-auto p-3 sm:p-4 space-y-3 animate-in fade-in duration-200">
-      {/* 1. Header Oficial */}
+      {/* 1. Header Oficial de 9 Pasos */}
       <AtencionHeader
         pacienteNombre={formData.patient ? pacienteNombre : undefined}
         pacienteDui={formData.patient?.dui || undefined}
         pasoActual={currentStep}
-        totalPasos={8}
+        totalPasos={9}
         onRegresar={() => navigate('/brigadista/dashboard/resumen')}
         onCancelar={() => setShowCancelModal(true)}
       />
 
-      {/* 2. Barra de Navegación Compacta */}
+      {/* 2. Banner Informativo de Estado de la Jornada Territorial */}
+      {!loadingJornada && jornadaData && jornadaData.control.estado !== 'EN_CURSO' && (
+        <div className="p-3.5 bg-amber-50/90 border border-amber-200/90 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-900 shadow-2xs animate-in fade-in duration-150">
+          <div className="flex items-start sm:items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+              <Briefcase className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-amber-800">
+                  Jornada Territorial No Iniciada
+                </span>
+                <span className="text-[10px] bg-amber-200/70 text-amber-800 px-2 py-0.5 rounded-full font-bold">
+                  {jornadaData.identificacion.nombre}
+                </span>
+              </div>
+              <p className="text-[11px] text-amber-700 font-medium">
+                Inicia tu jornada de hoy para vincular automáticamente esta atención y sus signos vitales al turno operativo de la brigada.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => void iniciarJornada()}
+            disabled={actionLoadingJornada}
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#2B7A78] hover:bg-[#236866] text-white text-xs font-bold rounded-xl shadow-xs transition active:scale-95 cursor-pointer disabled:opacity-50 shrink-0"
+          >
+            {actionLoadingJornada ? (
+              <RotateCw className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <PlayCircle className="w-3.5 h-3.5" />
+            )}
+            <span>Iniciar Jornada de Hoy</span>
+          </button>
+        </div>
+      )}
+
+      {/* Indicador sutil de Jornada Activa en Curso */}
+      {!loadingJornada && jornadaData && jornadaData.control.estado === 'EN_CURSO' && (
+        <div className="px-3.5 py-2 bg-teal-50/70 border border-teal-200/60 rounded-xl flex items-center justify-between text-xs text-teal-900">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-extrabold text-[#2B7A78]">Jornada en Curso:</span>
+            <span className="font-semibold text-slate-700">{jornadaData.identificacion.nombre}</span>
+            <span className="text-slate-400">•</span>
+            <span className="text-slate-500 font-mono text-[11px]">{jornadaData.identificacion.comunidad}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-slate-500 text-[11px] font-mono">
+            <Clock className="w-3.5 h-3.5 text-[#2B7A78]" />
+            <span>Turno: {jornadaData.control.tiempoTranscurrido}</span>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Barra de Navegación Compacta */}
       <AtencionNavegacion
         currentStep={currentStep}
-        totalSteps={8}
+        totalSteps={9}
         isLoading={isLoading}
         canContinue={Boolean(formData.patient || currentStep > 1)}
         completedSteps={completedSteps}
@@ -312,7 +480,7 @@ export const NuevaAtencionPage: React.FC = () => {
         </div>
       )}
 
-      {/* 3. Grid Principal con items-stretch para alinear las alturas */}
+      {/* 4. Grid Principal */}
       <div className="flex flex-col lg:flex-row gap-4 items-stretch">
         {/* Contenido Izquierda */}
         <div className="flex-1 w-full flex flex-col">
@@ -326,7 +494,7 @@ export const NuevaAtencionPage: React.FC = () => {
                   </div>
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-teal-700 block">
-                      Paso 1 de 8 • Identificación Inicial
+                      Paso 1 de 9 • Identificación Inicial
                     </span>
                     <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
                       Identificación de la Persona
@@ -589,6 +757,7 @@ export const NuevaAtencionPage: React.FC = () => {
             <div className="h-full flex flex-col">
               <AtencionEducacionCard
                 acciones={formData.acciones}
+                patient={formData.patient}
                 onChangeEducacion={(field, val) => {
                   setFormData((prev) => ({ ...prev, acciones: { ...prev.acciones, [field]: val } }));
                 }}
@@ -608,8 +777,44 @@ export const NuevaAtencionPage: React.FC = () => {
             </div>
           )}
 
-          {/* PASO 8: Resumen */}
+          {/* PASO 8: Cuenta MedicOS (Detección de cuenta / Opcional) */}
           {currentStep === 8 && (
+            <div className="h-full flex flex-col">
+              <AtencionCuentaCard
+                cuenta={formData.cuenta}
+                patient={formData.patient}
+                onChangeCuenta={(field, val) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    cuenta: {
+                      crearCuenta: false,
+                      email: '',
+                      password: '',
+                      confirmPassword: '',
+                      ...prev.cuenta,
+                      [field]: val,
+                    },
+                  }));
+                }}
+                onContinuar={handleNext}
+                onOmitir={() => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    cuenta: {
+                      crearCuenta: false,
+                      email: prev.patient?.user?.email || '',
+                      password: '',
+                      confirmPassword: '',
+                    },
+                  }));
+                  handleNext();
+                }}
+              />
+            </div>
+          )}
+
+          {/* PASO 9: Resumen (100% de avance) */}
+          {currentStep === 9 && (
             <div className="h-full flex flex-col">
               <AtencionResumenCard
                 formData={formData}
@@ -734,6 +939,7 @@ export const NuevaAtencionPage: React.FC = () => {
           navigate('/brigadista/pacientes/expediente');
         }}
         onNuevaAtencion={handleIniciarNuevaAtencion}
+        onVolverJornada={handleVolverJornada}
       />
     </div>
   );

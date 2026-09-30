@@ -1,8 +1,9 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/patients/patients.service.ts
 // DESCRIPCIÓN: Servicio de gestión de pacientes con normalización de DUI,
-//              administración de Contactos de Emergencia y resolución segura
-//              y auditada de Carnet QR en base de datos PostgreSQL.
+//              administración de Contactos de Emergencia, inclusión de cuenta,
+//              resolución de Carnet QR y entrega integral de expediente clínico
+//              (consultas médicas, diagnósticos, recetas, laboratorios e imagenología).
 // =========================================================================
 
 import { prisma } from '../../config/prisma.js';
@@ -325,7 +326,7 @@ export class PatientsService extends BaseService {
     if (existing) {
       return {
         available: false,
-        patientName: `${existing.firstName} ${existing.lastName}`,
+        patientName: `${existing.firstName} ${existing.lastName}`.trim(),
       };
     }
 
@@ -461,7 +462,7 @@ export class PatientsService extends BaseService {
         dui: patient.dui,
         firstName: patient.firstName,
         lastName: patient.lastName,
-        fullName: `${patient.firstName} ${patient.lastName}`,
+        fullName: `${patient.firstName} ${patient.lastName}`.trim(),
         dateOfBirth: patient.dateOfBirth.toISOString(),
         sex: patient.sex,
         phone: patient.phone,
@@ -733,10 +734,6 @@ export class PatientsService extends BaseService {
   // RESOLUCIÓN Y AUDITORÍA DE CARNET QR DE PACIENTE
   // =========================================================================
 
-  /**
-   * Resuelve el payload de un código QR o token, valida los permisos de quien escanea,
-   * registra la auditoría inmutable en PostgreSQL y entrega la información clínica autorizada.
-   */
   async resolvePatientQR(options: ResolvePatientQROptions) {
     const { qrPayload, clientIp, scannerUser } = options;
 
@@ -744,7 +741,6 @@ export class PatientsService extends BaseService {
       throw new AppError('El código o token QR a verificar es obligatorio.', 400);
     }
 
-    // Regla de Seguridad estricta: Pacientes no pueden auditar ni escanear a otros
     if (scannerUser.role === Role.PATIENT) {
       throw new AppError('Acceso denegado: El perfil de paciente no tiene autorización para escanear credenciales clínicas.', 403);
     }
@@ -753,7 +749,6 @@ export class PatientsService extends BaseService {
     let searchDui: string | null = null;
     const cleanPayload = qrPayload.trim();
 
-    // 1. Detección de formato JSON estructurado
     if (cleanPayload.startsWith('{')) {
       try {
         const parsed = JSON.parse(cleanPayload);
@@ -763,11 +758,10 @@ export class PatientsService extends BaseService {
           if (parsed.dui && typeof parsed.dui === 'string') searchDui = normalizarDui(parsed.dui);
         }
       } catch {
-        // Fallback a texto plano
+        // Fallback
       }
     }
 
-    // 2. Detección de URL institucional o Identificador directo
     if (!searchId && !searchDui) {
       const urlExpMatch = cleanPayload.match(/\/expediente\/([^\/\s\?]+)/i);
       const urlPacMatch = cleanPayload.match(/\/paciente\/([^\/\s\?]+)/i);
@@ -781,7 +775,7 @@ export class PatientsService extends BaseService {
           if (!searchDui && segment.startsWith('EXP-')) {
             const lastPart = segment.split('-').pop();
             if (lastPart && /^\d{4}$/.test(lastPart)) {
-              searchDui = lastPart; // Búsqueda por terminación de DUI
+              searchDui = lastPart;
             }
           }
         }
@@ -792,7 +786,6 @@ export class PatientsService extends BaseService {
       }
     }
 
-    // 3. Consulta del expediente en PostgreSQL
     let patient = null;
 
     if (searchId) {
@@ -800,6 +793,9 @@ export class PatientsService extends BaseService {
         where: { id: searchId, deletedAt: null },
         include: {
           clinicalRecord: true,
+          user: {
+            select: { id: true, email: true, role: true },
+          },
           emergencyContacts: {
             where: { deletedAt: null, isActive: true },
             orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
@@ -824,6 +820,9 @@ export class PatientsService extends BaseService {
         },
         include: {
           clinicalRecord: true,
+          user: {
+            select: { id: true, email: true, role: true },
+          },
           emergencyContacts: {
             where: { deletedAt: null, isActive: true },
             orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
@@ -841,7 +840,6 @@ export class PatientsService extends BaseService {
       throw new AppError('No se encontró ningún expediente clínico activo para el carnet escaneado.', 404);
     }
 
-    // 4. Registro de Auditoría Inmutable en PostgreSQL
     try {
       await prisma.auditLog.create({
         data: {
@@ -852,17 +850,16 @@ export class PatientsService extends BaseService {
           ipAddress: clientIp || null,
           changedFields: {
             scannerRole: scannerUser.role,
-            patientName: `${patient.firstName} ${patient.lastName}`,
+            patientName: `${patient.firstName} ${patient.lastName}`.trim(),
             patientDui: patient.dui,
             resolvedAt: new Date().toISOString(),
           },
         },
       });
     } catch {
-      // No bloquea la atención médica si la inserción de auditoría falla
+      // Ignorar fallo de inserción de auditoría
     }
 
-    // 5. Normalización de Metadatos de Salud
     let alergias = 'Ninguna registrada';
     let cronicas = 'Ninguna registrada';
     let medicacion = 'Ninguna activa';
@@ -890,7 +887,6 @@ export class PatientsService extends BaseService {
     const primaryContact = patient.emergencyContacts[0] || null;
     const latestVitals = patient.vitalSigns[0] || null;
 
-    // 6. Entrega de Información Autorizada según el Rol
     const isDoctorOrAdmin = scannerUser.role === Role.DOCTOR || scannerUser.role === Role.ADMIN;
 
     return {
@@ -902,11 +898,13 @@ export class PatientsService extends BaseService {
         dui: patient.dui,
         firstName: patient.firstName,
         lastName: patient.lastName,
-        fullName: `${patient.firstName} ${patient.lastName}`,
+        fullName: `${patient.firstName} ${patient.lastName}`.trim(),
         dateOfBirth: patient.dateOfBirth.toISOString(),
         sex: patient.sex,
         phone: patient.phone,
         address: patient.address,
+        userId: patient.userId,
+        user: patient.user,
         bloodType: patient.clinicalRecord?.bloodType || BloodType.UNKNOWN,
         emergencyContact: primaryContact ? {
           name: `${primaryContact.firstName} ${primaryContact.lastName}`.trim(),
@@ -939,11 +937,6 @@ export class PatientsService extends BaseService {
   // GESTIÓN DE CONTACTOS DE EMERGENCIA DEL PACIENTE
   // =========================================================================
 
-  /**
-   * Obtiene la lista de contactos de emergencia del paciente autenticado.
-   * Si la tabla está vacía pero el paciente tiene datos de emergencia en su expediente,
-   * realiza una auto-migración transparente al vuelo para conservar su contacto.
-   */
   async getEmergencyContacts(identifier: string) {
     const patientId = await this.resolvePatientId(identifier);
     if (!patientId) return [];
@@ -963,7 +956,6 @@ export class PatientsService extends BaseService {
       return existingContacts;
     }
 
-    // AUTO-MIGRACIÓN AL VUELO: Si no hay filas pero Patient tiene emergencyName y emergencyPhone
     const patient = await prisma.patient.findUnique({
       where: { id: patientId },
       select: {
@@ -1003,11 +995,6 @@ export class PatientsService extends BaseService {
     return [];
   }
 
-  /**
-   * Registra un nuevo contacto de emergencia.
-   * Regla de negocio: Si se marca como Principal o es el primer contacto registrado,
-   * se asegura la unicidad y se sincroniza con el modelo Patient.
-   */
   async createEmergencyContact(identifier: string, data: CreateEmergencyContactDTO) {
     const patientId = await this.resolvePatientId(identifier);
     if (!patientId) {
@@ -1066,9 +1053,6 @@ export class PatientsService extends BaseService {
     });
   }
 
-  /**
-   * Actualiza los datos de un contacto de emergencia existente.
-   */
   async updateEmergencyContact(identifier: string, contactId: string, data: UpdateEmergencyContactDTO) {
     const patientId = await this.resolvePatientId(identifier);
     if (!patientId) {
@@ -1171,10 +1155,6 @@ export class PatientsService extends BaseService {
     });
   }
 
-  /**
-   * Elimina suavemente (soft delete) un contacto de emergencia.
-   * Si era el principal, transfiere automáticamente el rango al siguiente contacto activo.
-   */
   async deleteEmergencyContact(identifier: string, contactId: string) {
     const patientId = await this.resolvePatientId(identifier);
     if (!patientId) {
@@ -1237,9 +1217,6 @@ export class PatientsService extends BaseService {
     });
   }
 
-  /**
-   * Establece explícitamente un contacto como Principal.
-   */
   async setPrimaryEmergencyContact(identifier: string, contactId: string) {
     const patientId = await this.resolvePatientId(identifier);
     if (!patientId) {
@@ -1284,7 +1261,7 @@ export class PatientsService extends BaseService {
   }
 
   // =========================================================================
-  // CONSULTAS GENERALES Y EXPEDIENTES
+  // CONSULTAS GENERALES Y EXPEDIENTES (CON INCLUSIÓN DE USUARIO)
   // =========================================================================
 
   async getAllPatients(search?: string) {
@@ -1294,6 +1271,13 @@ export class PatientsService extends BaseService {
       },
       include: {
         clinicalRecord: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -1313,6 +1297,7 @@ export class PatientsService extends BaseService {
       const duiNormalizado = normalizarTexto(p.dui);
       const duiAlfa = normalizarAlfanumerico(p.dui);
       const telefonoNormalizado = normalizarAlfanumerico(p.phone);
+      const emailUsuario = normalizarTexto(p.user?.email);
       const idAlfa = normalizarAlfanumerico(p.id);
 
       if (queryAlfa) {
@@ -1325,9 +1310,13 @@ export class PatientsService extends BaseService {
       if (primerNombre.includes(queryTexto)) return true;
       if (primerApellido.includes(queryTexto)) return true;
       if (duiNormalizado.includes(queryTexto)) return true;
+      if (emailUsuario && emailUsuario.includes(queryTexto)) return true;
 
       const coincideTodasLasPalabras = palabrasQuery.every(
-        (palabra) => nombreCompleto.includes(palabra) || duiNormalizado.includes(palabra)
+        (palabra) =>
+          nombreCompleto.includes(palabra) ||
+          duiNormalizado.includes(palabra) ||
+          emailUsuario.includes(palabra)
       );
 
       return coincideTodasLasPalabras;
@@ -1345,6 +1334,13 @@ export class PatientsService extends BaseService {
       },
       include: {
         clinicalRecord: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+          },
+        },
         vitalSigns: {
           where: { deletedAt: null },
           orderBy: { createdAt: 'desc' },
@@ -1361,6 +1357,12 @@ export class PatientsService extends BaseService {
       if (user) {
         patient = {
           id: user.id,
+          userId: user.id,
+          user: {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+          },
           firstName: user.firstName,
           lastName: user.lastName,
           dateOfBirth: new Date(),
@@ -1399,6 +1401,13 @@ export class PatientsService extends BaseService {
       },
       include: {
         clinicalRecord: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+          },
+        },
       },
     });
 
@@ -1413,6 +1422,12 @@ export class PatientsService extends BaseService {
       return {
         patient: {
           id: userFallback.id,
+          userId: userFallback.id,
+          user: {
+            id: userFallback.id,
+            email: userFallback.email,
+            role: userFallback.role,
+          },
           firstName: userFallback.firstName,
           lastName: userFallback.lastName,
           dateOfBirth: new Date(),
@@ -1434,34 +1449,97 @@ export class PatientsService extends BaseService {
           clinicalRecord: null,
         },
         consultations: [],
+        prescriptions: [],
+        diagnoses: [],
+        laboratoryStudies: [],
+        medicalImagingStudies: [],
         standaloneVitalSigns: [],
       };
     }
 
     if (!patient) return null;
 
-    const consultations = await prisma.consultation.findMany({
-      where: { patientId: patient.id, deletedAt: null },
-      include: {
-        doctor: {
-          select: { id: true, firstName: true, lastName: true, role: true },
+    // Consultas concurrentes en PostgreSQL para entregar el expediente clínico real completo
+    const [
+      consultations,
+      prescriptions,
+      diagnoses,
+      laboratoryStudies,
+      medicalImagingStudies,
+      standaloneVitalSigns,
+    ] = await Promise.all([
+      // 1. Consultas médicas con triaje y brigada (excluyendo aplicaciones de vacunas)
+      prisma.consultation.findMany({
+        where: {
+          patientId: patient.id,
+          deletedAt: null,
+          NOT: [
+            { chiefComplaint: { contains: '[VACUNACION]' } },
+            { diagnosisDesc: { contains: '[VACUNACION]' } },
+          ],
         },
-        brigade: {
-          select: { id: true, name: true, department: true, municipality: true },
+        include: {
+          doctor: {
+            select: { id: true, firstName: true, lastName: true, role: true },
+          },
+          brigade: {
+            select: { id: true, name: true, department: true, municipality: true },
+          },
+          vitalSigns: true,
         },
-        vitalSigns: true,
-      },
-      orderBy: { consultationDate: 'desc' },
-    });
+        orderBy: { consultationDate: 'desc' },
+      }),
 
-    const standaloneVitalSigns = await prisma.vitalSigns.findMany({
-      where: { patientId: patient.id, deletedAt: null },
-      orderBy: { createdAt: 'desc' },
-    });
+      // 2. Prescripciones farmacológicas con ítems de receta
+      prisma.prescription.findMany({
+        where: { patientId: patient.id, deletedAt: null },
+        include: {
+          doctor: {
+            select: { id: true, firstName: true, lastName: true, role: true },
+          },
+          brigade: {
+            select: { id: true, name: true, department: true, municipality: true },
+          },
+          items: true,
+        },
+        orderBy: { issuedAt: 'desc' },
+      }),
+
+      // 3. Diagnósticos clínicos formales
+      prisma.diagnosis.findMany({
+        where: { patientId: patient.id, deletedAt: null },
+        orderBy: { diagnosedAt: 'desc' },
+      }),
+
+      // 4. Estudios de laboratorio con analitos
+      prisma.laboratoryStudy.findMany({
+        where: { patientId: patient.id, deletedAt: null },
+        include: {
+          analytes: true,
+        },
+        orderBy: { performedAt: 'desc' },
+      }),
+
+      // 5. Radiografías y estudios de imagenología
+      prisma.medicalImagingStudy.findMany({
+        where: { patientId: patient.id, deletedAt: null },
+        orderBy: { performedAt: 'desc' },
+      }),
+
+      // 6. Signos vitales independientes de triaje
+      prisma.vitalSigns.findMany({
+        where: { patientId: patient.id, deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
 
     return {
       patient,
       consultations,
+      prescriptions,
+      diagnoses,
+      laboratoryStudies,
+      medicalImagingStudies,
       standaloneVitalSigns,
     };
   }

@@ -1,12 +1,14 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/layout/BrigadistaHeader.tsx
-// DESCRIPCIÓN: Header para el Portal Brigadista basado en el chasis HeaderGlobal.
+// DESCRIPCIÓN: Header para el Portal Brigadista con badge de estado reactivo
+//              conectado directamente a la WorkSession activa.
 // =========================================================================
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { HeaderGlobal, type UserProfileData } from '../../../shared/components/header/HeaderGlobal';
 import { useAuth } from '../../../core/context/useAuth';
+import { useJornadaBrigada } from '../../../modules/brigades';
 
 interface BrigadistaHeaderProps {
   onOpenSidebar: () => void;
@@ -15,6 +17,7 @@ interface BrigadistaHeaderProps {
 export const BrigadistaHeader: React.FC<BrigadistaHeaderProps> = ({ onOpenSidebar }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { data: jornadaData } = useJornadaBrigada();
   const [searchQuery, setSearchQuery] = useState('');
 
   const firstName = user?.firstName?.trim() || '';
@@ -25,13 +28,16 @@ export const BrigadistaHeader: React.FC<BrigadistaHeaderProps> = ({ onOpenSideba
     ? `${firstName[0] || ''}${lastName[0] || ''}`.toUpperCase()
     : 'BR';
 
+  // Solo se muestra el badge si realmente existe una jornada en curso
+  const enJornada = jornadaData?.control?.estado === 'EN_CURSO';
+
   const brigadistaUserProfile: UserProfileData = {
     fullName,
     email,
     initials,
     roleName: user?.role || 'Brigadista de Campo',
-    showBadge: true,
-    badgeText: 'En Jornada',
+    showBadge: enJornada,
+    badgeText: enJornada ? 'En Jornada' : '',
   };
 
   const handleSearchSubmit = (query: string) => {

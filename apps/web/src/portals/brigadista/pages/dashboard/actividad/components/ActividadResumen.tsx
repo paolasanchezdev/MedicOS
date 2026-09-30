@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/dashboard/actividad/components/ActividadResumen.tsx
 // DESCRIPCIÓN: 5 tarjetas de métricas del turno con estilo y bordes Admin.
+//              Optimizado para mostrar etiquetas completas sin truncarse en móviles.
 // =========================================================================
 
 import React from 'react';
@@ -65,37 +66,37 @@ export const ActividadResumen: React.FC<ActividadResumenProps> = ({
   ];
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+    <div className="space-y-2.5 sm:space-y-3">
+      <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500">
         Resumen de Operación
       </p>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-4">
         {cards.map((card, idx) => {
           const IconComponent = card.icon;
           return (
             <div
               key={idx}
-              className="group bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between"
+              className="group bg-white rounded-2xl border border-slate-200/80 p-3.5 sm:p-5 shadow-2xs hover:shadow-xs hover:border-slate-300 transition-all duration-200 flex flex-col justify-between"
             >
               <div className="flex items-center justify-between">
                 <div
-                  className={`w-10 h-10 rounded-xl border flex items-center justify-center shadow-xs ${card.iconBg}`}
+                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl border flex items-center justify-center shadow-2xs ${card.iconBg}`}
                 >
-                  <IconComponent className="w-5 h-5" />
+                  <IconComponent className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
                 <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${card.pillClass}`}
+                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border ${card.pillClass}`}
                 >
                   {card.pill}
                 </span>
               </div>
 
-              <div className="mt-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">
+              <div className="mt-3 sm:mt-4">
+                <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 leading-tight wrap-break-word">
                   {card.label}
                 </p>
-                <p className="text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
+                <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
                   {card.value}
                 </p>
               </div>
@@ -106,3 +107,5 @@ export const ActividadResumen: React.FC<ActividadResumenProps> = ({
     </div>
   );
 };
+
+export default ActividadResumen;

@@ -1,132 +1,96 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/layout/BrigadistaSidebar.tsx
-// DESCRIPCIÓN: Sidebar del Portal Brigadista adaptado al flujo de trabajo territorial.
+// DESCRIPCIÓN: Sidebar del Portal Brigadista con Dashboard principal y navegación completa.
 // =========================================================================
 
 import React from 'react';
 import { SidebarGlobal, type SidebarNavigationGroup } from '../../../shared/components/sidebar/SidebarGlobal';
 import { BRIGADISTA_NAVIGATION } from '../navigation/brigadista.navigation';
 import { 
-  LayoutDashboard, 
-  Activity,
-  Siren,
+  LayoutDashboard,
   Calendar,
   Users,
-  UserCheck,
+  Activity,
+  Siren,
   UserSearch,
   UserPlus,
   QrCode,
   FileSpreadsheet,
   HeartPulse,
   PlusCircle,
-  ClipboardList,
   History,
+  CloudOff,
   ShieldCheck,
   Syringe,
   Baby,
   Apple,
   GraduationCap,
   ClipboardCheck,
-  AlertTriangle,
   Home,
-  CalendarCheck,
-  CheckCircle2,
   Send,
-  Clock,
-  MapPin,
   Map,
   Building2,
-  RefreshCw,
-  Bell,
-  Inbox,
+  FileText,
   FileBarChart,
   TrendingUp,
-  FileText,
-  User,
-  Sliders,
-  Shield
+  Layers
 } from 'lucide-react';
 
 const ITEM_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  // Secciones Principales
+  // 1. Grupos Principales
   'Dashboard': LayoutDashboard,
+  'Mi Jornada': Calendar,
   'Brigada': Siren,
-  'Pacientes': UserCheck,
+  'Padrón Comunitario': Users,
   'Atención': HeartPulse,
   'Promoción y Prevención': ShieldCheck,
-  'Seguimiento': Activity,
-  'Visitas': Home,
-  'Referencias': Send,
-  'Mapa': Map,
-  'Sincronización': RefreshCw,
-  'Notificaciones': Bell,
+  'Continuidad': ClipboardCheck,
+  'Herramientas': Map,
   'Reportes': FileText,
-  'Perfil': User,
 
-  // Dashboard
-  'Resumen': LayoutDashboard,
-  'Actividad': Activity,
+  // 2. Dashboard
+  'Resumen Operativo': LayoutDashboard,
 
-  // Brigada
-  'Resumen de Brigada': Siren,
-  'Jornada': Calendar,
-  'Pacientes de la Brigada': Users,
+  // 3. Mi Jornada
+  'Jornada de Hoy': Calendar,
+  'Pacientes de Hoy': Users,
+  'Bitácora de Campo': Activity,
 
-  // Pacientes
-  'Buscar Paciente': UserSearch,
-  'Registrar Paciente': UserPlus,
+  // 4. Brigada
+  'Información de Brigada': Siren,
+
+  // 5. Padrón Comunitario
+  'Buscar Persona': UserSearch,
+  'Registrar Persona': UserPlus,
   'Escanear QR / ID': QrCode,
-  'Expediente del Paciente': FileSpreadsheet,
+  'Expediente Clínico': FileSpreadsheet,
 
-  // Atención
+  // 6. Atención
   'Nueva Atención': PlusCircle,
-  'Atenciones Pendientes': ClipboardList,
   'Historial de Atenciones': History,
+  'Bandeja Outbox / Offline': CloudOff,
 
-  // Promoción y Prevención
+  // 7. Promoción y Prevención
   'Vacunación': Syringe,
   'Materno-Infantil': Baby,
-  'Nutrición': Apple,
+  'Nutrición Comunitaria': Apple,
   'Educación y Prevención': GraduationCap,
 
-  // Seguimiento
-  'Pacientes en Seguimiento': UserCheck,
-  'Controles': ClipboardCheck,
-  'Alertas': AlertTriangle,
+  // 8. Continuidad
+  'Pacientes en Seguimiento': ClipboardCheck,
+  'Visitas Domiciliarias': Home,
+  'Referencias a la Red': Send,
 
-  // Visitas
-  'Nueva Visita': PlusCircle,
-  'Visitas Programadas': CalendarCheck,
-  'Visitas Realizadas': CheckCircle2,
+  // 9. Herramientas
+  'Mapa Territorial': Map,
+  'Establecimientos de Salud': Building2,
 
-  // Referencias
-  'Nueva Referencia': PlusCircle,
-  'Referencias Pendientes': Clock,
-  'Historial de Referencias': History,
-
-  // Mapa
-  'Ubicación': MapPin,
-  'Establecimientos': Building2,
-
-  // Sincronización
-  'Estado': RefreshCw,
-  'Pendientes': Clock,
-  'Historial': History,
-
-  // Notificaciones
-  'Centro de Notificaciones': Inbox,
-
-  // Reportes
-  'Reportes de Brigada': FileBarChart,
-  'Reportes de Pacientes': TrendingUp,
-  'Reportes de Atención': FileText,
-  'Reportes de Seguimiento': Activity,
-  'Reportes de Visitas': ClipboardCheck,
-
-  // Perfil
-  'Mis Datos': User,
-  'Preferencias': Sliders,
-  'Seguridad': Shield,
+  // 10. Reportes
+  'Reporte de Brigada': FileBarChart,
+  'Reporte de Pacientes': TrendingUp,
+  'Reporte de Atención': HeartPulse,
+  'Reporte de Seguimiento': Activity,
+  'Reporte de Visitas': Home,
 };
 
 interface BrigadistaSidebarProps {
@@ -142,13 +106,13 @@ export const BrigadistaSidebar: React.FC<BrigadistaSidebarProps> = ({ isOpen, on
         ? navItem.children.map((child) => ({
             label: child.title,
             path: child.path,
-            icon: ITEM_ICON_MAP[child.title] || ITEM_ICON_MAP[navItem.title] || Activity,
+            icon: ITEM_ICON_MAP[child.title] || ITEM_ICON_MAP[navItem.title] || Layers,
           }))
         : [
             {
               label: navItem.title,
               path: navItem.path,
-              icon: ITEM_ICON_MAP[navItem.title] || Activity,
+              icon: ITEM_ICON_MAP[navItem.title] || Layers,
             },
           ],
     };

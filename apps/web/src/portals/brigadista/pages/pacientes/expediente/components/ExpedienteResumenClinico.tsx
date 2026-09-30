@@ -1,214 +1,278 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/pacientes/expediente/components/ExpedienteResumenClinico.tsx
-// DESCRIPCIÓN: Cabecera médica con métricas e información clínica esencial sin datos simulados.
+// DESCRIPCIÓN: Cabecera médica y métricas optimizadas para móviles:
+//              Cuadrícula 2x2 en smartphones, tarjetas compactas y visualización limpia.
 // =========================================================================
 
-import React from 'react';
-import { Droplet, ShieldAlert, HeartPulse, PhoneCall, FileText } from 'lucide-react';
+import React, { useMemo } from 'react';
+import {
+  Droplet,
+  ShieldAlert,
+  HeartPulse,
+  PhoneCall,
+  FileText,
+  CheckCircle2,
+  UserCheck,
+} from 'lucide-react';
 import type { PatientHistoryData } from '../../../../../../modules/patients';
 
 interface ExpedienteResumenClinicoProps {
   historyData: PatientHistoryData;
 }
 
-function isPlaceholderDate(d?: string | Date): boolean {
-  if (!d) return true;
-  try {
-    const dateObj = typeof d === 'string' ? new Date(d) : d;
-    if (isNaN(dateObj.getTime())) return true;
-    const iso = dateObj.toISOString();
-    return iso.startsWith('2000-01-01') || iso.startsWith('1999-12-31');
-  } catch {
-    return true;
-  }
-}
-
 function calculateAge(dateString?: string | Date): string {
-  if (!dateString || isPlaceholderDate(dateString)) return 'Edad sin registrar';
+  if (!dateString) return 'Sin edad';
   try {
     const dob = new Date(dateString);
-    if (isNaN(dob.getTime())) return 'Edad sin registrar';
+    if (isNaN(dob.getTime())) return 'Sin edad';
     const diffMs = Date.now() - dob.getTime();
     const ageDt = new Date(diffMs);
-    const age = Math.abs(ageDt.getUTCFullYear() - 1970);
-    return `${age} años`;
+    return `${Math.abs(ageDt.getUTCFullYear() - 1970)} años`;
   } catch {
-    return 'Edad sin registrar';
+    return 'Sin edad';
   }
 }
 
 function formatBloodType(bt?: string): string {
-  if (!bt) return 'No registrado';
+  if (!bt) return 'S/R';
   const map: Record<string, string> = {
-    'O_POSITIVE': 'O+',
-    'O_NEGATIVE': 'O-',
-    'A_POSITIVE': 'A+',
-    'A_NEGATIVE': 'A-',
-    'B_POSITIVE': 'B+',
-    'B_NEGATIVE': 'B-',
-    'AB_POSITIVE': 'AB+',
-    'AB_NEGATIVE': 'AB-',
-    'UNKNOWN': 'No registrado',
+    O_POSITIVE: 'O+',
+    O_NEGATIVE: 'O-',
+    A_POSITIVE: 'A+',
+    A_NEGATIVE: 'A-',
+    B_POSITIVE: 'B+',
+    B_NEGATIVE: 'B-',
+    AB_POSITIVE: 'AB+',
+    AB_NEGATIVE: 'AB-',
+    UNKNOWN: 'S/R',
   };
   return map[bt] || bt;
 }
 
-export const ExpedienteResumenClinico: React.FC<ExpedienteResumenClinicoProps> = ({ historyData }) => {
-  const { patient, consultations, standaloneVitalSigns } = historyData;
+interface ParsedObservations {
+  allergies: string;
+  chronicDiseases: string;
+  hasAllergyRisk: boolean;
+}
+
+function parseObservations(raw?: string | null): ParsedObservations {
+  const fallback: ParsedObservations = {
+    allergies: 'Ninguna',
+    chronicDiseases: 'Ninguna',
+    hasAllergyRisk: false,
+  };
+
+  if (!raw || !raw.trim()) return fallback;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      const allergies = (parsed.allergies || parsed.alergias || '').trim();
+      const chronic = (parsed.chronicDiseases || parsed.enfermedadesCronicas || '').trim();
+
+      const isNone =
+        !allergies ||
+        allergies.toLowerCase().includes('ningun') ||
+        allergies.toLowerCase().includes('sin ') ||
+        allergies.toLowerCase() === 'no';
+
+      return {
+        allergies: allergies || 'Ninguna',
+        chronicDiseases: chronic || 'Ninguna',
+        hasAllergyRisk: !isNone,
+      };
+    }
+  } catch {
+    const cleanText = raw.trim();
+    const isNone =
+      cleanText.toLowerCase().includes('ningun') ||
+      cleanText.toLowerCase().includes('sin ') ||
+      cleanText.toLowerCase() === 'no';
+
+    return {
+      ...fallback,
+      allergies: cleanText,
+      hasAllergyRisk: !isNone,
+    };
+  }
+
+  return fallback;
+}
+
+export const ExpedienteResumenClinico: React.FC<ExpedienteResumenClinicoProps> = ({
+  historyData,
+}) => {
+  const { patient, consultations = [], standaloneVitalSigns = [] } = historyData;
   const fullName = `${patient.firstName} ${patient.lastName}`.trim();
   const cleanDui = patient.dui ? patient.dui.replace(/[^0-9]/g, '') : '';
-  const expedienteNum = cleanDui ? `EXP-2026-${cleanDui.slice(-4)}` : `EXP-${patient.id.slice(0, 6).toUpperCase()}`;
+  const expedienteNum = cleanDui
+    ? `EXP-2026-${cleanDui.slice(-4)}`
+    : `EXP-${patient.id.slice(0, 6).toUpperCase()}`;
 
   const clinicalRecord = patient.clinicalRecord;
   const bloodTypeFormatted = formatBloodType(clinicalRecord?.bloodType);
-  const hasAllergiesRecord = Boolean(clinicalRecord?.observations?.trim());
-  const allergies = hasAllergiesRecord ? clinicalRecord!.observations! : 'Sin registrar';
+  const obs = useMemo(
+    () => parseObservations(clinicalRecord?.observations),
+    [clinicalRecord?.observations]
+  );
   const lastVital = standaloneVitalSigns[0] || consultations[0]?.vitalSigns?.[0];
 
   return (
-    <div className="space-y-4">
-      {/* Tarjeta de Identidad Principal */}
-      <div className="group bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/70 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-[#1B5250] font-extrabold text-sm shadow-2xs shrink-0">
+    <div className="space-y-2.5 sm:space-y-3.5">
+      {/* 1. Tarjeta de Identidad Principal Compacta */}
+      <section className="bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200/80 p-3 sm:p-4 shadow-2xs flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-[#1B5250] font-black text-xs sm:text-sm shadow-2xs shrink-0">
             {patient.firstName[0]}
             {patient.lastName[0]}
           </div>
 
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">{fullName}</h2>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Activo
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h2 className="text-sm sm:text-base font-black text-slate-900 leading-tight truncate">
+                {fullName}
+              </h2>
+              <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Padrón
               </span>
+              {patient.user && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-teal-50 text-teal-800 border border-teal-200 shrink-0">
+                  <UserCheck className="w-2.5 h-2.5" />
+                  App
+                </span>
+              )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-500 mt-1 font-medium">
-              <span>DUI: <strong className="text-slate-700 font-mono">{patient.dui || 'Sin DUI'}</strong></span>
-              <span>&bull;</span>
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium mt-0.5 truncate">
+              <span className="font-mono font-bold text-slate-700">
+                {patient.dui || 'Sin DUI'}
+              </span>
+              <span>•</span>
               <span>{calculateAge(patient.dateOfBirth)}</span>
-              <span>&bull;</span>
-              <span>{patient.sex === 'MALE' ? 'Masculino' : patient.sex === 'FEMALE' ? 'Femenino' : 'Sin especificar'}</span>
+              <span>•</span>
+              <span>{patient.sex === 'FEMALE' ? 'F' : 'M'}</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="px-3.5 py-1.5 bg-slate-50/80 rounded-xl border border-slate-200/70 text-right">
-            <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 block">Expediente Clínico</span>
-            <span className="text-xs font-mono font-bold text-[#1B5250] flex items-center justify-end gap-1.5 mt-0.5">
-              <FileText className="w-3.5 h-3.5 text-teal-600" />
-              {expedienteNum}
-            </span>
-          </div>
+        <div className="px-2.5 py-1 sm:px-3 sm:py-1.5 bg-slate-50 rounded-xl border border-slate-200/80 text-right shrink-0">
+          <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-slate-400 block">
+            Expediente
+          </span>
+          <span className="text-[11px] sm:text-xs font-mono font-black text-[#1B5250] flex items-center justify-end gap-1">
+            <FileText className="w-3 h-3 text-teal-600 hidden sm:inline" />
+            {expedienteNum}
+          </span>
         </div>
-      </div>
+      </section>
 
-      {/* 4 Tarjetas de Métricas Clínicas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 2. Cuadrícula de Métricas 2x2 en Teléfonos Móviles */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         {/* 1. Grupo Sanguíneo */}
-        <div className="group bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/70 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shadow-2xs">
-                <Droplet className="w-5 h-5 fill-rose-600 stroke-2" />
-              </div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Grupo Sanguíneo
-              </span>
-            </div>
-
-            <div className="mt-4">
-              <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
-                {bloodTypeFormatted}
-              </p>
+        <div className="bg-white/95 rounded-xl sm:rounded-2xl border border-slate-200/80 p-2.5 sm:p-3.5 shadow-2xs flex flex-col justify-between h-22 sm:h-26">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400">
+              Sanguíneo
+            </span>
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600">
+              <Droplet className="w-3.5 h-3.5 fill-rose-600" />
             </div>
           </div>
-
-          <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 font-medium">
-            {clinicalRecord?.bloodType && clinicalRecord.bloodType !== 'UNKNOWN'
-              ? 'Factor registrado en ficha'
-              : 'Pendiente de determinación'}
+          <div>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none">
+              {bloodTypeFormatted}
+            </p>
+            <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium block mt-1 truncate">
+              {clinicalRecord?.bloodType && clinicalRecord.bloodType !== 'UNKNOWN'
+                ? 'Verificado'
+                : 'Pendiente'}
+            </span>
           </div>
         </div>
 
         {/* 2. Alergias */}
-        <div className="group bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/70 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shadow-2xs">
-                <ShieldAlert className="w-5 h-5 stroke-2" />
-              </div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Alergias
-              </span>
-            </div>
-
-            <div className="mt-4">
-              <p className={`text-sm font-bold line-clamp-2 leading-snug ${hasAllergiesRecord ? 'text-slate-900' : 'text-slate-500 italic'}`} title={allergies}>
-                {allergies}
-              </p>
+        <div className="bg-white/95 rounded-xl sm:rounded-2xl border border-slate-200/80 p-2.5 sm:p-3.5 shadow-2xs flex flex-col justify-between h-22 sm:h-26">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400">
+              Alergias
+            </span>
+            <div
+              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg border flex items-center justify-center ${
+                obs.hasAllergyRisk
+                  ? 'bg-rose-50 border-rose-200 text-rose-600'
+                  : 'bg-emerald-50 border-emerald-200 text-emerald-600'
+              }`}
+            >
+              {obs.hasAllergyRisk ? (
+                <ShieldAlert className="w-3.5 h-3.5" />
+              ) : (
+                <CheckCircle2 className="w-3.5 h-3.5" />
+              )}
             </div>
           </div>
-
-          <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 font-medium">
-            {hasAllergiesRecord ? 'Antecedente farmacológico registrado' : 'Pendiente de anamnesis'}
+          <div>
+            <p
+              className={`text-xs sm:text-sm font-black line-clamp-1 leading-tight ${
+                obs.hasAllergyRisk ? 'text-rose-700' : 'text-slate-800'
+              }`}
+              title={obs.allergies}
+            >
+              {obs.allergies}
+            </p>
+            <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium block mt-1 truncate">
+              {obs.hasAllergyRisk ? 'Riesgo activo' : 'Sin antecedentes'}
+            </span>
           </div>
         </div>
 
         {/* 3. Última Presión */}
-        <div className="group bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/70 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 shadow-2xs">
-                <HeartPulse className="w-5 h-5 stroke-2" />
-              </div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Última Presión
-              </span>
+        <div className="bg-white/95 rounded-xl sm:rounded-2xl border border-slate-200/80 p-2.5 sm:p-3.5 shadow-2xs flex flex-col justify-between h-22 sm:h-26">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400">
+              Presión
+            </span>
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center text-[#1B5250]">
+              <HeartPulse className="w-3.5 h-3.5" />
             </div>
-
-            <div className="mt-4 flex items-baseline gap-1.5">
-              <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
+          </div>
+          <div>
+            <div className="flex items-baseline gap-1">
+              <p className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-none">
                 {lastVital ? `${lastVital.systolic}/${lastVital.diastolic}` : '—'}
               </p>
-              {lastVital && <span className="text-xs font-medium text-slate-400">mmHg</span>}
+              {lastVital && (
+                <span className="text-[9px] font-bold text-slate-400">mmHg</span>
+              )}
             </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 font-medium">
-            {lastVital ? 'Evaluación reciente en jornada' : 'Sin tomas de triaje registradas'}
+            <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium block mt-1 truncate">
+              {lastVital ? `${lastVital.heartRate} lpm` : 'Sin triaje'}
+            </span>
           </div>
         </div>
 
-        {/* 4. Contacto de Emergencia */}
-        <div className="group bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/70 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-md hover:border-slate-300 transition-all duration-200 flex flex-col justify-between">
+        {/* 4. Contacto de Urgencia */}
+        <div className="bg-white/95 rounded-xl sm:rounded-2xl border border-slate-200/80 p-2.5 sm:p-3.5 shadow-2xs flex flex-col justify-between h-22 sm:h-26">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400">
+              Contacto SOS
+            </span>
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+              <PhoneCall className="w-3.5 h-3.5" />
+            </div>
+          </div>
           <div>
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-2xs">
-                <PhoneCall className="w-5 h-5 stroke-2" />
-              </div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Emergencia
-              </span>
-            </div>
-
-            <div className="mt-4">
-              <p className="text-sm font-bold text-slate-900 truncate">
-                {patient.emergencyName || 'No asignado'}
-              </p>
-              <p className="text-xs font-mono font-bold text-[#1B5250] mt-0.5">
-                {patient.emergencyPhone || 'Sin teléfono'}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 font-medium">
-            {patient.emergencyRelation ? `Vínculo: ${patient.emergencyRelation}` : 'Contacto de referencia no asignado'}
+            <p className="text-xs sm:text-sm font-black text-slate-900 truncate leading-tight">
+              {patient.emergencyName || 'No asignado'}
+            </p>
+            <p className="text-[10px] font-mono font-bold text-[#1B5250] mt-0.5 truncate">
+              {patient.emergencyPhone || 'Sin teléfono'}
+            </p>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 };
+
+export default ExpedienteResumenClinico;

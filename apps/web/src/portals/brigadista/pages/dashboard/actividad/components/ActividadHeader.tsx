@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/dashboard/actividad/components/ActividadHeader.tsx
 // DESCRIPCIÓN: Cabecera con banner institucional degradado Teal y onda médica.
+//              Conserva el diseño oficial en PC y reduce su altura en celulares.
 // =========================================================================
 
 import React from 'react';
@@ -38,7 +39,7 @@ export const ActividadHeader: React.FC<ActividadHeaderProps> = ({
     })();
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-[#2B7A78] via-[#236866] to-[#1B5250] p-6 sm:p-7 text-white shadow-sm border border-teal-700/50">
+    <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-[#2B7A78] via-[#236866] to-[#1B5250] p-4 sm:p-7 text-white shadow-sm border border-teal-700/50 transition-all">
       {/* Resplandor y patrón decorativo de fondo tipo onda médica */}
       <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-teal-400/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute right-10 top-1/2 -translate-y-1/2 opacity-10 pointer-events-none hidden lg:block">
@@ -60,17 +61,17 @@ export const ActividadHeader: React.FC<ActividadHeaderProps> = ({
       </div>
 
       {/* Contenido Principal */}
-      <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-        <div className="space-y-2">
+      <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3.5 sm:gap-6">
+        <div className="space-y-1.5 sm:space-y-2 min-w-0">
           {/* Badges de Contexto y Estado */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold text-teal-100 shadow-2xs">
-              <Activity className="w-3.5 h-3.5 text-teal-200" />
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[10px] sm:text-xs font-semibold text-teal-100 shadow-2xs">
+              <Activity className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-teal-200" />
               <span>Bitácora Operativa &bull; Rol: BRIGADISTA</span>
             </div>
 
             <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+              className={`inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold ${
                 jornadaActiva
                   ? 'bg-emerald-500/20 text-emerald-100 border border-emerald-400/30'
                   : 'bg-white/10 text-white/70 border border-white/20'
@@ -86,44 +87,46 @@ export const ActividadHeader: React.FC<ActividadHeaderProps> = ({
           </div>
 
           {/* Título de la Sección */}
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+          <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-white leading-tight">
             Actividad Operativa de Campo
           </h1>
 
           {/* Ubicación y Fecha */}
-          <div className="flex items-center gap-3 text-xs sm:text-sm text-teal-100/90 font-medium flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-teal-200 shrink-0" />
-              <span>{nombreJornada}</span>
+          <div className="flex items-center gap-x-2 gap-y-0.5 text-[11px] sm:text-sm text-teal-100/90 font-medium flex-wrap">
+            <div className="flex items-center gap-1 truncate max-w-50 sm:max-w-none">
+              <ShieldCheck className="w-3.5 h-3.5 text-teal-200 shrink-0" />
+              <span className="truncate">{nombreJornada}</span>
             </div>
-            <span className="text-teal-200/40">&bull;</span>
-            <div className="flex items-center gap-1.5">
-              <MapPin className="w-4 h-4 text-teal-200 shrink-0" />
-              <span>{territorio}</span>
+            <span className="text-teal-200/40 hidden sm:inline">&bull;</span>
+            <div className="flex items-center gap-1 truncate">
+              <MapPin className="w-3.5 h-3.5 text-teal-200 shrink-0" />
+              <span className="truncate">{territorio}</span>
             </div>
-            <span className="text-teal-200/40">&bull;</span>
-            <div className="flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-teal-200 shrink-0" />
+            <span className="text-teal-200/40 hidden sm:inline">&bull;</span>
+            <div className="flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-teal-200 shrink-0" />
               <span>{fechaHoy}</span>
             </div>
           </div>
         </div>
 
         {/* Botones de Acción */}
-        <div className="flex items-center gap-3 shrink-0 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 self-end sm:self-auto">
           <button
+            type="button"
             onClick={onRefresh}
             disabled={isRefreshing}
             title="Actualizar datos locales"
-            className="inline-flex items-center gap-2 p-2.5 sm:px-4 sm:py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs sm:text-sm font-bold rounded-xl backdrop-blur-md transition-all duration-200 active:scale-95 disabled:opacity-70 cursor-pointer"
+            className="inline-flex items-center justify-center p-2 sm:px-4 sm:py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl backdrop-blur-md transition-all duration-200 active:scale-95 disabled:opacity-70 cursor-pointer shadow-2xs"
           >
-            <RefreshCw className={`w-4 h-4 text-teal-200 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Actualizar</span>
+            <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-200 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline sm:ml-2 text-xs sm:text-sm font-bold">Actualizar</span>
           </button>
 
           <button
+            type="button"
             onClick={onNuevaActividad}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-teal-50 text-[#1B5250] text-xs sm:text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all duration-200 active:scale-95 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2.5 bg-white hover:bg-teal-50 text-[#1B5250] text-xs sm:text-sm font-bold rounded-xl shadow-xs hover:shadow-sm transition-all duration-200 active:scale-95 cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Registrar Actividad</span>
@@ -133,3 +136,5 @@ export const ActividadHeader: React.FC<ActividadHeaderProps> = ({
     </div>
   );
 };
+
+export default ActividadHeader;
