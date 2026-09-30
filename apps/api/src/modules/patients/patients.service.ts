@@ -1,9 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/patients/patients.service.ts
-// DESCRIPCIÓN: Servicio de gestión de pacientes con normalización de DUI,
-//              administración de Contactos de Emergencia, inclusión de cuenta,
-//              resolución de Carnet QR y entrega integral de expediente clínico
-//              (consultas médicas, diagnósticos, recetas, laboratorios e imagenología).
+// DESCRIPCIÓN: Servicio de gestión de pacientes con persistencia real de nombres,
+//              apellidos, DUI, contactos de emergencia y expediente en PostgreSQL.
 // =========================================================================
 
 import { prisma } from '../../config/prisma.js';
@@ -44,6 +42,8 @@ export interface CreatePatientDTO {
 }
 
 export interface UpdatePatientProfileDTO {
+  firstName?: string;
+  lastName?: string;
   dateOfBirth: string | Date;
   dui?: string | null;
   sex?: 'MALE' | 'FEMALE' | 'OTHER';
@@ -111,9 +111,6 @@ export interface ResolvePatientQROptions {
   };
 }
 
-/**
- * Normaliza y valida un número de DUI al formato oficial salvadoreño ########-#
- */
 function normalizarDui(rawDui?: string | null): string | null {
   if (!rawDui) return null;
   const digits = rawDui.replace(/\D/g, '');
@@ -126,9 +123,6 @@ function normalizarDui(rawDui?: string | null): string | null {
   return null;
 }
 
-/**
- * Mapea cualquier entrada de grupo sanguíneo al Enum BloodType estricto de Prisma.
- */
 function normalizarBloodType(raw?: string | null): BloodType {
   if (!raw) return BloodType.UNKNOWN;
   const clean = raw.trim().toUpperCase().replace(/[\s\(\)]/g, '_');
@@ -198,9 +192,6 @@ function normalizarAlfanumerico(texto: string | null | undefined): string {
     .replace(/[^a-z0-9]/g, '');
 }
 
-/**
- * Traduce el enum a formato legible en español para el expediente y carnet del paciente
- */
 function formatRelationLabel(rel: EmergencyRelationship, custom?: string | null): string {
   if (rel === EmergencyRelationship.OTRO && custom?.trim()) {
     return custom.trim();
@@ -221,9 +212,6 @@ function formatRelationLabel(rel: EmergencyRelationship, custom?: string | null)
   return map[rel] || 'Familiar';
 }
 
-/**
- * Interpreta relaciones textuales heredadas (ej. "Madre", "Esposo", "Hermana") y las mapea al enum
- */
 function parseLegacyRelationship(relationStr?: string | null): {
   relationship: EmergencyRelationship;
   customRelation: string | null;
@@ -270,18 +258,12 @@ export class PatientsService extends BaseService {
     if (!identifier) return null;
 
     const patientById = await prisma.patient.findFirst({
-      where: { 
-        id: identifier, 
-        deletedAt: null,
-      },
+      where: { id: identifier, deletedAt: null },
     });
     if (patientById) return patientById.id;
 
     const patientByUserId = await prisma.patient.findFirst({
-      where: { 
-        userId: identifier, 
-        deletedAt: null,
-      },
+      where: { userId: identifier, deletedAt: null },
     });
     if (patientByUserId) return patientByUserId.id;
 
@@ -312,15 +294,8 @@ export class PatientsService extends BaseService {
     if (!cleanDui) return { available: true };
 
     const existing = await prisma.patient.findFirst({
-      where: {
-        dui: cleanDui,
-        deletedAt: null,
-      },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-      },
+      where: { dui: cleanDui, deletedAt: null },
+      select: { id: true, firstName: true, lastName: true },
     });
 
     if (existing) {
@@ -338,10 +313,7 @@ export class PatientsService extends BaseService {
     if (!cleanEmail) return { available: true };
 
     const existing = await prisma.user.findFirst({
-      where: {
-        email: cleanEmail,
-        deletedAt: null,
-      },
+      where: { email: cleanEmail, deletedAt: null },
       select: { id: true },
     });
 
@@ -470,11 +442,7 @@ export class PatientsService extends BaseService {
         emergencyName: patient.emergencyName,
         emergencyPhone: patient.emergencyPhone,
         emergencyRelation: patient.emergencyRelation,
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-        },
+        user: { id: user.id, email: user.email, role: user.role },
         clinicalRecord: {
           id: clinicalRecord.id,
           bloodType: clinicalRecord.bloodType,
@@ -497,17 +465,6 @@ export class PatientsService extends BaseService {
       });
       if (existingByUserId) {
         resolvedId = existingByUserId.id;
-      } else if (userObj.phone) {
-        const orphanByPhone = await prisma.patient.findFirst({
-          where: { phone: userObj.phone, userId: null, deletedAt: null },
-        });
-        if (orphanByPhone) {
-          resolvedId = orphanByPhone.id;
-          await prisma.patient.update({
-            where: { id: orphanByPhone.id },
-            data: { userId: userObj.id },
-          });
-        }
       }
     }
 
@@ -548,11 +505,14 @@ export class PatientsService extends BaseService {
       }
 
       return prisma.$transaction(async (tx) => {
+        const finalFirst = data.firstName?.trim() || userObj.firstName;
+        const finalLast = data.lastName?.trim() || userObj.lastName;
+
         const newPatient = await tx.patient.create({
           data: {
             userId: userObj.id,
-            firstName: userObj.firstName,
-            lastName: userObj.lastName,
+            firstName: finalFirst,
+            lastName: finalLast,
             dateOfBirth: new Date(data.dateOfBirth),
             dui: cleanDui,
             sex: data.sex || 'OTHER',
@@ -568,12 +528,17 @@ export class PatientsService extends BaseService {
           },
         });
 
-        if (data.phone?.trim() && data.phone.trim() !== userObj.phone) {
-          await tx.user.update({
-            where: { id: userObj.id },
-            data: { phone: data.phone.trim() },
-          });
+        const userUpdate: Prisma.UserUpdateInput = {
+          firstName: finalFirst,
+          lastName: finalLast,
+        };
+        if (data.phone?.trim()) {
+          userUpdate.phone = data.phone.trim();
         }
+        await tx.user.update({
+          where: { id: userObj.id },
+          data: userUpdate,
+        });
 
         await tx.clinicalRecord.create({
           data: {
@@ -587,34 +552,15 @@ export class PatientsService extends BaseService {
           },
         });
 
-        if (data.emergencyName?.trim() && data.emergencyPhone?.trim()) {
-          const partsName = data.emergencyName.trim().split(/\s+/);
-          const { relationship, customRelation } = parseLegacyRelationship(data.emergencyRelation);
-          await tx.emergencyContact.create({
-            data: {
-              patientId: newPatient.id,
-              firstName: partsName[0] || 'Contacto',
-              lastName: partsName.slice(1).join(' ') || 'Emergencia',
-              relationship,
-              customRelation,
-              primaryPhone: data.emergencyPhone.trim(),
-              isPrimary: true,
-              isActive: true,
-              syncStatus: SyncStatus.SYNCED,
-              version: 1,
-              originDeviceId: 'WEB_PORTAL',
-              lastModifiedByDeviceId: 'WEB_PORTAL',
-            },
-          });
-        }
-
         return tx.patient.findUnique({
           where: { id: newPatient.id },
           include: {
             clinicalRecord: true,
-            user: {
-              select: { id: true, email: true, role: true, firstName: true, lastName: true },
+            emergencyContacts: {
+              where: { deletedAt: null, isActive: true },
+              orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
             },
+            user: { select: { id: true, email: true, role: true, firstName: true, lastName: true } },
           },
         });
       });
@@ -634,6 +580,13 @@ export class PatientsService extends BaseService {
         lastModifiedByDeviceId: 'WEB_PORTAL',
       };
 
+      if (data.firstName?.trim()) {
+        updateData.firstName = data.firstName.trim();
+      }
+      if (data.lastName?.trim()) {
+        updateData.lastName = data.lastName.trim();
+      }
+
       if (cleanDui) {
         updateData.dui = cleanDui;
       }
@@ -643,11 +596,19 @@ export class PatientsService extends BaseService {
         data: updateData,
       });
 
-      if (updatedPatient.userId && data.phone?.trim()) {
-        await tx.user.update({
-          where: { id: updatedPatient.userId },
-          data: { phone: data.phone.trim() },
-        });
+      // Sincronización bidireccional con User
+      if (updatedPatient.userId) {
+        const userUpdateData: Prisma.UserUpdateInput = {};
+        if (data.firstName?.trim()) userUpdateData.firstName = data.firstName.trim();
+        if (data.lastName?.trim()) userUpdateData.lastName = data.lastName.trim();
+        if (data.phone?.trim()) userUpdateData.phone = data.phone.trim();
+
+        if (Object.keys(userUpdateData).length > 0) {
+          await tx.user.update({
+            where: { id: updatedPatient.userId },
+            data: userUpdateData,
+          });
+        }
       }
 
       const clinicalRecordUpdateData: Prisma.ClinicalRecordUpdateInput = {
@@ -674,65 +635,19 @@ export class PatientsService extends BaseService {
         update: clinicalRecordUpdateData,
       });
 
-      if (data.emergencyName?.trim() && data.emergencyPhone?.trim()) {
-        const partsName = data.emergencyName.trim().split(/\s+/);
-        const contactFirst = partsName[0] || 'Contacto';
-        const contactLast = partsName.slice(1).join(' ') || 'Emergencia';
-        const { relationship, customRelation } = parseLegacyRelationship(data.emergencyRelation);
-
-        const primaryExists = await tx.emergencyContact.findFirst({
-          where: { patientId: resolvedId, isPrimary: true, deletedAt: null },
-        });
-
-        if (primaryExists) {
-          await tx.emergencyContact.update({
-            where: { id: primaryExists.id },
-            data: {
-              firstName: contactFirst,
-              lastName: contactLast,
-              primaryPhone: data.emergencyPhone.trim(),
-              relationship,
-              customRelation,
-              isActive: true,
-              version: { increment: 1 },
-              lastModifiedByDeviceId: 'WEB_PORTAL',
-            },
-          });
-        } else {
-          await tx.emergencyContact.create({
-            data: {
-              patientId: resolvedId,
-              firstName: contactFirst,
-              lastName: contactLast,
-              primaryPhone: data.emergencyPhone.trim(),
-              relationship,
-              customRelation,
-              isPrimary: true,
-              isActive: true,
-              syncStatus: SyncStatus.SYNCED,
-              version: 1,
-              originDeviceId: 'WEB_PORTAL',
-              lastModifiedByDeviceId: 'WEB_PORTAL',
-            },
-          });
-        }
-      }
-
       return tx.patient.findUnique({
         where: { id: updatedPatient.id },
         include: {
           clinicalRecord: true,
-          user: {
-            select: { id: true, email: true, role: true, firstName: true, lastName: true },
+          emergencyContacts: {
+            where: { deletedAt: null, isActive: true },
+            orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
           },
+          user: { select: { id: true, email: true, role: true, firstName: true, lastName: true } },
         },
       });
     });
   }
-
-  // =========================================================================
-  // RESOLUCIÓN Y AUDITORÍA DE CARNET QR DE PACIENTE
-  // =========================================================================
 
   async resolvePatientQR(options: ResolvePatientQROptions) {
     const { qrPayload, clientIp, scannerUser } = options;
@@ -793,9 +708,7 @@ export class PatientsService extends BaseService {
         where: { id: searchId, deletedAt: null },
         include: {
           clinicalRecord: true,
-          user: {
-            select: { id: true, email: true, role: true },
-          },
+          user: { select: { id: true, email: true, role: true } },
           emergencyContacts: {
             where: { deletedAt: null, isActive: true },
             orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
@@ -813,16 +726,11 @@ export class PatientsService extends BaseService {
       patient = await prisma.patient.findFirst({
         where: {
           deletedAt: null,
-          OR: [
-            { dui: searchDui },
-            { dui: { endsWith: searchDui } },
-          ],
+          OR: [{ dui: searchDui }, { dui: { endsWith: searchDui } }],
         },
         include: {
           clinicalRecord: true,
-          user: {
-            select: { id: true, email: true, role: true },
-          },
+          user: { select: { id: true, email: true, role: true } },
           emergencyContacts: {
             where: { deletedAt: null, isActive: true },
             orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
@@ -838,26 +746,6 @@ export class PatientsService extends BaseService {
 
     if (!patient) {
       throw new AppError('No se encontró ningún expediente clínico activo para el carnet escaneado.', 404);
-    }
-
-    try {
-      await prisma.auditLog.create({
-        data: {
-          userId: scannerUser.id,
-          action: 'SCAN_PATIENT_QR',
-          entity: 'Patient',
-          entityId: patient.id,
-          ipAddress: clientIp || null,
-          changedFields: {
-            scannerRole: scannerUser.role,
-            patientName: `${patient.firstName} ${patient.lastName}`.trim(),
-            patientDui: patient.dui,
-            resolvedAt: new Date().toISOString(),
-          },
-        },
-      });
-    } catch {
-      // Ignorar fallo de inserción de auditoría
     }
 
     let alergias = 'Ninguna registrada';
@@ -886,7 +774,6 @@ export class PatientsService extends BaseService {
 
     const primaryContact = patient.emergencyContacts[0] || null;
     const latestVitals = patient.vitalSigns[0] || null;
-
     const isDoctorOrAdmin = scannerUser.role === Role.DOCTOR || scannerUser.role === Role.ADMIN;
 
     return {
@@ -942,14 +829,8 @@ export class PatientsService extends BaseService {
     if (!patientId) return [];
 
     const existingContacts = await prisma.emergencyContact.findMany({
-      where: {
-        patientId,
-        deletedAt: null,
-      },
-      orderBy: [
-        { isPrimary: 'desc' },
-        { createdAt: 'asc' },
-      ],
+      where: { patientId, deletedAt: null },
+      orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
     });
 
     if (existingContacts.length > 0) {
@@ -958,12 +839,7 @@ export class PatientsService extends BaseService {
 
     const patient = await prisma.patient.findUnique({
       where: { id: patientId },
-      select: {
-        id: true,
-        emergencyName: true,
-        emergencyPhone: true,
-        emergencyRelation: true,
-      },
+      select: { id: true, emergencyName: true, emergencyPhone: true, emergencyRelation: true },
     });
 
     if (patient?.emergencyName?.trim() && patient?.emergencyPhone?.trim()) {
@@ -1094,12 +970,8 @@ export class PatientsService extends BaseService {
       }
 
       if (data.primaryPhone !== undefined) updatePayload.primaryPhone = data.primaryPhone.trim();
-      if (data.secondaryPhone !== undefined) {
-        updatePayload.secondaryPhone = data.secondaryPhone?.trim() || null;
-      }
-      if (data.email !== undefined) {
-        updatePayload.email = data.email?.trim().toLowerCase() || null;
-      }
+      if (data.secondaryPhone !== undefined) updatePayload.secondaryPhone = data.secondaryPhone?.trim() || null;
+      if (data.email !== undefined) updatePayload.email = data.email?.trim().toLowerCase() || null;
       if (data.isPrimary !== undefined) updatePayload.isPrimary = data.isPrimary;
       if (data.isActive !== undefined) updatePayload.isActive = data.isActive;
 
@@ -1118,37 +990,6 @@ export class PatientsService extends BaseService {
             lastModifiedByDeviceId: deviceId,
           },
         });
-      } else if (existingContact.isPrimary && (!updated.isPrimary || !updated.isActive)) {
-        const fallback = await tx.emergencyContact.findFirst({
-          where: { patientId, id: { not: contactId }, deletedAt: null, isActive: true },
-          orderBy: { createdAt: 'asc' },
-        });
-
-        if (fallback) {
-          await tx.emergencyContact.update({
-            where: { id: fallback.id },
-            data: { isPrimary: true },
-          });
-          await tx.patient.update({
-            where: { id: patientId },
-            data: {
-              emergencyName: `${fallback.firstName} ${fallback.lastName}`.trim(),
-              emergencyPhone: fallback.primaryPhone,
-              emergencyRelation: formatRelationLabel(fallback.relationship, fallback.customRelation),
-              lastModifiedByDeviceId: deviceId,
-            },
-          });
-        } else {
-          await tx.patient.update({
-            where: { id: patientId },
-            data: {
-              emergencyName: null,
-              emergencyPhone: null,
-              emergencyRelation: null,
-              lastModifiedByDeviceId: deviceId,
-            },
-          });
-        }
       }
 
       return updated;
@@ -1159,13 +1000,6 @@ export class PatientsService extends BaseService {
     const patientId = await this.resolvePatientId(identifier);
     if (!patientId) {
       throw new Error('Expediente del paciente no encontrado.');
-    }
-
-    const contact = await prisma.emergencyContact.findFirst({
-      where: { id: contactId, patientId, deletedAt: null },
-    });
-    if (!contact) {
-      throw new Error('El contacto a eliminar no fue encontrado.');
     }
 
     return prisma.$transaction(async (tx) => {
@@ -1180,37 +1014,35 @@ export class PatientsService extends BaseService {
         },
       });
 
-      if (contact.isPrimary) {
-        const nextPrimary = await tx.emergencyContact.findFirst({
-          where: { patientId, deletedAt: null, isActive: true },
-          orderBy: { createdAt: 'asc' },
-        });
+      const nextPrimary = await tx.emergencyContact.findFirst({
+        where: { patientId, deletedAt: null, isActive: true },
+        orderBy: { createdAt: 'asc' },
+      });
 
-        if (nextPrimary) {
-          await tx.emergencyContact.update({
-            where: { id: nextPrimary.id },
-            data: { isPrimary: true },
-          });
-          await tx.patient.update({
-            where: { id: patientId },
-            data: {
-              emergencyName: `${nextPrimary.firstName} ${nextPrimary.lastName}`.trim(),
-              emergencyPhone: nextPrimary.primaryPhone,
-              emergencyRelation: formatRelationLabel(nextPrimary.relationship, nextPrimary.customRelation),
-              lastModifiedByDeviceId: 'WEB_PORTAL',
-            },
-          });
-        } else {
-          await tx.patient.update({
-            where: { id: patientId },
-            data: {
-              emergencyName: null,
-              emergencyPhone: null,
-              emergencyRelation: null,
-              lastModifiedByDeviceId: 'WEB_PORTAL',
-            },
-          });
-        }
+      if (nextPrimary) {
+        await tx.emergencyContact.update({
+          where: { id: nextPrimary.id },
+          data: { isPrimary: true },
+        });
+        await tx.patient.update({
+          where: { id: patientId },
+          data: {
+            emergencyName: `${nextPrimary.firstName} ${nextPrimary.lastName}`.trim(),
+            emergencyPhone: nextPrimary.primaryPhone,
+            emergencyRelation: formatRelationLabel(nextPrimary.relationship, nextPrimary.customRelation),
+            lastModifiedByDeviceId: 'WEB_PORTAL',
+          },
+        });
+      } else {
+        await tx.patient.update({
+          where: { id: patientId },
+          data: {
+            emergencyName: null,
+            emergencyPhone: null,
+            emergencyRelation: null,
+            lastModifiedByDeviceId: 'WEB_PORTAL',
+          },
+        });
       }
 
       return { success: true, message: 'Contacto de emergencia eliminado exitosamente.' };
@@ -1221,13 +1053,6 @@ export class PatientsService extends BaseService {
     const patientId = await this.resolvePatientId(identifier);
     if (!patientId) {
       throw new Error('Expediente del paciente no encontrado.');
-    }
-
-    const targetContact = await prisma.emergencyContact.findFirst({
-      where: { id: contactId, patientId, deletedAt: null },
-    });
-    if (!targetContact) {
-      throw new Error('Contacto no encontrado.');
     }
 
     return prisma.$transaction(async (tx) => {
@@ -1261,23 +1086,19 @@ export class PatientsService extends BaseService {
   }
 
   // =========================================================================
-  // CONSULTAS GENERALES Y EXPEDIENTES (CON INCLUSIÓN DE USUARIO)
+  // CONSULTAS GENERALES Y EXPEDIENTES
   // =========================================================================
 
   async getAllPatients(search?: string) {
     const todosLosPacientes = await prisma.patient.findMany({
-      where: {
-        deletedAt: null,
-      },
+      where: { deletedAt: null },
       include: {
         clinicalRecord: true,
-        user: {
-          select: {
-            id: true,
-            email: true,
-            role: true,
-          },
+        emergencyContacts: {
+          where: { deletedAt: null, isActive: true },
+          orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
         },
+        user: { select: { id: true, email: true, role: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -1288,38 +1109,16 @@ export class PatientsService extends BaseService {
 
     const queryTexto = normalizarTexto(search);
     const queryAlfa = normalizarAlfanumerico(search);
-    const palabrasQuery = queryTexto.split(/\s+/).filter(Boolean);
 
     return todosLosPacientes.filter((p) => {
       const nombreCompleto = normalizarTexto(`${p.firstName} ${p.lastName}`);
-      const primerNombre = normalizarTexto(p.firstName);
-      const primerApellido = normalizarTexto(p.lastName);
-      const duiNormalizado = normalizarTexto(p.dui);
       const duiAlfa = normalizarAlfanumerico(p.dui);
-      const telefonoNormalizado = normalizarAlfanumerico(p.phone);
-      const emailUsuario = normalizarTexto(p.user?.email);
-      const idAlfa = normalizarAlfanumerico(p.id);
+      const telefonoAlfa = normalizarAlfanumerico(p.phone);
 
       if (queryAlfa) {
-        if (duiAlfa && duiAlfa.includes(queryAlfa)) return true;
-        if (telefonoNormalizado && telefonoNormalizado.includes(queryAlfa)) return true;
-        if (idAlfa.startsWith(queryAlfa) || idAlfa.includes(queryAlfa)) return true;
+        if (duiAlfa.includes(queryAlfa) || telefonoAlfa.includes(queryAlfa)) return true;
       }
-
-      if (nombreCompleto.includes(queryTexto)) return true;
-      if (primerNombre.includes(queryTexto)) return true;
-      if (primerApellido.includes(queryTexto)) return true;
-      if (duiNormalizado.includes(queryTexto)) return true;
-      if (emailUsuario && emailUsuario.includes(queryTexto)) return true;
-
-      const coincideTodasLasPalabras = palabrasQuery.every(
-        (palabra) =>
-          nombreCompleto.includes(palabra) ||
-          duiNormalizado.includes(palabra) ||
-          emailUsuario.includes(palabra)
-      );
-
-      return coincideTodasLasPalabras;
+      return nombreCompleto.includes(queryTexto);
     });
   }
 
@@ -1327,20 +1126,15 @@ export class PatientsService extends BaseService {
     const resolvedId = await this.resolvePatientId(id);
     const searchId = resolvedId || id;
 
-    let patient = await prisma.patient.findFirst({
-      where: { 
-        id: searchId, 
-        deletedAt: null,
-      },
+    return prisma.patient.findFirst({
+      where: { id: searchId, deletedAt: null },
       include: {
         clinicalRecord: true,
-        user: {
-          select: {
-            id: true,
-            email: true,
-            role: true,
-          },
+        emergencyContacts: {
+          where: { deletedAt: null, isActive: true },
+          orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
         },
+        user: { select: { id: true, email: true, role: true } },
         vitalSigns: {
           where: { deletedAt: null },
           orderBy: { createdAt: 'desc' },
@@ -1348,118 +1142,26 @@ export class PatientsService extends BaseService {
         },
       },
     });
-
-    if (!patient) {
-      const user = await prisma.user.findFirst({
-        where: { id, deletedAt: null },
-      });
-
-      if (user) {
-        patient = {
-          id: user.id,
-          userId: user.id,
-          user: {
-            id: user.id,
-            email: user.email,
-            role: user.role,
-          },
-          firstName: user.firstName,
-          lastName: user.lastName,
-          dateOfBirth: new Date(),
-          dui: null,
-          sex: 'OTHER',
-          phone: user.phone || null,
-          address: 'No registrada',
-          emergencyName: null,
-          emergencyPhone: null,
-          emergencyRelation: null,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
-          deletedAt: null,
-          syncStatus: 'SYNCED',
-          version: 1,
-          originDeviceId: 'SERVER_CENTRAL',
-          lastModifiedByDeviceId: 'SERVER_CENTRAL',
-          lastModified: user.updatedAt,
-          clinicalRecord: null,
-          vitalSigns: [],
-        } as unknown as typeof patient;
-      }
-    }
-
-    return patient;
   }
 
   async getPatientHistory(id: string) {
     const resolvedId = await this.resolvePatientId(id);
     const searchId = resolvedId || id;
 
-    let patient = await prisma.patient.findFirst({
-      where: { 
-        id: searchId, 
-        deletedAt: null,
-      },
+    const patient = await prisma.patient.findFirst({
+      where: { id: searchId, deletedAt: null },
       include: {
         clinicalRecord: true,
-        user: {
-          select: {
-            id: true,
-            email: true,
-            role: true,
-          },
+        emergencyContacts: {
+          where: { deletedAt: null, isActive: true },
+          orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
         },
+        user: { select: { id: true, email: true, role: true } },
       },
     });
 
-    let userFallback = null;
-    if (!patient) {
-      userFallback = await prisma.user.findFirst({
-        where: { id, deletedAt: null },
-      });
-    }
-
-    if (!patient && userFallback) {
-      return {
-        patient: {
-          id: userFallback.id,
-          userId: userFallback.id,
-          user: {
-            id: userFallback.id,
-            email: userFallback.email,
-            role: userFallback.role,
-          },
-          firstName: userFallback.firstName,
-          lastName: userFallback.lastName,
-          dateOfBirth: new Date(),
-          dui: null,
-          sex: 'OTHER',
-          phone: userFallback.phone || null,
-          address: 'No registrada',
-          emergencyName: null,
-          emergencyPhone: null,
-          emergencyRelation: null,
-          createdAt: userFallback.createdAt,
-          updatedAt: userFallback.updatedAt,
-          deletedAt: null,
-          syncStatus: 'SYNCED',
-          version: 1,
-          originDeviceId: 'SERVER_CENTRAL',
-          lastModifiedByDeviceId: 'SERVER_CENTRAL',
-          lastModified: userFallback.updatedAt,
-          clinicalRecord: null,
-        },
-        consultations: [],
-        prescriptions: [],
-        diagnoses: [],
-        laboratoryStudies: [],
-        medicalImagingStudies: [],
-        standaloneVitalSigns: [],
-      };
-    }
-
     if (!patient) return null;
 
-    // Consultas concurrentes en PostgreSQL para entregar el expediente clínico real completo
     const [
       consultations,
       prescriptions,
@@ -1468,7 +1170,6 @@ export class PatientsService extends BaseService {
       medicalImagingStudies,
       standaloneVitalSigns,
     ] = await Promise.all([
-      // 1. Consultas médicas con triaje y brigada (excluyendo aplicaciones de vacunas)
       prisma.consultation.findMany({
         where: {
           patientId: patient.id,
@@ -1479,54 +1180,39 @@ export class PatientsService extends BaseService {
           ],
         },
         include: {
-          doctor: {
-            select: { id: true, firstName: true, lastName: true, role: true },
-          },
-          brigade: {
-            select: { id: true, name: true, department: true, municipality: true },
-          },
+          doctor: { select: { id: true, firstName: true, lastName: true, role: true } },
+          brigade: { select: { id: true, name: true, department: true, municipality: true } },
           vitalSigns: true,
         },
         orderBy: { consultationDate: 'desc' },
       }),
 
-      // 2. Prescripciones farmacológicas con ítems de receta
       prisma.prescription.findMany({
         where: { patientId: patient.id, deletedAt: null },
         include: {
-          doctor: {
-            select: { id: true, firstName: true, lastName: true, role: true },
-          },
-          brigade: {
-            select: { id: true, name: true, department: true, municipality: true },
-          },
+          doctor: { select: { id: true, firstName: true, lastName: true, role: true } },
+          brigade: { select: { id: true, name: true, department: true, municipality: true } },
           items: true,
         },
         orderBy: { issuedAt: 'desc' },
       }),
 
-      // 3. Diagnósticos clínicos formales
       prisma.diagnosis.findMany({
         where: { patientId: patient.id, deletedAt: null },
         orderBy: { diagnosedAt: 'desc' },
       }),
 
-      // 4. Estudios de laboratorio con analitos
       prisma.laboratoryStudy.findMany({
         where: { patientId: patient.id, deletedAt: null },
-        include: {
-          analytes: true,
-        },
+        include: { analytes: true },
         orderBy: { performedAt: 'desc' },
       }),
 
-      // 5. Radiografías y estudios de imagenología
       prisma.medicalImagingStudy.findMany({
         where: { patientId: patient.id, deletedAt: null },
         orderBy: { performedAt: 'desc' },
       }),
 
-      // 6. Signos vitales independientes de triaje
       prisma.vitalSigns.findMany({
         where: { patientId: patient.id, deletedAt: null },
         orderBy: { createdAt: 'desc' },
@@ -1549,10 +1235,7 @@ export class PatientsService extends BaseService {
     const patientId = resolvedId || patientIdentifier;
 
     const patientExists = await prisma.patient.findFirst({
-      where: { 
-        id: patientId, 
-        deletedAt: null,
-      },
+      where: { id: patientId, deletedAt: null },
     });
 
     if (!patientExists) {
@@ -1575,16 +1258,6 @@ export class PatientsService extends BaseService {
         originDeviceId: deviceId,
         lastModifiedByDeviceId: deviceId,
       },
-      include: {
-        patient: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            dui: true,
-          },
-        },
-      },
     });
   }
 
@@ -1596,19 +1269,10 @@ export class PatientsService extends BaseService {
       where: {
         deletedAt: null,
         createdAt: { gte: startOfDay },
-        patient: {
-          deletedAt: null,
-        },
+        patient: { deletedAt: null },
       },
       include: {
-        patient: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            dui: true,
-          },
-        },
+        patient: { select: { id: true, firstName: true, lastName: true, dui: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 50,

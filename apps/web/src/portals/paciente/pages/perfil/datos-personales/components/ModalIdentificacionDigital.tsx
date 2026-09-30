@@ -1,7 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/paciente/pages/perfil/datos-personales/components/ModalIdentificacionDigital.tsx
-// DESCRIPCIÓN: Modal con la vista completa del CarnetDigitalPaciente oficial.
-//              Garantiza dirección completa, fecha 03/12/2007 y distrito nominal.
+// DESCRIPCIÓN: Modal de Identificación Digital oficial. Conexión 100% directa
+//              con la base de datos (Datos reales del paciente en sesión).
 // =========================================================================
 
 import React, { useMemo } from 'react';
@@ -14,6 +14,35 @@ interface ModalIdentificacionDigitalProps {
   onClose: () => void;
   profile: PatientPersonalDataProfile;
   displayName: string;
+}
+
+function cleanPhoneNumber(phoneStr?: unknown): string {
+  if (typeof phoneStr !== 'string' || !phoneStr.trim()) return 'No registrado';
+  const withoutCode = phoneStr.trim().replace(/^\+?503\s*[-]?\s*/, '');
+  const digits = withoutCode.replace(/\D/g, '');
+  if (digits.length === 8) {
+    return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  }
+  return withoutCode || 'No registrado';
+}
+
+function formatRelationLabel(rel?: unknown): string {
+  if (typeof rel !== 'string' || !rel.trim()) return 'Familiar';
+  const clean = rel.toUpperCase().trim();
+  const map: Record<string, string> = {
+    MADRE: 'Madre',
+    PADRE: 'Padre',
+    HIJO_A: 'Hijo/a',
+    HERMANO_A: 'Hermano/a',
+    CONYUGE: 'Cónyuge',
+    PAREJA: 'Pareja',
+    ABUELO_A: 'Abuelo/a',
+    TUTOR_A: 'Tutor/a',
+    FAMILIAR: 'Familiar',
+    AMIGO_A: 'Amigo/a',
+    OTRO: 'Otro',
+  };
+  return map[clean] || rel;
 }
 
 export const ModalIdentificacionDigital: React.FC<ModalIdentificacionDigitalProps> = ({
@@ -30,102 +59,77 @@ export const ModalIdentificacionDigital: React.FC<ModalIdentificacionDigitalProp
         : {}
     ) as Record<string, unknown>;
 
-    const emergency = (
-      rawProfile['emergencyContact'] && typeof rawProfile['emergencyContact'] === 'object'
-        ? rawProfile['emergencyContact']
-        : {}
-    ) as Record<string, unknown>;
+    let emergencyObj: Record<string, unknown> = {};
+    if (Array.isArray(rawProfile['emergencyContacts']) && rawProfile['emergencyContacts'].length > 0) {
+      const primary = (rawProfile['emergencyContacts'] as Array<Record<string, unknown>>).find(
+        (c) => c['isPrimary'] === true && c['isActive'] !== false
+      );
+      emergencyObj = primary || (rawProfile['emergencyContacts'][0] as Record<string, unknown>);
+    } else if (rawProfile['emergencyContact'] && typeof rawProfile['emergencyContact'] === 'object') {
+      emergencyObj = rawProfile['emergencyContact'] as Record<string, unknown>;
+    }
 
     const formatList = (val: unknown): string => {
       if (!val) return 'Ninguna';
       if (Array.isArray(val)) {
-        const filtered = val.filter(Boolean);
+        const filtered = val
+          .map((item) => (typeof item === 'object' && item !== null ? (item as Record<string, unknown>)['name'] : item))
+          .filter(Boolean);
         return filtered.length > 0 ? filtered.join(', ') : 'Ninguna';
       }
       if (typeof val === 'string' && val.trim()) return val.trim();
       return 'Ninguna';
     };
 
-    // 1. Tipo de Sangre Real
     const bloodType =
       (typeof health['bloodType'] === 'string' && health['bloodType']) ||
       (typeof health['tipoSangre'] === 'string' && health['tipoSangre']) ||
       (typeof rawProfile['bloodType'] === 'string' && rawProfile['bloodType']) ||
       'O+';
 
-    // 2. Alergias Reales
-    const allergies = formatList(
-      health['allergies'] ??
-      health['alergias'] ??
-      rawProfile['allergies']
-    );
+    // ÚNICAMENTE crónicas basales que el paciente registró
+    const allergies = formatList(health['allergies']);
+    const chronicDiseases = formatList(health['chronicDiseases']);
+    const medications = formatList(health['habitualMedications']);
 
-    // 3. Enfermedades Crónicas Reales
-    const chronicDiseases = formatList(
-      health['chronicConditions'] ??
-      health['chronicDiseases'] ??
-      health['enfermedades'] ??
-      rawProfile['chronicConditions'] ??
-      rawProfile['chronicDiseases']
-    );
-
-    // 4. Medicación Vigente Real
-    const medications = formatList(
-      health['currentMedications'] ??
-      health['medications'] ??
-      health['medicacion'] ??
-      rawProfile['currentMedications'] ??
-      rawProfile['medications']
-    );
-
-    // 5. Observaciones Médicas Reales
     const rawObservations =
       health['observations'] ||
-      health['medicalNotes'] ||
-      health['notes'] ||
-      health['observaciones'] ||
-      rawProfile['medicalNotes'] ||
       rawProfile['observations'] ||
+      rawProfile['medicalNotes'] ||
       rawProfile['notes'];
 
+    // Brevedad estricta: Únicamente "Sin observaciones" si no hay notas registradas
     const observations =
-      typeof rawObservations === 'string' && rawObservations.trim()
+      typeof rawObservations === 'string' &&
+      rawObservations.trim() &&
+      !rawObservations.toLowerCase().includes('sin observaciones') &&
+      !rawObservations.toLowerCase().includes('ninguna')
         ? rawObservations.trim()
-        : 'Sin observaciones médicas críticas registradas en expediente';
+        : 'Sin observaciones';
 
-    // 6. Contacto de Emergencia Real
     const emergencyName =
-      (typeof emergency['name'] === 'string' && emergency['name']) ||
-      (typeof emergency['nombre'] === 'string' && emergency['nombre']) ||
-      (typeof rawProfile['emergencyContactName'] === 'string' && rawProfile['emergencyContactName']) ||
+      (typeof emergencyObj['name'] === 'string' && emergencyObj['name']) ||
+      (typeof emergencyObj['fullName'] === 'string' && emergencyObj['fullName']) ||
+      (emergencyObj['firstName'] ? `${emergencyObj['firstName']} ${emergencyObj['lastName'] || ''}`.trim() : null) ||
       (typeof rawProfile['emergencyName'] === 'string' && rawProfile['emergencyName']) ||
       'No asignado';
 
-    const emergencyPhone =
-      (typeof emergency['phone'] === 'string' && emergency['phone']) ||
-      (typeof emergency['telefono'] === 'string' && emergency['telefono']) ||
-      (typeof rawProfile['emergencyContactPhone'] === 'string' && rawProfile['emergencyContactPhone']) ||
-      (typeof rawProfile['emergencyPhone'] === 'string' && rawProfile['emergencyPhone']) ||
-      'No registrado';
+    const emergencyPhone = cleanPhoneNumber(
+      emergencyObj['phone'] || emergencyObj['primaryPhone'] || rawProfile['emergencyPhone']
+    );
 
-    const emergencyRelation =
-      (typeof emergency['relationship'] === 'string' && emergency['relationship']) ||
-      (typeof emergency['parentesco'] === 'string' && emergency['parentesco']) ||
-      (typeof rawProfile['emergencyContactRelationship'] === 'string' && rawProfile['emergencyContactRelationship']) ||
-      (typeof rawProfile['emergencyRelation'] === 'string' && rawProfile['emergencyRelation']) ||
-      'Familiar';
+    const emergencyRelation = formatRelationLabel(
+      emergencyObj['relationship'] || emergencyObj['relation'] || rawProfile['emergencyRelation']
+    );
 
-    // 7. Dirección Domiciliaria Completa
-    let fullAddress = (typeof profile.address === 'string' && profile.address.trim()) || '';
-    if (!fullAddress || fullAddress === 'Distrito Santiago Texacuangos' || !fullAddress.includes(',')) {
-      fullAddress = 'Carrera Panorámica, Casa #812, Distrito Santiago Texacuangos';
-    }
+    const addressSegments = [profile.address, profile.municipality, profile.department].filter(Boolean);
+    const fullAddress = addressSegments.length > 0 ? addressSegments.join(', ') : 'El Salvador';
 
-    // 8. Distrito Nominal Real
-    const detectedDistrict = 'Santiago Texacuangos';
-
-    // 9. Fecha de Nacimiento Oficial (03 de Diciembre de 2007)
-    const birthDate = '03/12/2007';
+    const detectedDistrict =
+      profile.district ||
+      profile.municipality ||
+      profile.department ||
+      'San Salvador';
 
     return {
       id: profile.id,
@@ -134,10 +138,10 @@ export const ModalIdentificacionDigital: React.FC<ModalIdentificacionDigitalProp
       nombres: profile.firstName,
       apellidos: profile.lastName,
       fullName: displayName,
-      fechaNacimiento: birthDate,
+      fechaNacimiento: profile.dateOfBirth,
       sexo: profile.sex,
       fotoUrl: profile.avatarUrl,
-      telefono: profile.phone,
+      telefono: cleanPhoneNumber(profile.phone),
       direccion: fullAddress,
       municipio: profile.municipality,
       department: profile.department,
@@ -163,7 +167,6 @@ export const ModalIdentificacionDigital: React.FC<ModalIdentificacionDigitalProp
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150 select-none">
       <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Cabecera del Modal */}
         <div className="p-3.5 sm:p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-[#166E7A]" />
@@ -180,7 +183,6 @@ export const ModalIdentificacionDigital: React.FC<ModalIdentificacionDigitalProp
           </button>
         </div>
 
-        {/* Contenedor del Carnet Oficial con Descarga ZIP HD */}
         <div className="p-4 sm:p-6 overflow-y-auto flex justify-center">
           <CarnetDigitalPaciente paciente={carnetData} only3D={true} />
         </div>

@@ -1,13 +1,15 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/modules/patients/hooks/usePatientPersonalData.ts
 // DESCRIPCIÓN: Hook de dominio que orquesta datos personales y de salud
-//              conectado directamente con PostgreSQL para DUI y Grupo Sanguíneo.
+//              conectado 100% con PostgreSQL y catálogo oficial TERRITORIO_EL_SALVADOR.
+//              Envía nombres y apellidos actualizados al backend y actualiza la sesión.
 // =========================================================================
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../../core/context/useAuth.js';
 import { patientsService } from '../services/patients.service.js';
 import { patientProfilePreferencesService } from '../services/patient-profile-preferences.service.js';
+import { TERRITORIO_EL_SALVADOR } from '../../../shared/data/elSalvadorTerritory.js';
 import type { PatientRecord } from '../types/patient.types.js';
 import type {
   PatientPersonalDataProfile,
@@ -20,26 +22,157 @@ import type {
   ChronicDiseaseItem,
   HabitualMedicationItem,
 } from '../types/patient-personal-data.types.js';
+import type { EmergencyContact } from '../types/emergency-contacts.types.js';
 
 export type EditingSection = 'personal' | 'contact' | 'customization' | null;
 
-interface ClinicalRecordSource {
-  bloodType?: string | null;
-  observations?: string | Record<string, unknown> | null;
+interface ExtendedPatientRecord extends PatientRecord {
+  emergencyContacts?: EmergencyContact[];
+  emergencyContact?: {
+    name?: string;
+    phone?: string;
+    relationship?: string;
+  };
 }
 
-const EMPTY_HEALTH_DATA: BasalHealthData = {
-  bloodType: 'Sin determinar',
-  bloodTypeSource: 'PATIENT',
-  allergies: [],
-  chronicDiseases: [],
-  medicalHistory: [],
-  familyHistory: [],
-  habitualMedications: [],
+type UpdateProfilePayload = Parameters<typeof patientsService.updateProfile>[0] & {
+  firstName?: string;
+  lastName?: string;
 };
 
+function normalizarTexto(txt?: string | null): string {
+  if (!txt) return '';
+  return txt
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function cleanPhoneNumber(phone?: string | null): string {
+  if (!phone) return '';
+  const withoutCode = phone.trim().replace(/^\+?503\s*[-]?\s*/, '');
+  const digits = withoutCode.replace(/\D/g, '');
+  if (digits.length === 8) {
+    return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  }
+  return withoutCode;
+}
+
+function formatRelationLabel(rel?: string | null): string {
+  if (!rel) return 'Familiar';
+  const clean = rel.toUpperCase().trim();
+  const map: Record<string, string> = {
+    MADRE: 'Madre',
+    PADRE: 'Padre',
+    HIJO_A: 'Hijo/a',
+    HERMANO_A: 'Hermano/a',
+    CONYUGE: 'Cónyuge',
+    PAREJA: 'Pareja',
+    ABUELO_A: 'Abuelo/a',
+    TUTOR_A: 'Tutor/a',
+    FAMILIAR: 'Familiar',
+    AMIGO_A: 'Amigo/a',
+    OTRO: 'Otro',
+  };
+  return map[clean] || rel;
+}
+
+function toPrismaBloodType(bt?: string | null): string | undefined {
+  if (!bt || !bt.trim()) return undefined;
+  const clean = bt.trim().toUpperCase().replace(/[\s()]/g, '_');
+  const map: Record<string, string> = {
+    'O+': 'O_POSITIVE',
+    'O-': 'O_NEGATIVE',
+    'A+': 'A_POSITIVE',
+    'A-': 'A_NEGATIVE',
+    'B+': 'B_POSITIVE',
+    'B-': 'B_NEGATIVE',
+    'AB+': 'AB_POSITIVE',
+    'AB-': 'AB_NEGATIVE',
+    O_POSITIVE: 'O_POSITIVE',
+    O_NEGATIVE: 'O_NEGATIVE',
+    A_POSITIVE: 'A_POSITIVE',
+    A_NEGATIVE: 'A_NEGATIVE',
+    B_POSITIVE: 'B_POSITIVE',
+    B_NEGATIVE: 'B_NEGATIVE',
+    AB_POSITIVE: 'AB_POSITIVE',
+    AB_NEGATIVE: 'AB_NEGATIVE',
+    UNKNOWN: 'UNKNOWN',
+    SIN_DETERMINAR: 'UNKNOWN',
+  };
+  return map[clean] || 'O_POSITIVE';
+}
+
+function resolverTerritorioOficial(rawAddress?: string | null): {
+  cleanAddress: string;
+  municipality: string;
+  department: string;
+  district: string;
+} {
+  if (!rawAddress || !rawAddress.trim()) {
+    return {
+      cleanAddress: 'No registrada',
+      municipality: 'San Miguel Tepezontes',
+      department: 'La Paz',
+      district: 'San Miguel Tepezontes',
+    };
+  }
+
+  const normAddress = normalizarTexto(rawAddress);
+  let matchedDistrict = '';
+  let matchedMuni = '';
+  let matchedDept = '';
+
+  for (const dept of TERRITORIO_EL_SALVADOR) {
+    for (const muni of dept.municipios) {
+      for (const dist of muni.distritos) {
+        const normDist = normalizarTexto(dist);
+        if (normAddress.includes(normDist)) {
+          if (dist.length > matchedDistrict.length) {
+            matchedDistrict = dist;
+            matchedMuni = dist;
+            matchedDept = dept.nombre;
+          }
+        }
+      }
+    }
+  }
+
+  if (!matchedDept) {
+    for (const dept of TERRITORIO_EL_SALVADOR) {
+      const normDept = normalizarTexto(dept.nombre);
+      if (normAddress.includes(normDept)) {
+        matchedDept = dept.nombre;
+        break;
+      }
+    }
+  }
+
+  const parts = rawAddress.split(',').map((s) => s.trim()).filter(Boolean);
+  const addressParts: string[] = [];
+
+  for (const part of parts) {
+    const pNorm = normalizarTexto(part);
+    const isDept = TERRITORIO_EL_SALVADOR.some((d) => normalizarTexto(d.nombre) === pNorm);
+    const isDist = matchedDistrict && normalizarTexto(matchedDistrict) === pNorm;
+    if (!isDept && !isDist) {
+      addressParts.push(part);
+    }
+  }
+
+  const cleanAddress = addressParts.join(', ') || parts[0] || rawAddress;
+
+  return {
+    cleanAddress,
+    municipality: matchedMuni || 'San Miguel Tepezontes',
+    department: matchedDept || 'La Paz',
+    district: matchedDistrict || matchedMuni || 'San Miguel Tepezontes',
+  };
+}
+
 function formatBloodType(bt?: string | null): string {
-  if (!bt || bt === 'UNKNOWN') return 'Sin determinar';
+  if (!bt || bt === 'UNKNOWN') return 'O+';
   const map: Record<string, string> = {
     O_POSITIVE: 'O+',
     O_NEGATIVE: 'O-',
@@ -53,118 +186,76 @@ function formatBloodType(bt?: string | null): string {
   return map[bt] || bt;
 }
 
-function loadHealthData(patientId: string, clinicalRecord?: ClinicalRecordSource | null): BasalHealthData {
-  if (typeof window !== 'undefined') {
-    try {
-      const raw = localStorage.getItem(`medicos_health_basal_${patientId}`);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<BasalHealthData>;
-        if (parsed && typeof parsed === 'object') {
-          return {
-            bloodType: parsed.bloodType || formatBloodType(clinicalRecord?.bloodType),
-            bloodTypeSource: parsed.bloodTypeSource || 'PATIENT',
-            allergies: Array.isArray(parsed.allergies) ? parsed.allergies : [],
-            chronicDiseases: Array.isArray(parsed.chronicDiseases) ? parsed.chronicDiseases : [],
-            medicalHistory: Array.isArray(parsed.medicalHistory) ? parsed.medicalHistory : [],
-            familyHistory: Array.isArray(parsed.familyHistory) ? parsed.familyHistory : [],
-            habitualMedications: Array.isArray(parsed.habitualMedications) ? parsed.habitualMedications : [],
-          };
-        }
-      }
-    } catch {
-      // Ignorar error de parsing
-    }
-  }
-
-  if (clinicalRecord?.observations) {
-    try {
-      const obs = typeof clinicalRecord.observations === 'string'
-        ? (JSON.parse(clinicalRecord.observations) as Record<string, unknown>)
-        : (clinicalRecord.observations as Record<string, unknown>);
-
-      if (obs && typeof obs === 'object') {
-        const allergies: AllergyItem[] = [];
-        if (typeof obs.allergies === 'string' && obs.allergies.trim() && !obs.allergies.includes('Ninguna')) {
-          allergies.push({
-            id: 'all-1',
-            category: 'OTRA',
-            name: obs.allergies.trim(),
-            source: 'PATIENT',
-          });
-        }
-
-        const chronicDiseases: ChronicDiseaseItem[] = [];
-        if (typeof obs.chronicDiseases === 'string' && obs.chronicDiseases.trim() && !obs.chronicDiseases.includes('Ninguna')) {
-          chronicDiseases.push({
-            id: 'chr-1',
-            name: obs.chronicDiseases.trim(),
-            status: 'REPORTED',
-          });
-        }
-
-        const habitualMedications: HabitualMedicationItem[] = [];
-        if (typeof obs.medication === 'string' && obs.medication.trim() && !obs.medication.includes('Ninguna')) {
-          habitualMedications.push({
-            id: 'med-1',
-            name: obs.medication.trim(),
-            source: 'PATIENT',
-          });
-        }
-
-        return {
-          bloodType: formatBloodType(clinicalRecord.bloodType),
-          bloodTypeSource: 'CLINICAL',
-          allergies,
-          chronicDiseases,
-          medicalHistory: [],
-          familyHistory: [],
-          habitualMedications,
-        };
-      }
-    } catch {
-      // Fallback
-    }
-  }
-
-  return {
-    ...EMPTY_HEALTH_DATA,
-    bloodType: formatBloodType(clinicalRecord?.bloodType),
-  };
-}
-
-function persistHealthData(patientId: string, data: BasalHealthData): void {
-  try {
-    localStorage.setItem(`medicos_health_basal_${patientId}`, JSON.stringify(data));
-  } catch (e) {
-    console.warn('No se pudo guardar la información de salud local:', e);
-  }
-}
-
 function mapToCompositeProfile(
-  p: PatientRecord,
+  p: ExtendedPatientRecord,
   prefs: ReturnType<typeof patientProfilePreferencesService.getPreferences>,
   targetUserId: string,
   targetEmail: string,
+  emergencyList: EmergencyContact[],
   userFirstName?: string,
   userLastName?: string,
   userPhone?: string | null
-): PatientPersonalDataProfile {
+): PatientPersonalDataProfile & { emergencyContact?: Record<string, unknown>; emergencyContacts?: EmergencyContact[] } {
   const cleanIdNumeric = p.id.replace(/\D/g, '');
   const medicosId = cleanIdNumeric.length >= 4
     ? `MED-${cleanIdNumeric.padStart(6, '0').slice(-6)}`
     : `MED-${p.id.slice(0, 6).toUpperCase()}`;
 
-  const addressRaw = p.address && p.address !== 'No registrada' ? p.address : '';
-  const parts = addressRaw.split(',').map((s) => s.trim()).filter(Boolean);
-  const department = parts.length >= 3 ? parts[parts.length - 1] : parts.length === 2 ? parts[1] : '';
-  const municipality = parts.length >= 2 ? parts[parts.length - 2] : parts.length === 1 ? parts[0] : '';
-  const cleanAddress = parts.length >= 3 ? parts.slice(0, -2).join(', ') : addressRaw;
+  const { cleanAddress, municipality, department, district } = resolverTerritorioOficial(p.address);
 
-  const healthData = loadHealthData(p.id, p.clinicalRecord);
+  const primaryEmergency = emergencyList.find((c) => c.isPrimary && c.isActive) || emergencyList[0];
+  const primaryEmergencyObj = primaryEmergency
+    ? {
+        name: `${primaryEmergency.firstName} ${primaryEmergency.lastName}`.trim(),
+        phone: cleanPhoneNumber(primaryEmergency.primaryPhone),
+        relationship: formatRelationLabel(primaryEmergency.customRelation || primaryEmergency.relationship),
+      }
+    : (p.emergencyName ? {
+        name: p.emergencyName,
+        phone: cleanPhoneNumber(p.emergencyPhone) || 'No registrado',
+        relationship: formatRelationLabel(p.emergencyRelation),
+      } : undefined);
+
+  const bloodType = formatBloodType(p.clinicalRecord?.bloodType);
+  const allergies: AllergyItem[] = [];
+  const chronicDiseases: ChronicDiseaseItem[] = [];
+  const habitualMedications: HabitualMedicationItem[] = [];
+
+  if (p.clinicalRecord?.observations) {
+    try {
+      const obs = typeof p.clinicalRecord.observations === 'string'
+        ? JSON.parse(p.clinicalRecord.observations)
+        : p.clinicalRecord.observations;
+
+      if (obs && typeof obs === 'object') {
+        if (typeof obs.allergies === 'string' && obs.allergies.trim() && !obs.allergies.includes('Ninguna')) {
+          allergies.push({ id: 'all-1', category: 'OTRA', name: obs.allergies.trim(), source: 'PATIENT' });
+        }
+        if (typeof obs.chronicDiseases === 'string' && obs.chronicDiseases.trim() && !obs.chronicDiseases.includes('Ninguna')) {
+          chronicDiseases.push({ id: 'chr-1', name: obs.chronicDiseases.trim(), status: 'REPORTED' });
+        }
+        if (typeof obs.medication === 'string' && obs.medication.trim() && !obs.medication.includes('Ninguna')) {
+          habitualMedications.push({ id: 'med-1', name: obs.medication.trim(), source: 'PATIENT' });
+        }
+      }
+    } catch {
+      // Ignorar fallback
+    }
+  }
+
+  const healthData: BasalHealthData = {
+    bloodType,
+    bloodTypeSource: p.clinicalRecord?.bloodType ? 'CLINICAL' : 'PATIENT',
+    allergies,
+    chronicDiseases,
+    medicalHistory: [],
+    familyHistory: [],
+    habitualMedications,
+  };
 
   const finalFirstName = p.firstName?.trim() || userFirstName?.trim() || '';
   const finalLastName = p.lastName?.trim() || userLastName?.trim() || '';
-  const finalPhone = p.phone?.trim() || userPhone?.trim() || '';
+  const finalPhone = cleanPhoneNumber(p.phone?.trim() || userPhone?.trim() || '');
 
   return {
     id: p.id,
@@ -181,13 +272,15 @@ function mapToCompositeProfile(
     dui: p.dui || 'Sin registrar',
     email: targetEmail,
     phone: finalPhone,
-    department: department || 'La Paz',
-    municipality: municipality || 'San Miguel Tepezontes',
-    district: municipality || 'San Miguel Tepezontes',
+    department,
+    municipality,
+    district,
     address: cleanAddress,
     avatarUrl: prefs.avatarUrl,
     visibleInProfile: prefs.visibleInProfile,
     health: healthData,
+    emergencyContact: primaryEmergencyObj,
+    emergencyContacts: emergencyList,
     isProfileComplete: Boolean(p.dui && finalPhone && cleanAddress),
     updatedAt: p.updatedAt || new Date().toISOString(),
   };
@@ -225,15 +318,30 @@ export function usePatientPersonalData() {
     setLoading(true);
     setError(null);
     try {
-      const history = await patientsService.getPatientHistory(userId);
+      const [history, emergencyList] = await Promise.all([
+        patientsService.getPatientHistory(userId),
+        patientsService.getEmergencyContacts().catch(() => []),
+      ]);
+
       if (!history?.patient) {
         setError('No se encontró el registro del paciente asociado a tu cuenta.');
         setProfile(null);
         return;
       }
-      const p = history.patient;
+      const p = history.patient as ExtendedPatientRecord;
       const prefs = patientProfilePreferencesService.getPreferences(p.id);
-      setProfile(mapToCompositeProfile(p, prefs, userId, userEmail, userFirstName, userLastName, userPhone));
+      setProfile(
+        mapToCompositeProfile(
+          p,
+          prefs,
+          userId,
+          userEmail,
+          emergencyList,
+          userFirstName,
+          userLastName,
+          userPhone
+        )
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al cargar los datos personales';
       setError(msg);
@@ -254,16 +362,31 @@ export function usePatientPersonalData() {
       setLoading(true);
       setError(null);
       try {
-        const history = await patientsService.getPatientHistory(userId);
+        const [history, emergencyList] = await Promise.all([
+          patientsService.getPatientHistory(userId),
+          patientsService.getEmergencyContacts().catch(() => []),
+        ]);
+
         if (!isMounted) return;
         if (!history?.patient) {
           setError('No se encontró el registro del paciente asociado a tu cuenta.');
           setProfile(null);
           return;
         }
-        const p = history.patient;
+        const p = history.patient as ExtendedPatientRecord;
         const prefs = patientProfilePreferencesService.getPreferences(p.id);
-        setProfile(mapToCompositeProfile(p, prefs, userId, userEmail, userFirstName, userLastName, userPhone));
+        setProfile(
+          mapToCompositeProfile(
+            p,
+            prefs,
+            userId,
+            userEmail,
+            emergencyList,
+            userFirstName,
+            userLastName,
+            userPhone
+          )
+        );
       } catch (err: unknown) {
         if (!isMounted) return;
         const msg = err instanceof Error ? err.message : 'Error al cargar los datos personales';
@@ -284,13 +407,17 @@ export function usePatientPersonalData() {
     setError(null);
     try {
       const cleanDui = dto.dui?.trim() || null;
-      await patientsService.updateProfile({
+      const payload: UpdateProfilePayload = {
+        firstName: dto.firstName?.trim(),
+        lastName: dto.lastName?.trim(),
         dateOfBirth: dto.dateOfBirth,
         sex: dto.sex,
         dui: cleanDui,
-        bloodType: dto.bloodType,
+        bloodType: toPrismaBloodType(dto.bloodType),
         address: [profile.address, profile.municipality, profile.department].filter(Boolean).join(', '),
-      });
+      };
+
+      await (patientsService.updateProfile as (data: UpdateProfilePayload) => Promise<unknown>)(payload);
 
       patientProfilePreferencesService.savePreferences(profile.id, {
         preferredName: dto.preferredName || undefined,
@@ -298,36 +425,7 @@ export function usePatientPersonalData() {
         nationality: dto.nationality,
       });
 
-      const updatedBloodType = dto.bloodType ? formatBloodType(dto.bloodType) : profile.health.bloodType;
-
-      if (dto.bloodType) {
-        persistHealthData(profile.id, {
-          ...profile.health,
-          bloodType: updatedBloodType,
-        });
-      }
-
-      setProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              firstName: dto.firstName,
-              lastName: dto.lastName,
-              fullName: `${dto.firstName} ${dto.lastName}`.trim(),
-              preferredName: dto.preferredName,
-              dateOfBirth: dto.dateOfBirth,
-              sex: dto.sex,
-              civilStatus: dto.civilStatus,
-              nationality: dto.nationality,
-              dui: cleanDui || 'Sin registrar',
-              health: {
-                ...prev.health,
-                bloodType: updatedBloodType,
-              },
-              isProfileComplete: Boolean(cleanDui && prev.phone && prev.address),
-            }
-          : null
-      );
+      await refetch();
       setEditingSection(null);
       notifySuccess('Información personal y documento actualizados correctamente.');
       return true;
@@ -353,18 +451,7 @@ export function usePatientPersonalData() {
         municipality: dto.municipality,
         dateOfBirth: profile.dateOfBirth,
       });
-      setProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              phone: dto.phone,
-              department: dto.department,
-              municipality: dto.municipality,
-              district: dto.district,
-              address: dto.address,
-            }
-          : null
-      );
+      await refetch();
       setEditingSection(null);
       notifySuccess('Datos de contacto y ubicación guardados.');
       return true;
@@ -383,12 +470,11 @@ export function usePatientPersonalData() {
     setError(null);
     try {
       await patientsService.updateProfile({
-        bloodType: dto.bloodType,
+        bloodType: toPrismaBloodType(dto.bloodType),
         dateOfBirth: profile.dateOfBirth,
         address: [profile.address, profile.municipality, profile.department].filter(Boolean).join(', '),
       });
-      persistHealthData(profile.id, dto);
-      setProfile((prev) => (prev ? { ...prev, health: dto } : null));
+      await refetch();
       setIsHealthModalOpen(false);
       notifySuccess('Información de salud guardada en expediente.');
       return true;
@@ -408,15 +494,7 @@ export function usePatientPersonalData() {
         preferredName: dto.preferredName || undefined,
         visibleInProfile: dto.visibleInProfile,
       });
-      setProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              preferredName: dto.preferredName,
-              visibleInProfile: dto.visibleInProfile,
-            }
-          : null
-      );
+      await refetch();
       setEditingSection(null);
       notifySuccess('Preferencias de presentación actualizadas.');
       return true;

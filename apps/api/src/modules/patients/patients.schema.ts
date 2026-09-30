@@ -2,9 +2,53 @@
 // ARCHIVO: apps/api/src/modules/patients/patients.schema.ts
 // DESCRIPCIÓN: Esquemas Zod para validación de entrada de pacientes, cuentas,
 //              perfil clínico y gestión de Contactos de Emergencia en MedicOS.
+//              Incluye soporte para edición de nombres y apellidos completos.
 // =========================================================================
 
 import { z } from 'zod';
+
+const BloodTypeEnum = [
+  'A_POSITIVE',
+  'A_NEGATIVE',
+  'B_POSITIVE',
+  'B_NEGATIVE',
+  'O_POSITIVE',
+  'O_NEGATIVE',
+  'AB_POSITIVE',
+  'AB_NEGATIVE',
+  'UNKNOWN',
+] as const;
+
+function normalizeBloodTypeInput(val: unknown): string {
+  if (typeof val !== 'string' || !val.trim()) return 'UNKNOWN';
+  const clean = val.trim().toUpperCase().replace(/[\s\(\)]/g, '_');
+  const map: Record<string, string> = {
+    'O+': 'O_POSITIVE',
+    'O-': 'O_NEGATIVE',
+    'A+': 'A_POSITIVE',
+    'A-': 'A_NEGATIVE',
+    'B+': 'B_POSITIVE',
+    'B-': 'B_NEGATIVE',
+    'AB+': 'AB_POSITIVE',
+    'AB-': 'AB_NEGATIVE',
+    O_POSITIVE: 'O_POSITIVE',
+    O_NEGATIVE: 'O_NEGATIVE',
+    A_POSITIVE: 'A_POSITIVE',
+    A_NEGATIVE: 'A_NEGATIVE',
+    B_POSITIVE: 'B_POSITIVE',
+    B_NEGATIVE: 'B_NEGATIVE',
+    AB_POSITIVE: 'AB_POSITIVE',
+    AB_NEGATIVE: 'AB_NEGATIVE',
+    UNKNOWN: 'UNKNOWN',
+    SIN_DETERMINAR: 'UNKNOWN',
+  };
+  return map[clean] || 'UNKNOWN';
+}
+
+export const bloodTypeSchema = z.preprocess(
+  (val) => (val === undefined || val === null || val === '' ? 'UNKNOWN' : normalizeBloodTypeInput(val)),
+  z.enum(BloodTypeEnum)
+);
 
 export const patientIdParamSchema = z.object({
   params: z.object({
@@ -49,19 +93,7 @@ export const createPatientSchema = z.object({
     department: z.string().trim().optional().nullable(),
 
     // 4. Información Médica Inicial (Expediente Clínico)
-    bloodType: z
-      .enum([
-        'A_POSITIVE',
-        'A_NEGATIVE',
-        'B_POSITIVE',
-        'B_NEGATIVE',
-        'O_POSITIVE',
-        'O_NEGATIVE',
-        'AB_POSITIVE',
-        'AB_NEGATIVE',
-        'UNKNOWN',
-      ])
-      .default('UNKNOWN'),
+    bloodType: bloodTypeSchema.default('UNKNOWN'),
     allergies: z.string().trim().optional().nullable(),
     chronicDiseases: z.string().trim().optional().nullable(),
     disabilities: z.string().trim().optional().nullable(),
@@ -80,7 +112,11 @@ export const createPatientSchema = z.object({
 
 export const updatePatientProfileSchema = z.object({
   body: z.object({
-    // Paso 1: Identificación y Nacimiento
+    // Nombres y Apellidos Editables
+    firstName: z.string().trim().min(2, 'El nombre debe tener al menos 2 caracteres').optional(),
+    lastName: z.string().trim().min(2, 'El apellido debe tener al menos 2 caracteres').optional(),
+
+    // Identificación y Nacimiento
     dateOfBirth: z.string().min(1, 'La fecha de nacimiento es obligatoria'),
     dui: z
       .string()
@@ -92,7 +128,7 @@ export const updatePatientProfileSchema = z.object({
     sex: z.enum(['MALE', 'FEMALE', 'OTHER']).default('OTHER'),
     phone: z.string().trim().optional().nullable(),
 
-    // Paso 2: Ubicación y Contacto de Urgencia
+    // Ubicación y Contacto de Urgencia
     address: z.string().trim().min(3, 'La dirección o comunidad es obligatoria'),
     municipality: z.string().trim().optional().nullable(),
     department: z.string().trim().optional().nullable(),
@@ -100,21 +136,11 @@ export const updatePatientProfileSchema = z.object({
     emergencyPhone: z.string().trim().optional().nullable(),
     emergencyRelation: z.string().trim().optional().nullable(),
 
-    // Paso 3: Información Médica y Antecedentes
-    bloodType: z
-      .enum([
-        'A_POSITIVE',
-        'A_NEGATIVE',
-        'B_POSITIVE',
-        'B_NEGATIVE',
-        'O_POSITIVE',
-        'O_NEGATIVE',
-        'AB_POSITIVE',
-        'AB_NEGATIVE',
-        'UNKNOWN',
-      ])
-      .optional()
-      .default('UNKNOWN'),
+    // Información Médica y Antecedentes
+    bloodType: z.preprocess(
+      (val) => (val === undefined || val === null || val === '' ? undefined : normalizeBloodTypeInput(val)),
+      z.enum(BloodTypeEnum).optional().default('UNKNOWN')
+    ),
     allergies: z.string().trim().optional().nullable(),
     chronicDiseases: z.string().trim().optional().nullable(),
     medication: z.string().trim().optional().nullable(),
