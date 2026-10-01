@@ -1,7 +1,8 @@
 // =========================================================================
 // ARCHIVO: apps/api/src/modules/ai-assistant/ai-assistant.service.ts
-// DESCRIPCIÓN: Servicio de IA conectado a Groq (Llama 3 8B),
-//              garantizando alta velocidad, gratuidad y cero errores de modelo.
+// DESCRIPCIÓN: Servicio de IA conectado a Groq con modelos actualizados
+//              (Llama 3.1 8B Instant y Llama 3.3 70B Versatile), garantizando
+//              respuestas dinámicas, gratuitas y sin errores de deprecación.
 // =========================================================================
 
 import { prisma } from '../../config/prisma.js';
@@ -13,8 +14,12 @@ import type {
 } from './ai-assistant.types.js';
 
 export class AIAssistantService extends BaseService {
-  // Usamos Llama 3 8B en Groq por su velocidad y precisión clínica en español
-  private readonly groqModel = 'llama3-8b-8192';
+  // Modelos activos y soportados en la API de Groq
+  private readonly groqModels = [
+    'llama-3.1-8b-instant',
+    'llama-3.3-70b-versatile',
+    'gemma2-9b-it',
+  ];
 
   private getApiKey(): string | undefined {
     const rawKey =
@@ -80,7 +85,9 @@ export class AIAssistantService extends BaseService {
           details: `Condición médica: ${title}. Notas: ${d.notes || 'Control en seguimiento'}.`,
         });
       });
-    } catch {}
+    } catch {
+      // Manejo defensivo
+    }
 
     try {
       const rxs = await db.prescriptionItem.findMany({
@@ -100,7 +107,9 @@ export class AIAssistantService extends BaseService {
           details: `Fármaco: ${rx.medicine} ${rx.dosage}. Frecuencia: ${rx.frequency}. Instrucciones: ${rx.instructions || 'Tomar según prescripción'}.`,
         });
       });
-    } catch {}
+    } catch {
+      // Manejo defensivo
+    }
 
     try {
       const vitals = await db.vitalSigns.findMany({
@@ -119,7 +128,9 @@ export class AIAssistantService extends BaseService {
           details: `Presión arterial: ${v.systolic}/${v.diastolic} mmHg. Pulso: ${v.heartRate} lpm. Temperatura: ${v.temperature || 36.5} °C.`,
         });
       });
-    } catch {}
+    } catch {
+      // Manejo defensivo
+    }
 
     return contexts;
   }
@@ -142,21 +153,21 @@ export class AIAssistantService extends BaseService {
 Traduces términos clínicos a explicaciones pedagógicas, cálidas, empáticas y seguras en español.
 
 REGLAS DE FORMATO:
-1. Responde de forma CONCISA: entre 120 y 180 palabras.
-2. NUNCA dejes oraciones incompletas.
-3. Usa negrita (**texto**) para destacar términos clave. No uses numerales (#).
-4. Concluye con 2 a 3 preguntas cortas para dialogar con el médico (con viñetas "• ").
+1. Responde de forma CONCISA: entre 120 y 180 palabras en total.
+2. NUNCA dejes oraciones incompletas; finaliza cada frase con su respectivo punto.
+3. Usa negrita (**texto**) para destacar términos clave. NUNCA uses numerales (#).
+4. Concluye con 2 a 3 preguntas cortas para dialogar con el médico en la próxima consulta (con viñetas "• ").
 
-REGLAS CLÍNICAS:
-1. NUNCA diagnostiques ni recetes.
-2. Explica la función biológica de medicamentos y hábitos de forma educativa.
-3. Ante síntomas de alarma (dolor torácico opresivo, disnea), indica buscar urgencias de inmediato.
+REGLAS CLÍNICAS INQUEBRANTABLES:
+1. NUNCA diagnostiques ni recetes medicamentos.
+2. Explica la función biológica de órganos, parámetros y hábitos de forma educativa.
+3. Ante síntomas de alarma (dolor torácico opresivo, disnea súbita o pérdida de consciencia), indica buscar urgencias de inmediato.
 
 ${specificContextText}`;
 
     if (apiKey && apiKey !== '') {
       try {
-        const generatedText = await this.callGroqApi(apiKey, systemPrompt, dto);
+        const generatedText = await this.callGroqWithCascade(apiKey, systemPrompt, dto);
         return {
           id: `msg-${Date.now()}`,
           role: 'assistant',
@@ -190,7 +201,29 @@ ${specificContextText}`;
     };
   }
 
-  private async callGroqApi(
+  private async callGroqWithCascade(
+    apiKey: string,
+    systemPrompt: string,
+    dto: SendChatMessageDTO
+  ): Promise<string> {
+    let lastError: Error | null = null;
+
+    for (const model of this.groqModels) {
+      try {
+        const result = await this.executeGroqRequest(model, apiKey, systemPrompt, dto);
+        return result;
+      } catch (err) {
+        lastError = err as Error;
+        const msg = (err as Error).message || '';
+        console.warn(`⚠️ Modelo ${model} no completó la consulta (${msg}). Evaluando siguiente alternativa...`);
+      }
+    }
+
+    throw lastError || new Error('No fue posible obtener respuesta del motor de Groq tras evaluar los modelos configurados.');
+  }
+
+  private async executeGroqRequest(
+    model: string,
     apiKey: string,
     systemPrompt: string,
     dto: SendChatMessageDTO
@@ -214,7 +247,7 @@ ${specificContextText}`;
     messages.push({ role: 'user', content: dto.message });
 
     const body = {
-      model: this.groqModel,
+      model,
       messages,
       temperature: 0.3,
       max_tokens: 1500,
@@ -224,21 +257,21 @@ ${specificContextText}`;
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify(body),
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`Groq API HTTP ${res.status}: ${errText}`);
+      throw new Error(`Groq API (${model}) HTTP ${res.status}: ${errText}`);
     }
 
     const json = (await res.json()) as any;
     const text = json.choices?.[0]?.message?.content;
 
     if (!text) {
-      throw new Error('Respuesta vacía recibida desde Groq API.');
+      throw new Error(`Respuesta vacía recibida desde Groq API con modelo ${model}.`);
     }
 
     return text;
@@ -249,6 +282,7 @@ ${specificContextText}`;
 
     if (q.includes('hemoglobina') || q.includes('anemia')) {
       return `Hola ${patientName}. La hemoglobina es la proteína encargada de transportar oxígeno en la sangre. 
+
 Para interpretar tu resultado específico, tu médico valorará cómo te sientes en conjunto con tu nutrición.
 
 Preguntas útiles para tu consulta médica:
@@ -258,6 +292,7 @@ Preguntas útiles para tu consulta médica:
 
     if (q.includes('azucar') || q.includes('azúcar') || q.includes('glucosa')) {
       return `Hola ${patientName}. El azúcar o glucosa en sangre representa la principal fuente de energía para las células del cuerpo.
+
 Mantener niveles controlados favorece la salud metabólica, renal y visual.
 
 Preguntas recomendadas para tu médico:
@@ -266,6 +301,7 @@ Preguntas recomendadas para tu médico:
     }
 
     return `Hola ${patientName}. Como tu asistente educativo de MedicOS, puedo orientarte sobre qué representan tus diagnósticos, medicamentos prescritos, signos vitales y hábitos de salud.
+
 Recuerda que esta orientación es pedagógica y busca darte seguridad para conversar con tu equipo de salud. ¿Sobre qué aspecto de tu expediente te gustaría aprender hoy?`;
   }
 }
