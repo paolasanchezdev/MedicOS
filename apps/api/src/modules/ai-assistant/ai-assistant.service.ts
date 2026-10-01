@@ -14,11 +14,11 @@ import type {
 } from './ai-assistant.types.js';
 
 export class AIAssistantService extends BaseService {
-  // Modelos oficiales y estables en la API de Google Gemini
+  // Modelos activos y compatibles con la API de Google Gemini en 2026
   private readonly fallbackModels = [
-    'gemini-1.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-pro',
+    'gemini-2.5-flash',
+    'gemini-2.5-pro',
+    'gemini-flash',
   ];
 
   private getApiKey(): string | undefined {
@@ -28,7 +28,6 @@ export class AIAssistantService extends BaseService {
       process.env.VITE_GEMINI_API_KEY;
 
     if (!rawKey) return undefined;
-    // Sanitiza comillas accidentales y espacios al pegar en paneles como Render
     return rawKey.trim().replace(/^["']|["']$/g, '').trim();
   }
 
@@ -270,7 +269,7 @@ ${specificContextText}`;
         console.error('❌ Error en llamada al motor de IA de Gemini:', error);
       }
     } else {
-      console.warn('⚠️ GEMINI_API_KEY no encontrada en variables de entorno. Activando modo educativo local.');
+      console.warn('⚠️ GEMINI_API_KEY no encontrada en variables de entorno.');
     }
 
     const fallbackResponse = this.generateEducationalFallback(dto.message, patientName);
@@ -317,9 +316,6 @@ ${specificContextText}`;
     const cleanKey = apiKey.trim().replace(/^["']|["']$/g, '').trim();
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(cleanKey)}`;
 
-    // Sanitización estricta del historial para cumplir el protocolo de Gemini:
-    // 1. Debe iniciar siempre con un mensaje con role: 'user'.
-    // 2. Alternancia estricta user -> model -> user -> model.
     const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
 
     if (dto.conversationHistory && dto.conversationHistory.length > 0) {
@@ -347,7 +343,6 @@ ${specificContextText}`;
       }
     }
 
-    // Agregar el mensaje actual del usuario garantizando alternancia
     const lastEntry = contents[contents.length - 1];
     const firstPart = lastEntry?.parts[0];
 
@@ -367,7 +362,6 @@ ${specificContextText}`;
       });
     }
 
-    // Estructura oficial de la API REST de Google Gemini
     const body: Record<string, unknown> = {
       system_instruction: {
         parts: [{ text: systemPrompt }],
@@ -390,7 +384,6 @@ ${specificContextText}`;
     if (!res.ok) {
       const errText = await res.text();
 
-      // Si el modelo específico no soporta system_instruction en REST, reintenta inyectando el prompt en el primer turno
       if (res.status === 400 && (errText.includes('system_instruction') || errText.includes('systemInstruction'))) {
         const fallbackContents = JSON.parse(JSON.stringify(contents)) as typeof contents;
         if (fallbackContents[0]?.parts[0]) {
