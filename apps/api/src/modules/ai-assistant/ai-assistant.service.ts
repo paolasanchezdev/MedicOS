@@ -14,18 +14,22 @@ import type {
 } from './ai-assistant.types.js';
 
 export class AIAssistantService extends BaseService {
+  // Modelos oficiales y estables en la API de Google Gemini
   private readonly fallbackModels = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
     'gemini-1.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-pro',
   ];
 
   private getApiKey(): string | undefined {
-    return (
-      process.env.GEMINI_API_KEY?.trim() ||
-      process.env.GOOGLE_API_KEY?.trim() ||
-      process.env.VITE_GEMINI_API_KEY?.trim()
-    );
+    const rawKey =
+      process.env.GEMINI_API_KEY ||
+      process.env.GOOGLE_API_KEY ||
+      process.env.VITE_GEMINI_API_KEY;
+
+    if (!rawKey) return undefined;
+    // Sanitiza comillas accidentales y espacios al pegar en paneles como Render
+    return rawKey.trim().replace(/^["']|["']$/g, '').trim();
   }
 
   private async resolvePatient(userId: string) {
@@ -86,7 +90,7 @@ export class AIAssistantService extends BaseService {
         });
       });
     } catch {
-      // Manejo defensivo ante variaciones de modelo
+      // Manejo defensivo
     }
 
     // 2. Medicamentos y Recetas Activas
@@ -266,7 +270,7 @@ ${specificContextText}`;
         console.error('❌ Error en llamada al motor de IA de Gemini:', error);
       }
     } else {
-      console.warn('⚠️ GEMINI_API_KEY o GOOGLE_API_KEY no encontrada en variables de entorno. Activando modo educativo local.');
+      console.warn('⚠️ GEMINI_API_KEY no encontrada en variables de entorno. Activando modo educativo local.');
     }
 
     const fallbackResponse = this.generateEducationalFallback(dto.message, patientName);
@@ -298,7 +302,6 @@ ${specificContextText}`;
         lastError = err as Error;
         const msg = (err as Error).message || '';
         console.warn(`⚠️ Modelo ${model} no completó la consulta (${msg}). Evaluando siguiente alternativa...`);
-        continue;
       }
     }
 
@@ -311,11 +314,12 @@ ${specificContextText}`;
     systemPrompt: string,
     dto: SendChatMessageDTO
   ): Promise<string> {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const cleanKey = apiKey.trim().replace(/^["']|["']$/g, '').trim();
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(cleanKey)}`;
 
     // Sanitización estricta del historial para cumplir el protocolo de Gemini:
-    // 1. Debe iniciar siempre con un mensaje con role: 'user' (se descarta el saludo inicial del bot).
-    // 2. No pueden existir dos turnos seguidos con el mismo rol.
+    // 1. Debe iniciar siempre con un mensaje con role: 'user'.
+    // 2. Alternancia estricta user -> model -> user -> model.
     const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
 
     if (dto.conversationHistory && dto.conversationHistory.length > 0) {
@@ -330,7 +334,6 @@ ${specificContextText}`;
             startedWithUser = true;
             contents.push({ role, parts: [{ text: h.content }] });
           }
-          // Si el mensaje inicial del historial era del asistente/modelo, se ignora
         } else {
           const lastEntry = contents[contents.length - 1];
           const firstPart = lastEntry?.parts[0];
@@ -344,7 +347,7 @@ ${specificContextText}`;
       }
     }
 
-    // Agregar el mensaje actual del usuario garantizando la alternancia
+    // Agregar el mensaje actual del usuario garantizando alternancia
     const lastEntry = contents[contents.length - 1];
     const firstPart = lastEntry?.parts[0];
 
@@ -357,8 +360,16 @@ ${specificContextText}`;
       });
     }
 
-    const body = {
-      systemInstruction: {
+    if (contents.length === 0) {
+      contents.push({
+        role: 'user',
+        parts: [{ text: dto.message }],
+      });
+    }
+
+    // Estructura oficial de la API REST de Google Gemini
+    const body: Record<string, unknown> = {
+      system_instruction: {
         parts: [{ text: systemPrompt }],
       },
       contents,
@@ -372,13 +383,34 @@ ${specificContextText}`;
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
       },
       body: JSON.stringify(body),
     });
 
     if (!res.ok) {
       const errText = await res.text();
+
+      // Si el modelo específico no soporta system_instruction en REST, reintenta inyectando el prompt en el primer turno
+      if (res.status === 400 && (errText.includes('system_instruction') || errText.includes('systemInstruction'))) {
+        const fallbackContents = JSON.parse(JSON.stringify(contents)) as typeof contents;
+        if (fallbackContents[0]?.parts[0]) {
+          fallbackContents[0].parts[0].text = `[INSTRUCCIÓN DEL SISTEMA]:\n${systemPrompt}\n\n[CONSULTA DEL PACIENTE]:\n${fallbackContents[0].parts[0].text}`;
+        }
+        const retryRes = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: fallbackContents,
+            generationConfig: { temperature: 0.3, maxOutputTokens: 2500 },
+          }),
+        });
+        if (retryRes.ok) {
+          const retryJson = (await retryRes.json()) as any;
+          const retryText = retryJson.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (retryText) return retryText;
+        }
+      }
+
       throw new Error(`AI Engine ${model} HTTP ${res.status}: ${errText}`);
     }
 
