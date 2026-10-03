@@ -1,7 +1,10 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/modules/health-education/types/health-education.types.ts
-// DESCRIPCIÓN: Tipos TypeScript con soporte para imágenes y metadatos editoriales.
+// DESCRIPCIÓN: Tipos TypeScript para artículos editoriales del paciente y
+//              actividades territoriales de Educación Sanitaria y Control de Vectores.
 // =========================================================================
+
+// --- 1. TIPOS DE ARTÍCULOS Y CONTENIDO EDUCATIVO (PORTAL PACIENTE) ---
 
 export type HealthArticleCategory =
   | 'PREVENCION'
@@ -70,4 +73,105 @@ export interface CategoryOption {
   label: string;
   iconName: string;
   description: string;
+}
+
+// --- 2. TIPOS DE TRABAJO TERRITORIAL (PORTAL BRIGADISTA) ---
+
+export type ModalidadEducativa = 'INDIVIDUAL' | 'FAMILIAR' | 'GRUPAL' | 'COMUNITARIA';
+
+export type TipoActividadVectores =
+  | 'VISITA_DOMICILIARIA'
+  | 'INSPECCION'
+  | 'IDENTIFICACION_CRIADEROS'
+  | 'ELIMINACION_CRIADEROS'
+  | 'EDUCACION_COMUNITARIA'
+  | 'VIGILANCIA_ENTORNO'
+  | 'SEGUIMIENTO';
+
+export interface ArticuloGuiaRef {
+  id: string;
+  slug: string;
+  title: string;
+  category: HealthArticleCategory;
+  categoryLabel: string;
+  summary: string;
+  keyPoints: string[];
+}
+
+export interface ActividadEducativaItem {
+  id: string;
+  fecha: string;
+  lugar: string;
+  sector?: string;
+  modalidad: ModalidadEducativa;
+  pacienteId?: string | null;
+  pacienteNombre?: string | null;
+  pacienteExpediente?: string | null;
+  cantidadPersonas: number;
+  gruposPoblacionales: string[];
+  temasAbordados: string[];
+  articulosGuia?: ArticuloGuiaRef[];
+  materialUtilizado: string[];
+  observaciones?: string | null;
+  responsableBrigada: string;
+}
+
+export interface ControlVectoresItem {
+  id: string;
+  fecha: string;
+  comunidad: string;
+  sector: string;
+  referenciaUbicacion?: string | null;
+  tipoActividad: TipoActividadVectores;
+  viviendasInspeccionadas: number;
+  viviendasConHallazgos: number;
+  hallazgos: string[];
+  accionesRealizadas: string[];
+  requiereSeguimiento: boolean;
+  motivoSeguimiento?: string | null;
+  fechaPropuestaSeguimiento?: string | null;
+  observaciones?: string | null;
+  responsableBrigada: string;
+}
+
+export interface EducacionPrevencionMetricas {
+  actividadesEducativasTotal: number;
+  accionesVectoresTotal: number;
+  personasAlcanzadasTotal: number;
+  viviendasInspeccionadasTotal: number;
+  viviendasConCriaderosTotal: number;
+  pendientesSeguimientoTotal: number;
+  actividadesHoy: number;
+}
+
+export interface RegistrarActividadEducativaDto {
+  fecha: string;
+  lugar: string;
+  sector?: string;
+  modalidad: ModalidadEducativa;
+  pacienteId?: string | null;
+  cantidadPersonas: number;
+  gruposPoblacionales: string[];
+  temasAbordados: string[];
+  articulosGuia?: ArticuloGuiaRef[];
+  materialUtilizado: string[];
+  observaciones?: string | null;
+}
+
+export interface RegistrarControlVectoresDto {
+  fecha: string;
+  comunidad: string;
+  sector: string;
+  referenciaUbicacion?: string | null;
+  tipoActividad: TipoActividadVectores;
+  viviendasInspeccionadas: number;
+  viviendasConHallazgos: number;
+  hallazgos: string[];
+  accionesRealizadas: string[];
+  requiereSeguimiento: boolean;
+  motivoSeguimiento?: string | null;
+  fechaPropuestaSeguimiento?: string | null;
+  observaciones?: string | null;
+  incluirEducacionSimultanea?: boolean;
+  temasEducacionSimultanea?: string[];
 }

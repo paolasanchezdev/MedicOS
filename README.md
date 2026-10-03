@@ -1,5 +1,3 @@
-
-
 ## Project Structure
 
 ```text
@@ -385,6 +383,12 @@ MedicOS/
 │       │   │   │   ├── types/
 │       │   │   │   │   └── consultation.types.ts
 │       │   │   │   └── index.ts
+│       │   │   ├── continuity/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── useContinuidadPacientes.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── continuity.types.ts
+│       │   │   │   └── index.ts
 │       │   │   ├── diagnoses/
 │       │   │   │   ├── components/
 │       │   │   │   │   ├── DetalleDiagnosticoModal.tsx
@@ -435,8 +439,11 @@ MedicOS/
 │       │   │   │   ├── data/
 │       │   │   │   │   ├── articles.ts
 │       │   │   │   │   └── categories.ts
-│       │   │   │   └── types/
-│       │   │   │       └── health-education.types.ts
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── useEducacionPrevencion.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── health-education.types.ts
+│       │   │   │   └── index.ts
 │       │   │   ├── laboratory/
 │       │   │   │   ├── components/
 │       │   │   │   │   ├── DetalleResultadoLaboratorioModal.tsx
@@ -540,12 +547,15 @@ MedicOS/
 │       │   │   │   └── index.ts
 │       │   │   ├── maternal-health/
 │       │   │   │   ├── hooks/
+│       │   │   │   │   ├── useMaternoInfantil.ts
 │       │   │   │   │   └── usePregnancyControl.ts
 │       │   │   │   ├── services/
 │       │   │   │   │   ├── maternal-health.service.ts
 │       │   │   │   │   └── symptom-diary.service.ts
-│       │   │   │   └── types/
-│       │   │   │       └── maternal-health.types.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   ├── maternal-health.types.ts
+│       │   │   │   │   └── materno-infantil.types.ts
+│       │   │   │   └── index.ts
 │       │   │   ├── medical-imaging/
 │       │   │   │   ├── components/
 │       │   │   │   │   ├── DetalleEstudioImagenModal.tsx
@@ -567,6 +577,14 @@ MedicOS/
 │       │   │   │   │   └── medications.service.ts
 │       │   │   │   ├── types/
 │       │   │   │   │   └── medication.types.ts
+│       │   │   │   └── index.ts
+│       │   │   ├── nutrition/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── useVigilanciaNutricional.ts
+│       │   │   │   ├── types/
+│       │   │   │   │   └── nutrition.types.ts
+│       │   │   │   ├── utils/
+│       │   │   │   │   └── nutritionalCalculations.ts
 │       │   │   │   └── index.ts
 │       │   │   ├── patients/
 │       │   │   │   ├── components/
@@ -1062,6 +1080,7 @@ MedicOS/
 │       │   │   │   │   │   │   ├── components/
 │       │   │   │   │   │   │   │   ├── AtencionAccionesCard.tsx
 │       │   │   │   │   │   │   │   ├── AtencionAntecedentesCard.tsx
+│       │   │   │   │   │   │   │   ├── AtencionCuentaCard.tsx
 │       │   │   │   │   │   │   │   ├── AtencionEducacionCard.tsx
 │       │   │   │   │   │   │   │   ├── AtencionEstadoBadge.tsx
 │       │   │   │   │   │   │   │   ├── AtencionGuardarModal.tsx
@@ -1158,6 +1177,13 @@ MedicOS/
 │       │   │   │   │   │   │   └── MapaEstablecimientosPage.tsx
 │       │   │   │   │   │   ├── pacientes/
 │       │   │   │   │   │   └── ubicacion/
+│       │   │   │   │   │       ├── components/
+│       │   │   │   │   │       │   ├── CercaDeMiModal.tsx
+│       │   │   │   │   │       │   ├── index.ts
+│       │   │   │   │   │       │   ├── MapaBusqueda.tsx
+│       │   │   │   │   │       │   ├── MapaCapas.tsx
+│       │   │   │   │   │       │   ├── MapaPanelDetalle.tsx
+│       │   │   │   │   │       │   └── MapaTerritorial.tsx
 │       │   │   │   │   │       └── UbicacionPage.tsx
 │       │   │   │   │   ├── notificaciones/
 │       │   │   │   │   │   ├── alertas/
@@ -1219,8 +1245,37 @@ MedicOS/
 │       │   │   │   │   │       └── SeguridadBrigadistaPage.tsx
 │       │   │   │   │   ├── promocion-prevencion/
 │       │   │   │   │   │   ├── educacion-prevencion/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── EducacionPrevencionAccionesRapidas.tsx
+│       │   │   │   │   │   │   │   ├── EducacionPrevencionHeader.tsx
+│       │   │   │   │   │   │   │   ├── EducacionPrevencionMetricas.tsx
+│       │   │   │   │   │   │   │   ├── ModalDetalleActividad.tsx
+│       │   │   │   │   │   │   │   ├── ModalGuiaArticulo.tsx
+│       │   │   │   │   │   │   │   ├── ModalNuevaActividadEducativa.tsx
+│       │   │   │   │   │   │   │   └── ModalNuevoControlVectores.tsx
+│       │   │   │   │   │   │   └── ResumenEducacionPrevencionPage.tsx
 │       │   │   │   │   │   ├── materno-infantil/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── MaternoInfantilAccionesRapidas.tsx
+│       │   │   │   │   │   │   │   ├── MaternoInfantilAlertas.tsx
+│       │   │   │   │   │   │   │   ├── MaternoInfantilHeader.tsx
+│       │   │   │   │   │   │   │   ├── MaternoInfantilMetricas.tsx
+│       │   │   │   │   │   │   │   ├── ModalCaptarGestante.tsx
+│       │   │   │   │   │   │   │   ├── ModalHistorialControles.tsx
+│       │   │   │   │   │   │   │   ├── ModalRegistrarControl.tsx
+│       │   │   │   │   │   │   │   └── ModalRegistrarNino.tsx
+│       │   │   │   │   │   │   └── ResumenMaternoInfantilPage.tsx
 │       │   │   │   │   │   ├── nutricion/
+│       │   │   │   │   │   │   ├── components/
+│       │   │   │   │   │   │   │   ├── ModalFichaNutricional.tsx
+│       │   │   │   │   │   │   │   ├── ModalHistorialNutricional.tsx
+│       │   │   │   │   │   │   │   ├── ModalInscribirSeguimiento.tsx
+│       │   │   │   │   │   │   │   ├── ModalRegistrarControlNutricional.tsx
+│       │   │   │   │   │   │   │   ├── NutricionAccionesRapidas.tsx
+│       │   │   │   │   │   │   │   ├── NutricionAlertas.tsx
+│       │   │   │   │   │   │   │   ├── NutricionHeader.tsx
+│       │   │   │   │   │   │   │   └── NutricionMetricas.tsx
+│       │   │   │   │   │   │   └── ResumenNutricionPage.tsx
 │       │   │   │   │   │   └── vacunacion/
 │       │   │   │   │   │       ├── historial/
 │       │   │   │   │   │       │   ├── components/
@@ -1258,8 +1313,20 @@ MedicOS/
 │       │   │   │   │   │           └── VacunacionResumenPage.tsx
 │       │   │   │   │   ├── referencias/
 │       │   │   │   │   │   ├── historial/
+│       │   │   │   │   │   │   └── HistorialReferenciasPage.tsx
 │       │   │   │   │   │   ├── nueva/
+│       │   │   │   │   │   │   └── NuevaReferenciaPage.tsx
 │       │   │   │   │   │   └── pendientes/
+│       │   │   │   │   │       ├── components/
+│       │   │   │   │   │       │   ├── DocumentoF01Oficial.tsx
+│       │   │   │   │   │       │   ├── index.ts
+│       │   │   │   │   │       │   ├── ModalActualizarEstadoReferencia.tsx
+│       │   │   │   │   │       │   ├── ModalDetalleReferencia.tsx
+│       │   │   │   │   │       │   ├── ModalNuevaReferencia.tsx
+│       │   │   │   │   │       │   ├── ReferenciasFiltros.tsx
+│       │   │   │   │   │       │   ├── ReferenciasHeader.tsx
+│       │   │   │   │   │       │   └── ReferenciasMetricas.tsx
+│       │   │   │   │   │       └── ReferenciasPendientesPage.tsx
 │       │   │   │   │   ├── reportes/
 │       │   │   │   │   │   ├── atencion/
 │       │   │   │   │   │   ├── brigada/
@@ -1273,6 +1340,13 @@ MedicOS/
 │       │   │   │   │   │   ├── controles/
 │       │   │   │   │   │   │   └── ControlesPage.tsx
 │       │   │   │   │   │   └── pacientes/
+│       │   │   │   │   │       ├── components/
+│       │   │   │   │   │       │   ├── ModalDetalleSeguimiento.tsx
+│       │   │   │   │   │       │   ├── ModalNuevoSeguimiento.tsx
+│       │   │   │   │   │       │   ├── ModalRegistrarAccionSeguimiento.tsx
+│       │   │   │   │   │       │   ├── SeguimientoFiltros.tsx
+│       │   │   │   │   │       │   ├── SeguimientoHeader.tsx
+│       │   │   │   │   │       │   └── SeguimientoMetricas.tsx
 │       │   │   │   │   │       └── SeguimientoPacientesPage.tsx
 │       │   │   │   │   ├── sincronizacion/
 │       │   │   │   │   │   ├── estado/
@@ -1284,6 +1358,15 @@ MedicOS/
 │       │   │   │   │   └── visitas/
 │       │   │   │   │       ├── nueva/
 │       │   │   │   │       ├── programadas/
+│       │   │   │   │       │   ├── components/
+│       │   │   │   │       │   │   ├── index.ts
+│       │   │   │   │       │   │   ├── ModalDetalleVisita.tsx
+│       │   │   │   │       │   │   ├── ModalProgramarVisita.tsx
+│       │   │   │   │       │   │   ├── ModalRegistrarResultadoVisita.tsx
+│       │   │   │   │       │   │   ├── VisitasProgramadasFiltros.tsx
+│       │   │   │   │       │   │   ├── VisitasProgramadasHeader.tsx
+│       │   │   │   │       │   │   └── VisitasProgramadasMetricas.tsx
+│       │   │   │   │       │   └── VisitasProgramadasPage.tsx
 │       │   │   │   │       └── realizadas/
 │       │   │   │   ├── routes/
 │       │   │   │   │   └── BrigadistaRoutes.tsx

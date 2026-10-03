@@ -2,7 +2,7 @@
 // ARCHIVO: apps/web/src/modules/patients/types/patient.types.ts
 // DESCRIPCIÓN: Tipos de datos para el dominio de pacientes con soporte de
 //              cuenta digital (IAM), expediente clínico ampliado, diagnósticos,
-//              prescripciones, laboratorios e imagenología.
+//              prescripciones, laboratorios, georreferenciación e imagenología.
 // =========================================================================
 
 export type BloodType =
@@ -24,6 +24,10 @@ export interface UpdatePatientProfileDto {
   sex?: Sex;
   phone?: string | null;
   address: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  community?: string | null;
+  sector?: string | null;
   municipality?: string | null;
   department?: string | null;
   bloodType?: string;
@@ -45,6 +49,8 @@ export interface OnboardingFormData {
   municipality: string;
   district: string;
   address: string;
+  latitude?: number | null;
+  longitude?: number | null;
   bloodType: string;
   allergies: string;
   chronicDiseases: string;
@@ -65,6 +71,10 @@ export interface CreatePatientDto {
   password: string;
   phone?: string | null;
   address: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  community?: string | null;
+  sector?: string | null;
   district?: string | null;
   municipality?: string | null;
   department?: string | null;
@@ -89,6 +99,8 @@ export interface CreatedPatientResult {
   sex: Sex;
   phone: string | null;
   address: string;
+  latitude?: number | null;
+  longitude?: number | null;
   emergencyName?: string | null;
   emergencyPhone?: string | null;
   emergencyRelation?: string | null;
@@ -158,6 +170,10 @@ export interface PatientRecord {
   sex: Sex;
   phone?: string | null;
   address: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  community?: string | null;
+  sector?: string | null;
   emergencyName?: string | null;
   emergencyPhone?: string | null;
   emergencyRelation?: string | null;

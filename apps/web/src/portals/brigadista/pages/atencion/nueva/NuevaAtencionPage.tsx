@@ -1,11 +1,11 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/atencion/nueva/NuevaAtencionPage.tsx
-// DESCRIPCIÓN: Orquestador general de Nueva Atención Comunitaria con persistencia
-//              de borrador en localStorage, vinculación con Jornada (WorkSession),
-//              flujo completo de 9 pasos con barra al 100% y ciclo de guardado.
+// DESCRIPCIÓN: Orquestador general de Nueva Atención Comunitaria con bloqueo
+//              operativo si la jornada no está iniciada, reseteo limpio de pasos
+//              y enlace directo para iniciar turno en territorio.
 // =========================================================================
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   UserSearch,
@@ -134,50 +134,61 @@ export const NuevaAtencionPage: React.FC = () => {
     iniciarJornada,
   } = useJornadaBrigada();
 
-  // 1. Inicialización de Estado con soporte para Restauración Limpia y Segura de Borrador Local
+  const clearLocalDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+    } catch {
+      // Ignorar error de cuota
+    }
+  };
+
+  // 1. Inicialización de Estado: limpia borradores sin paciente
   const [formData, setFormData] = useState<NuevaAtencionFormState>(() => {
     try {
       const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
       if (savedDraft) {
         const parsed = JSON.parse(savedDraft);
-        if (parsed?.formData) {
-          return {
-            ...INITIAL_FORM_STATE,
-            ...parsed.formData,
-            evaluacion: {
-              ...INITIAL_FORM_STATE.evaluacion,
-              ...parsed.formData.evaluacion,
-              signosVitales: {
-                ...INITIAL_FORM_STATE.evaluacion.signosVitales,
-                ...parsed.formData.evaluacion?.signosVitales,
-              },
-              sintomas: {
-                ...INITIAL_FORM_STATE.evaluacion.sintomas,
-                ...parsed.formData.evaluacion?.sintomas,
-              },
-            },
-            acciones: {
-              ...INITIAL_FORM_STATE.acciones,
-              ...parsed.formData.acciones,
-              educacionSaludMaterna: Boolean(parsed.formData.acciones?.educacionSaludMaterna),
-              educacionVacunacion: Boolean(parsed.formData.acciones?.educacionVacunacion),
-              educacionTratamiento: Boolean(parsed.formData.acciones?.educacionTratamiento),
-              educacionAccidentes: Boolean(parsed.formData.acciones?.educacionAccidentes),
-              educacionOtra: Boolean(parsed.formData.acciones?.educacionOtra),
-            },
-            seguimiento: {
-              ...INITIAL_FORM_STATE.seguimiento,
-              ...parsed.formData.seguimiento,
-              desenlace: parsed.formData.seguimiento?.desenlace || 'RESUELTO',
-            },
-            cuenta: {
-              ...INITIAL_FORM_STATE.cuenta,
-              ...parsed.formData.cuenta,
-              crearCuenta: Boolean(parsed.formData.cuenta?.crearCuenta),
-              email: parsed.formData.cuenta?.email || '',
-            },
-          };
+        if (!parsed?.formData?.patient) {
+          localStorage.removeItem(DRAFT_STORAGE_KEY);
+          return INITIAL_FORM_STATE;
         }
+
+        return {
+          ...INITIAL_FORM_STATE,
+          ...parsed.formData,
+          evaluacion: {
+            ...INITIAL_FORM_STATE.evaluacion,
+            ...parsed.formData.evaluacion,
+            signosVitales: {
+              ...INITIAL_FORM_STATE.evaluacion.signosVitales,
+              ...parsed.formData.evaluacion?.signosVitales,
+            },
+            sintomas: {
+              ...INITIAL_FORM_STATE.evaluacion.sintomas,
+              ...parsed.formData.evaluacion?.sintomas,
+            },
+          },
+          acciones: {
+            ...INITIAL_FORM_STATE.acciones,
+            ...parsed.formData.acciones,
+            educacionSaludMaterna: Boolean(parsed.formData.acciones?.educacionSaludMaterna),
+            educacionVacunacion: Boolean(parsed.formData.acciones?.educacionVacunacion),
+            educacionTratamiento: Boolean(parsed.formData.acciones?.educacionTratamiento),
+            educacionAccidentes: Boolean(parsed.formData.acciones?.educacionAccidentes),
+            educacionOtra: Boolean(parsed.formData.acciones?.educacionOtra),
+          },
+          seguimiento: {
+            ...INITIAL_FORM_STATE.seguimiento,
+            ...parsed.formData.seguimiento,
+            desenlace: parsed.formData.seguimiento?.desenlace || 'RESUELTO',
+          },
+          cuenta: {
+            ...INITIAL_FORM_STATE.cuenta,
+            ...parsed.formData.cuenta,
+            crearCuenta: Boolean(parsed.formData.cuenta?.crearCuenta),
+            email: parsed.formData.cuenta?.email || '',
+          },
+        };
       }
     } catch {
       // Ignorar fallo de parseo
@@ -190,6 +201,7 @@ export const NuevaAtencionPage: React.FC = () => {
       const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
       if (savedDraft) {
         const parsed = JSON.parse(savedDraft);
+        if (!parsed?.formData?.patient) return 1;
         if (typeof parsed?.currentStep === 'number') return parsed.currentStep;
       }
     } catch {
@@ -203,6 +215,7 @@ export const NuevaAtencionPage: React.FC = () => {
       const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
       if (savedDraft) {
         const parsed = JSON.parse(savedDraft);
+        if (!parsed?.formData?.patient) return [];
         if (Array.isArray(parsed?.completedSteps)) return parsed.completedSteps;
       }
     } catch {
@@ -258,8 +271,28 @@ export const NuevaAtencionPage: React.FC = () => {
   const [modalEstado, setModalEstado] = useState<GuardarModalEstado>('CONFIRMAR');
   const [showCancelModal, setShowCancelModal] = useState(false);
 
-  // 2. Persistencia Automática del Borrador en cada cambio
+  // Función de reseteo integral de la atención
+  const resetFormularioCompleto = useCallback(() => {
+    clearLocalDraft();
+    setFormData(INITIAL_FORM_STATE);
+    setCurrentStep(1);
+    setCompletedSteps([]);
+    setNuevoAntecedente('');
+    setEsEmbarazada(false);
+    setSemanasGestacion('');
+    setValidationErrors({});
+    setIsModalOpen(false);
+    setModalEstado('CONFIRMAR');
+    setShowCancelModal(false);
+  }, []);
+
+  // 2. Persistencia segura: solo guarda si existe un paciente seleccionado
   useEffect(() => {
+    if (!formData.patient) {
+      clearLocalDraft();
+      return;
+    }
+
     try {
       const payload = {
         formData,
@@ -272,17 +305,18 @@ export const NuevaAtencionPage: React.FC = () => {
       };
       localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(payload));
     } catch {
-      // Fallo de cuota de almacenamiento
+      // Ignorar cuota llena
     }
   }, [formData, currentStep, completedSteps, nuevoAntecedente, esEmbarazada, semanasGestacion]);
 
-  const clearLocalDraft = () => {
-    try {
-      localStorage.removeItem(DRAFT_STORAGE_KEY);
-    } catch {
-      // Ignorar error
-    }
-  };
+  // Si no hay paciente, ningún paso posterior puede aparecer como completado
+  const validCompletedSteps = useMemo(() => {
+    if (!formData.patient) return [];
+    return completedSteps;
+  }, [formData.patient, completedSteps]);
+
+  // Validación si la jornada está activa
+  const jornadaNoIniciada = !loadingJornada && (!jornadaData || jornadaData.control.estado !== 'EN_CURSO');
 
   const handleSelectPatient = (selected: PatientRecord) => {
     setFormData((prev) => ({
@@ -296,9 +330,7 @@ export const NuevaAtencionPage: React.FC = () => {
       },
     }));
     setShowSearchModal(false);
-    if (!completedSteps.includes(1)) {
-      setCompletedSteps((prev) => [...prev, 1]);
-    }
+    setCompletedSteps((prev) => (prev.includes(1) ? prev : [...prev, 1]));
     setValidationErrors((prev) => ({ ...prev, paciente: undefined }));
   };
 
@@ -325,6 +357,7 @@ export const NuevaAtencionPage: React.FC = () => {
   };
 
   const handleGoToStep = (step: number) => {
+    if (!formData.patient && step > 1) return;
     setCurrentStep(step);
     setValidationErrors({});
   };
@@ -347,32 +380,6 @@ export const NuevaAtencionPage: React.FC = () => {
     }
   };
 
-  const handleIniciarNuevaAtencion = () => {
-    clearLocalDraft();
-    setFormData(INITIAL_FORM_STATE);
-    setCurrentStep(1);
-    setCompletedSteps([]);
-    setNuevoAntecedente('');
-    setEsEmbarazada(false);
-    setSemanasGestacion('');
-    setIsModalOpen(false);
-    setModalEstado('CONFIRMAR');
-  };
-
-  const handleVolverJornada = () => {
-    clearLocalDraft();
-    setFormData(INITIAL_FORM_STATE);
-    setIsModalOpen(false);
-    navigate('/brigadista/brigada/jornada');
-  };
-
-  const handleConfirmarCancelacion = () => {
-    clearLocalDraft();
-    setFormData(INITIAL_FORM_STATE);
-    setShowCancelModal(false);
-    navigate('/brigadista/dashboard/resumen');
-  };
-
   const pacienteNombre = formData.patient
     ? `${formData.patient.firstName} ${formData.patient.lastName}`.trim()
     : 'Persona no seleccionada';
@@ -391,453 +398,487 @@ export const NuevaAtencionPage: React.FC = () => {
     : 'EXP-2026-0001';
 
   return (
-    <div className="w-full max-w-[1700px] mx-auto p-3 sm:p-4 space-y-3 animate-in fade-in duration-200">
-      {/* 1. Header Oficial de 9 Pasos */}
+    <div className="w-full max-w-[1700px] mx-auto p-3 sm:p-4 space-y-4 animate-in fade-in duration-200">
+      {/* 1. Header Oficial de Registro */}
       <AtencionHeader
         pacienteNombre={formData.patient ? pacienteNombre : undefined}
         pacienteDui={formData.patient?.dui || undefined}
         pasoActual={currentStep}
         totalPasos={9}
-        onRegresar={() => navigate('/brigadista/dashboard/resumen')}
+        onRegresar={() => {
+          if (!formData.patient) resetFormularioCompleto();
+          navigate('/brigadista/dashboard/resumen');
+        }}
         onCancelar={() => setShowCancelModal(true)}
       />
 
-      {/* 2. Banner Informativo de Estado de la Jornada Territorial */}
-      {!loadingJornada && jornadaData && jornadaData.control.estado !== 'EN_CURSO' && (
-        <div className="p-3.5 bg-amber-50/90 border border-amber-200/90 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-900 shadow-2xs animate-in fade-in duration-150">
-          <div className="flex items-start sm:items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
-              <Briefcase className="w-4 h-4" />
+      {/* 2. Verificación de Carga de la Jornada */}
+      {loadingJornada ? (
+        <div className="p-12 rounded-3xl bg-white border border-slate-200 shadow-2xs text-center space-y-3">
+          <RotateCw className="w-8 h-8 text-[#166E7A] animate-spin mx-auto" />
+          <p className="text-xs text-slate-500 font-bold">Verificando estado operativo de la brigada...</p>
+        </div>
+      ) : jornadaNoIniciada ? (
+        /* 3. ALERTA Y BLOQUEO OPERATIVO: Requiere Iniciar Jornada */
+        <div className="bg-white rounded-3xl border border-amber-200/80 p-6 sm:p-10 shadow-sm text-center max-w-2xl mx-auto space-y-6 animate-in zoom-in-95 duration-150">
+          <div className="w-18 h-18 rounded-3xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center mx-auto shadow-2xs">
+            <Briefcase className="w-9 h-9 stroke-2" />
+          </div>
+
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100/70 border border-amber-200 text-amber-900 text-xs font-black uppercase tracking-wider">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+              <span>Paso Requerido • Protocolo Operativo</span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-black uppercase tracking-wider text-amber-800">
-                  Jornada Territorial No Iniciada
-                </span>
-                <span className="text-[10px] bg-amber-200/70 text-amber-800 px-2 py-0.5 rounded-full font-bold">
-                  {jornadaData.identificacion.nombre}
+
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+              Debes Iniciar tu Jornada de Hoy
+            </h2>
+
+            <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed font-medium">
+              Para registrar una atención comunitaria y sus signos vitales, el sistema exige que tu brigada tenga activa su jornada operativa de campo.
+            </p>
+          </div>
+
+          {jornadaData?.identificacion && (
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left space-y-1.5 text-xs">
+              <div className="flex items-center justify-between text-slate-400 font-extrabold text-[10.5px] uppercase tracking-wider">
+                <span>Brigada Asignada</span>
+                <span className="text-[#166E7A]">Jornada Territorial</span>
+              </div>
+              <div className="flex items-center justify-between font-black text-slate-900 text-sm">
+                <span>{jornadaData.identificacion.nombre}</span>
+                <span className="font-mono text-xs text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+                  {jornadaData.identificacion.comunidad}
                 </span>
               </div>
-              <p className="text-[11px] text-amber-700 font-medium">
-                Inicia tu jornada de hoy para vincular automáticamente esta atención y sus signos vitales al turno operativo de la brigada.
-              </p>
+            </div>
+          )}
+
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/brigadista/dashboard/resumen')}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition cursor-pointer"
+            >
+              Volver al Resumen
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void iniciarJornada()}
+              disabled={actionLoadingJornada}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#166E7A] hover:bg-[#105F68] text-white text-xs font-black rounded-xl shadow-xs transition active:scale-95 cursor-pointer disabled:opacity-50"
+            >
+              {actionLoadingJornada ? (
+                <RotateCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <PlayCircle className="w-4 h-4" />
+              )}
+              <span>Iniciar Jornada de Hoy y Atender</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* 4. FLUJO COMPLETO DE REGISTRO (DESBLOQUEADO CON JORNADA ACTIVA) */
+        <>
+          {/* Indicador de Jornada en Curso */}
+          <div className="px-3.5 py-2 bg-teal-50/80 border border-teal-200/70 rounded-xl flex items-center justify-between text-xs text-teal-900">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="font-extrabold text-[#166E7A]">Jornada Activa:</span>
+              <span className="font-semibold text-slate-800">{jornadaData?.identificacion.nombre}</span>
+              <span className="text-slate-400">•</span>
+              <span className="text-slate-500 font-mono text-[11px]">{jornadaData?.identificacion.comunidad}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-slate-500 text-[11px] font-mono">
+              <Clock className="w-3.5 h-3.5 text-[#166E7A]" />
+              <span>Turno: {jornadaData?.control.tiempoTranscurrido}</span>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => void iniciarJornada()}
-            disabled={actionLoadingJornada}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#2B7A78] hover:bg-[#236866] text-white text-xs font-bold rounded-xl shadow-xs transition active:scale-95 cursor-pointer disabled:opacity-50 shrink-0"
-          >
-            {actionLoadingJornada ? (
-              <RotateCw className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <PlayCircle className="w-3.5 h-3.5" />
-            )}
-            <span>Iniciar Jornada de Hoy</span>
-          </button>
-        </div>
-      )}
+          {/* Barra de Navegación del Asistente */}
+          <AtencionNavegacion
+            currentStep={currentStep}
+            totalSteps={9}
+            isLoading={isLoading}
+            canContinue={Boolean(formData.patient || currentStep > 1)}
+            completedSteps={validCompletedSteps}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            onGoToStep={handleGoToStep}
+            onSubmit={() => {
+              setModalEstado('CONFIRMAR');
+              setIsModalOpen(true);
+            }}
+          />
 
-      {/* Indicador sutil de Jornada Activa en Curso */}
-      {!loadingJornada && jornadaData && jornadaData.control.estado === 'EN_CURSO' && (
-        <div className="px-3.5 py-2 bg-teal-50/70 border border-teal-200/60 rounded-xl flex items-center justify-between text-xs text-teal-900">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-extrabold text-[#2B7A78]">Jornada en Curso:</span>
-            <span className="font-semibold text-slate-700">{jornadaData.identificacion.nombre}</span>
-            <span className="text-slate-400">•</span>
-            <span className="text-slate-500 font-mono text-[11px]">{jornadaData.identificacion.comunidad}</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-slate-500 text-[11px] font-mono">
-            <Clock className="w-3.5 h-3.5 text-[#2B7A78]" />
-            <span>Turno: {jornadaData.control.tiempoTranscurrido}</span>
-          </div>
-        </div>
-      )}
+          {mutationError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2.5 text-xs font-semibold text-red-700">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+              <span>{mutationError}</span>
+            </div>
+          )}
 
-      {/* 3. Barra de Navegación Compacta */}
-      <AtencionNavegacion
-        currentStep={currentStep}
-        totalSteps={9}
-        isLoading={isLoading}
-        canContinue={Boolean(formData.patient || currentStep > 1)}
-        completedSteps={completedSteps}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-        onGoToStep={handleGoToStep}
-        onSubmit={() => {
-          setModalEstado('CONFIRMAR');
-          setIsModalOpen(true);
-        }}
-      />
-
-      {mutationError && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2.5 text-xs font-semibold text-red-700">
-          <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-          <span>{mutationError}</span>
-        </div>
-      )}
-
-      {/* 4. Grid Principal */}
-      <div className="flex flex-col lg:flex-row gap-4 items-stretch">
-        {/* Contenido Izquierda */}
-        <div className="flex-1 w-full flex flex-col">
-          {/* PASO 1: Identificación */}
-          {currentStep === 1 && (
-            <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/70 p-5 sm:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:border-slate-300 transition-all duration-200 h-full flex flex-col justify-between space-y-3.5">
-              <div className="space-y-3">
-                <div className="flex items-center gap-3.5 border-b border-slate-100 pb-3">
-                  <div className="w-11 h-11 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-700 shadow-2xs shrink-0">
-                    <UserSearch className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-teal-700 block">
-                      Paso 1 de 9 • Identificación Inicial
-                    </span>
-                    <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
-                      Identificación de la Persona
-                    </h2>
-                  </div>
-                </div>
-
-                {validationErrors.paciente && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2.5 text-xs sm:text-sm text-red-700 font-semibold shadow-2xs">
-                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-                    <span>{validationErrors.paciente}</span>
-                  </div>
-                )}
-              </div>
-
-              {formData.patient ? (
-                <div className="flex-1 flex flex-col justify-between space-y-3">
-                  <div className="p-4 bg-teal-50/90 border border-teal-200/90 rounded-2xl flex items-center justify-between shadow-2xs">
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-11 h-11 rounded-xl bg-[#2B7A78] text-white flex items-center justify-center shrink-0 shadow-xs">
-                        <CheckCircle2 className="w-6 h-6" />
+          {/* Grid Principal con Pasos y Carnet */}
+          <div className="flex flex-col lg:flex-row gap-4 items-stretch">
+            <div className="flex-1 w-full flex flex-col">
+              {/* PASO 1: Identificación */}
+              {currentStep === 1 && (
+                <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/70 p-5 sm:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:border-slate-300 transition-all duration-200 h-full flex flex-col justify-between space-y-3.5">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3.5 border-b border-slate-100 pb-3">
+                      <div className="w-11 h-11 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-700 shadow-2xs shrink-0">
+                        <UserSearch className="w-5 h-5" />
                       </div>
                       <div>
-                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-800 block">
-                          Persona Verificada en Padrón Comunitario
+                        <span className="text-xs font-bold uppercase tracking-wider text-teal-700 block">
+                          Paso 1 de 9 • Identificación Inicial
                         </span>
-                        <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
-                          {formData.patient.firstName} {formData.patient.lastName}
-                        </h3>
-                        <p className="text-xs text-slate-600 font-medium mt-0.5">
-                          Expediente territorial activo para registro de atención comunitaria
+                        <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                          Identificación de la Persona
+                        </h2>
+                      </div>
+                    </div>
+
+                    {validationErrors.paciente && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2.5 text-xs sm:text-sm text-red-700 font-semibold shadow-2xs">
+                        <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                        <span>{validationErrors.paciente}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {formData.patient ? (
+                    <div className="flex-1 flex flex-col justify-between space-y-3">
+                      <div className="p-4 bg-teal-50/90 border border-teal-200/90 rounded-2xl flex items-center justify-between shadow-2xs">
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-11 h-11 rounded-xl bg-[#166E7A] text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <CheckCircle2 className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-800 block">
+                              Persona Verificada en Padrón Comunitario
+                            </span>
+                            <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                              {formData.patient.firstName} {formData.patient.lastName}
+                            </h3>
+                            <p className="text-xs text-slate-600 font-medium mt-0.5">
+                              Expediente territorial activo para registro de atención comunitaria
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-xs font-mono font-bold bg-white text-teal-900 px-3.5 py-1.5 rounded-xl border border-teal-200 shadow-2xs">
+                          {formData.patient.dui ? `DUI: ${formData.patient.dui}` : 'Sin DUI'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 transition-all duration-200 shadow-2xs space-y-1">
+                          <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
+                            <span className="flex items-center gap-1.5 text-slate-700 font-bold">
+                              <User className="w-4 h-4 text-teal-600" /> Demografía
+                            </span>
+                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                          </div>
+                          <p className="text-sm font-extrabold text-slate-900">
+                            {formData.patient.sex === 'FEMALE' ? 'Femenino' : 'Masculino'}
+                          </p>
+                          <p className="text-xs text-slate-500 font-medium">
+                            Nac: {formData.patient.dateOfBirth ? String(formData.patient.dateOfBirth).slice(0, 10) : 'No registrada'}
+                          </p>
+                        </div>
+
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 transition-all duration-200 shadow-2xs space-y-1">
+                          <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
+                            <span className="flex items-center gap-1.5 text-slate-700 font-bold">
+                              <Phone className="w-4 h-4 text-teal-600" /> Contacto
+                            </span>
+                            <HeartPulse className="w-3.5 h-3.5 text-slate-400" />
+                          </div>
+                          <p className="text-sm font-extrabold text-slate-900 truncate">
+                            {formData.patient.phone || 'Sin teléfono'}
+                          </p>
+                          <p className="text-xs text-slate-500 font-medium truncate">
+                            Población comunitaria
+                          </p>
+                        </div>
+
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 transition-all duration-200 shadow-2xs space-y-1">
+                          <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
+                            <span className="flex items-center gap-1.5 text-slate-700 font-bold">
+                              <FileText className="w-4 h-4 text-teal-600" /> Expediente
+                            </span>
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                          </div>
+                          <p className="text-sm font-extrabold text-emerald-700">
+                            Habilitado
+                          </p>
+                          <p className="text-xs text-slate-500 font-mono truncate font-medium">
+                            {expedienteNo}
+                          </p>
+                        </div>
+
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 transition-all duration-200 shadow-2xs space-y-1">
+                          <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
+                            <span className="flex items-center gap-1.5 text-slate-700 font-bold">
+                              <Droplet className="w-4 h-4 text-rose-600" /> Grupo Sanguíneo
+                            </span>
+                          </div>
+                          <p className="text-sm font-extrabold text-slate-900">
+                            {formatBloodType(formData.patient.clinicalRecord?.bloodType)}
+                          </p>
+                          <p className="text-xs text-slate-500 font-medium">
+                            Factor verificado en ficha
+                          </p>
+                        </div>
+
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 transition-all duration-200 shadow-2xs space-y-1">
+                          <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
+                            <span className="flex items-center gap-1.5 text-slate-700 font-bold">
+                              <ShieldAlert className="w-4 h-4 text-amber-600" /> Alertas Clínicas
+                            </span>
+                          </div>
+                          <p className="text-sm font-extrabold text-slate-900 truncate">
+                            {formData.patient.clinicalRecord?.familyHistory ? 'Registradas' : 'Sin Alertas'}
+                          </p>
+                          <p className="text-xs text-slate-500 font-medium truncate">
+                            {formData.patient.clinicalRecord?.familyHistory || 'Ninguna alergia previa'}
+                          </p>
+                        </div>
+
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 transition-all duration-200 shadow-2xs space-y-1">
+                          <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
+                            <span className="flex items-center gap-1.5 text-slate-700 font-bold">
+                              <MapPin className="w-4 h-4 text-indigo-600" /> Jurisdicción
+                            </span>
+                          </div>
+                          <p className="text-sm font-extrabold text-slate-900">
+                            Comunitaria
+                          </p>
+                          <p className="text-xs text-slate-500 font-medium truncate">
+                            Sector nominal activo
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/70 flex items-start gap-3 shadow-2xs">
+                        <div className="w-8 h-8 rounded-lg bg-teal-100 text-[#166E7A] flex items-center justify-center shrink-0 mt-0.5">
+                          <MapPin className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                            Comunidad y Residencia Registrada
+                          </span>
+                          <p className="text-xs sm:text-sm text-slate-800 font-semibold leading-relaxed truncate mt-0.5">
+                            {direccionLimpiaPaso1}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <span className="text-[11px] text-slate-400 order-2 sm:order-1">
+                          Los datos clínicos y acciones se registrarán en el expediente nominal de esta persona.
+                        </span>
+                        <div className="flex items-center gap-2.5 w-full sm:w-auto order-1 sm:order-2 justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setShowSearchModal(true)}
+                            className="px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold rounded-xl transition cursor-pointer shadow-2xs"
+                          >
+                            Seleccionar Otra
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleNext}
+                            className="px-5 py-2 bg-[#166E7A] hover:bg-[#105F68] text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                          >
+                            <span>Continuar al Motivo</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center py-16 space-y-4 bg-slate-50/80 border-2 border-dashed border-slate-200 rounded-2xl p-6">
+                      <div className="w-14 h-14 rounded-2xl bg-teal-50 text-[#166E7A] flex items-center justify-center mx-auto border border-teal-100 shadow-2xs">
+                        <UserSearch className="w-7 h-7" />
+                      </div>
+                      <div className="space-y-1 max-w-md mx-auto text-center">
+                        <h3 className="text-sm font-bold text-slate-800">Busca a la persona en el padrón comunitario</h3>
+                        <p className="text-xs text-slate-500">
+                          Selecciona a una persona registrada para cargar automáticamente su carnet digital y expediente nominal.
                         </p>
                       </div>
-                    </div>
-                    <span className="text-xs font-mono font-bold bg-white text-teal-900 px-3.5 py-1.5 rounded-xl border border-teal-200 shadow-2xs">
-                      {formData.patient.dui ? `DUI: ${formData.patient.dui}` : 'Sin DUI'}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 transition-all duration-200 shadow-2xs space-y-1">
-                      <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
-                        <span className="flex items-center gap-1.5 text-slate-700 font-bold">
-                          <User className="w-4 h-4 text-teal-600" /> Demografía
-                        </span>
-                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                      </div>
-                      <p className="text-sm font-extrabold text-slate-900">
-                        {formData.patient.sex === 'FEMALE' ? 'Femenino' : 'Masculino'}
-                      </p>
-                      <p className="text-xs text-slate-500 font-medium">
-                        Nac: {formData.patient.dateOfBirth ? String(formData.patient.dateOfBirth).slice(0, 10) : 'No registrada'}
-                      </p>
-                    </div>
-
-                    <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 transition-all duration-200 shadow-2xs space-y-1">
-                      <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
-                        <span className="flex items-center gap-1.5 text-slate-700 font-bold">
-                          <Phone className="w-4 h-4 text-teal-600" /> Contacto
-                        </span>
-                        <HeartPulse className="w-3.5 h-3.5 text-slate-400" />
-                      </div>
-                      <p className="text-sm font-extrabold text-slate-900 truncate">
-                        {formData.patient.phone || 'Sin teléfono'}
-                      </p>
-                      <p className="text-xs text-slate-500 font-medium truncate">
-                        Población comunitaria
-                      </p>
-                    </div>
-
-                    <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 transition-all duration-200 shadow-2xs space-y-1">
-                      <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
-                        <span className="flex items-center gap-1.5 text-slate-700 font-bold">
-                          <FileText className="w-4 h-4 text-teal-600" /> Expediente
-                        </span>
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                      </div>
-                      <p className="text-sm font-extrabold text-emerald-700">
-                        Habilitado
-                      </p>
-                      <p className="text-xs text-slate-500 font-mono truncate font-medium">
-                        {expedienteNo}
-                      </p>
-                    </div>
-
-                    <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 transition-all duration-200 shadow-2xs space-y-1">
-                      <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
-                        <span className="flex items-center gap-1.5 text-slate-700 font-bold">
-                          <Droplet className="w-4 h-4 text-rose-600" /> Grupo Sanguíneo
-                        </span>
-                      </div>
-                      <p className="text-sm font-extrabold text-slate-900">
-                        {formatBloodType(formData.patient.clinicalRecord?.bloodType)}
-                      </p>
-                      <p className="text-xs text-slate-500 font-medium">
-                        Factor verificado en ficha
-                      </p>
-                    </div>
-
-                    <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 transition-all duration-200 shadow-2xs space-y-1">
-                      <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
-                        <span className="flex items-center gap-1.5 text-slate-700 font-bold">
-                          <ShieldAlert className="w-4 h-4 text-amber-600" /> Alertas Clínicas
-                        </span>
-                      </div>
-                      <p className="text-sm font-extrabold text-slate-900 truncate">
-                        {formData.patient.clinicalRecord?.familyHistory ? 'Registradas' : 'Sin Alertas'}
-                      </p>
-                      <p className="text-xs text-slate-500 font-medium truncate">
-                        {formData.patient.clinicalRecord?.familyHistory || 'Ninguna alergia previa'}
-                      </p>
-                    </div>
-
-                    <div className="p-3.5 rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 transition-all duration-200 shadow-2xs space-y-1">
-                      <div className="flex items-center justify-between text-slate-400 text-xs font-bold">
-                        <span className="flex items-center gap-1.5 text-slate-700 font-bold">
-                          <MapPin className="w-4 h-4 text-indigo-600" /> Jurisdicción
-                        </span>
-                      </div>
-                      <p className="text-sm font-extrabold text-slate-900">
-                        Comunitaria
-                      </p>
-                      <p className="text-xs text-slate-500 font-medium truncate">
-                        Sector nominal activo
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/70 flex items-start gap-3 shadow-2xs">
-                    <div className="w-8 h-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center shrink-0 mt-0.5">
-                      <MapPin className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                        Comunidad y Residencia Registrada
-                      </span>
-                      <p className="text-xs sm:text-sm text-slate-800 font-semibold leading-relaxed truncate mt-0.5">
-                        {direccionLimpiaPaso1}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <span className="text-[11px] text-slate-400 order-2 sm:order-1">
-                      Los datos clínicos y acciones se registrarán en el expediente nominal de esta persona.
-                    </span>
-                    <div className="flex items-center gap-2.5 w-full sm:w-auto order-1 sm:order-2 justify-end">
                       <button
                         type="button"
                         onClick={() => setShowSearchModal(true)}
-                        className="px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold rounded-xl transition cursor-pointer shadow-2xs"
+                        className="px-6 py-2.5 bg-[#166E7A] hover:bg-[#105F68] text-white text-xs font-bold rounded-xl shadow-sm transition cursor-pointer active:scale-95"
                       >
-                        Seleccionar Otra
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleNext}
-                        className="px-5 py-2 bg-[#2B7A78] hover:bg-[#236866] text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5 active:scale-95"
-                      >
-                        <span>Continuar al Motivo</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        Buscar en Padrón Comunitario
                       </button>
                     </div>
-                  </div>
+                  )}
                 </div>
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center py-16 space-y-4 bg-slate-50/80 border-2 border-dashed border-slate-200 rounded-2xl p-6">
-                  <div className="w-14 h-14 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center mx-auto border border-teal-100 shadow-2xs">
-                    <UserSearch className="w-7 h-7" />
-                  </div>
-                  <div className="space-y-1 max-w-md mx-auto text-center">
-                    <h3 className="text-sm font-bold text-slate-800">Busca a la persona en el padrón comunitario</h3>
-                    <p className="text-xs text-slate-500">
-                      Selecciona a una persona registrada para cargar automáticamente su carnet digital y expediente nominal.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowSearchModal(true)}
-                    className="px-6 py-2.5 bg-[#2B7A78] hover:bg-[#236866] text-white text-xs font-bold rounded-xl shadow-sm transition cursor-pointer active:scale-95"
-                  >
-                    Buscar en Padrón Comunitario
-                  </button>
+              )}
+
+              {/* PASO 2: Motivo */}
+              {currentStep === 2 && (
+                <div className="h-full flex flex-col">
+                  <AtencionMotivoCard
+                    motivoCategoria={formData.motivoCategoria}
+                    motivoDescripcion={formData.motivoDescripcion}
+                    error={validationErrors.motivoCategoria}
+                    onChangeCategoria={(cat) => setFormData((prev) => ({ ...prev, motivoCategoria: cat }))}
+                    onChangeDescripcion={(desc) => setFormData((prev) => ({ ...prev, motivoDescripcion: desc }))}
+                  />
+                </div>
+              )}
+
+              {/* PASO 3: Valoración */}
+              {currentStep === 3 && (
+                <div className="h-full flex flex-col">
+                  <AtencionValoracionTabs
+                    patient={formData.patient}
+                    signosVitales={formData.evaluacion.signosVitales}
+                    sintomas={formData.evaluacion.sintomas}
+                    nuevoAntecedente={nuevoAntecedente}
+                    esEmbarazada={esEmbarazada}
+                    semanasGestacion={semanasGestacion}
+                    onChangeSigno={(field, val) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        evaluacion: { ...prev.evaluacion, signosVitales: { ...prev.evaluacion.signosVitales, [field]: val } },
+                      }));
+                    }}
+                    onChangeSintoma={(field, val) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        evaluacion: { ...prev.evaluacion, sintomas: { ...prev.evaluacion.sintomas, [field]: val } },
+                      }));
+                    }}
+                    onChangeNuevoAntecedente={setNuevoAntecedente}
+                    onChangeEmbarazo={(emb, sem) => {
+                      setEsEmbarazada(emb);
+                      setSemanasGestacion(sem);
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* PASO 4: Observaciones */}
+              {currentStep === 4 && (
+                <div className="h-full flex flex-col">
+                  <AtencionObservacionesCard
+                    observacionesGenerales={formData.evaluacion.observacionesClinicas}
+                    condicionVivienda={formData.evaluacion.condicionVivienda}
+                    onChangeObservaciones={(field, val) => {
+                      setFormData((prev) => ({ ...prev, evaluacion: { ...prev.evaluacion, [field]: val } }));
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* PASO 5: Acciones */}
+              {currentStep === 5 && (
+                <div className="h-full flex flex-col">
+                  <AtencionAccionesCard
+                    acciones={formData.acciones}
+                    onChangeAccion={(field, val) => {
+                      setFormData((prev) => ({ ...prev, acciones: { ...prev.acciones, [field]: val } }));
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* PASO 6: Educación */}
+              {currentStep === 6 && (
+                <div className="h-full flex flex-col">
+                  <AtencionEducacionCard
+                    acciones={formData.acciones}
+                    patient={formData.patient}
+                    onChangeEducacion={(field, val) => {
+                      setFormData((prev) => ({ ...prev, acciones: { ...prev.acciones, [field]: val } }));
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* PASO 7: Seguimiento y Referencia */}
+              {currentStep === 7 && (
+                <div className="h-full flex flex-col">
+                  <AtencionSeguimientoReferenciaCard
+                    seguimiento={formData.seguimiento}
+                    onChangeSeguimiento={(field, val) => {
+                      setFormData((prev) => ({ ...prev, seguimiento: { ...prev.seguimiento, [field]: val } }));
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* PASO 8: Cuenta MedicOS */}
+              {currentStep === 8 && (
+                <div className="h-full flex flex-col">
+                  <AtencionCuentaCard
+                    cuenta={formData.cuenta}
+                    patient={formData.patient}
+                    onChangeCuenta={(field, val) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        cuenta: {
+                          crearCuenta: false,
+                          email: '',
+                          password: '',
+                          confirmPassword: '',
+                          ...prev.cuenta,
+                          [field]: val,
+                        },
+                      }));
+                    }}
+                    onContinuar={handleNext}
+                    onOmitir={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        cuenta: {
+                          crearCuenta: false,
+                          email: prev.patient?.user?.email || '',
+                          password: '',
+                          confirmPassword: '',
+                        },
+                      }));
+                      handleNext();
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* PASO 9: Resumen */}
+              {currentStep === 9 && (
+                <div className="h-full flex flex-col">
+                  <AtencionResumenCard
+                    formData={formData}
+                    onEditStep={handleGoToStep}
+                    onGuardar={() => {
+                      setModalEstado('CONFIRMAR');
+                      setIsModalOpen(true);
+                    }}
+                    isLoading={isLoading}
+                  />
                 </div>
               )}
             </div>
-          )}
 
-          {/* PASO 2: Motivo */}
-          {currentStep === 2 && (
-            <div className="h-full flex flex-col">
-              <AtencionMotivoCard
-                motivoCategoria={formData.motivoCategoria}
-                motivoDescripcion={formData.motivoDescripcion}
-                error={validationErrors.motivoCategoria}
-                onChangeCategoria={(cat) => setFormData((prev) => ({ ...prev, motivoCategoria: cat }))}
-                onChangeDescripcion={(desc) => setFormData((prev) => ({ ...prev, motivoDescripcion: desc }))}
-              />
-            </div>
-          )}
-
-          {/* PASO 3: Valoración */}
-          {currentStep === 3 && (
-            <div className="h-full flex flex-col">
-              <AtencionValoracionTabs
+            {/* Columna Derecha: Carnet Digital */}
+            <div className="w-full lg:w-85 xl:w-95 shrink-0 flex flex-col">
+              <AtencionPacienteCard
                 patient={formData.patient}
-                signosVitales={formData.evaluacion.signosVitales}
-                sintomas={formData.evaluacion.sintomas}
-                nuevoAntecedente={nuevoAntecedente}
-                esEmbarazada={esEmbarazada}
-                semanasGestacion={semanasGestacion}
-                onChangeSigno={(field, val) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    evaluacion: { ...prev.evaluacion, signosVitales: { ...prev.evaluacion.signosVitales, [field]: val } },
-                  }));
-                }}
-                onChangeSintoma={(field, val) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    evaluacion: { ...prev.evaluacion, sintomas: { ...prev.evaluacion.sintomas, [field]: val } },
-                  }));
-                }}
-                onChangeNuevoAntecedente={setNuevoAntecedente}
-                onChangeEmbarazo={(emb, sem) => {
-                  setEsEmbarazada(emb);
-                  setSemanasGestacion(sem);
-                }}
+                onChangePatient={() => setShowSearchModal(true)}
+                pasoActualIndex={currentStep - 1}
               />
             </div>
-          )}
-
-          {/* PASO 4: Observaciones */}
-          {currentStep === 4 && (
-            <div className="h-full flex flex-col">
-              <AtencionObservacionesCard
-                observacionesGenerales={formData.evaluacion.observacionesClinicas}
-                condicionVivienda={formData.evaluacion.condicionVivienda}
-                onChangeObservaciones={(field, val) => {
-                  setFormData((prev) => ({ ...prev, evaluacion: { ...prev.evaluacion, [field]: val } }));
-                }}
-              />
-            </div>
-          )}
-
-          {/* PASO 5: Acciones */}
-          {currentStep === 5 && (
-            <div className="h-full flex flex-col">
-              <AtencionAccionesCard
-                acciones={formData.acciones}
-                onChangeAccion={(field, val) => {
-                  setFormData((prev) => ({ ...prev, acciones: { ...prev.acciones, [field]: val } }));
-                }}
-              />
-            </div>
-          )}
-
-          {/* PASO 6: Educación */}
-          {currentStep === 6 && (
-            <div className="h-full flex flex-col">
-              <AtencionEducacionCard
-                acciones={formData.acciones}
-                patient={formData.patient}
-                onChangeEducacion={(field, val) => {
-                  setFormData((prev) => ({ ...prev, acciones: { ...prev.acciones, [field]: val } }));
-                }}
-              />
-            </div>
-          )}
-
-          {/* PASO 7: Seguimiento y Referencia */}
-          {currentStep === 7 && (
-            <div className="h-full flex flex-col">
-              <AtencionSeguimientoReferenciaCard
-                seguimiento={formData.seguimiento}
-                onChangeSeguimiento={(field, val) => {
-                  setFormData((prev) => ({ ...prev, seguimiento: { ...prev.seguimiento, [field]: val } }));
-                }}
-              />
-            </div>
-          )}
-
-          {/* PASO 8: Cuenta MedicOS (Detección de cuenta / Opcional) */}
-          {currentStep === 8 && (
-            <div className="h-full flex flex-col">
-              <AtencionCuentaCard
-                cuenta={formData.cuenta}
-                patient={formData.patient}
-                onChangeCuenta={(field, val) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    cuenta: {
-                      crearCuenta: false,
-                      email: '',
-                      password: '',
-                      confirmPassword: '',
-                      ...prev.cuenta,
-                      [field]: val,
-                    },
-                  }));
-                }}
-                onContinuar={handleNext}
-                onOmitir={() => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    cuenta: {
-                      crearCuenta: false,
-                      email: prev.patient?.user?.email || '',
-                      password: '',
-                      confirmPassword: '',
-                    },
-                  }));
-                  handleNext();
-                }}
-              />
-            </div>
-          )}
-
-          {/* PASO 9: Resumen (100% de avance) */}
-          {currentStep === 9 && (
-            <div className="h-full flex flex-col">
-              <AtencionResumenCard
-                formData={formData}
-                onEditStep={handleGoToStep}
-                onGuardar={() => {
-                  setModalEstado('CONFIRMAR');
-                  setIsModalOpen(true);
-                }}
-                isLoading={isLoading}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Columna Derecha: Carnet Digital Persistente */}
-        <div className="w-full lg:w-85 xl:w-95 shrink-0 flex flex-col">
-          <AtencionPacienteCard
-            patient={formData.patient}
-            onChangePatient={() => setShowSearchModal(true)}
-            pasoActualIndex={currentStep - 1}
-          />
-        </div>
-      </div>
+          </div>
+        </>
+      )}
 
       {/* Modal Búsqueda de Personas */}
       {showSearchModal && (
@@ -866,7 +907,7 @@ export const NuevaAtencionPage: React.FC = () => {
                 type="button"
                 onClick={() => executeSearch(searchTerm)}
                 disabled={loadingSearch}
-                className="px-4 py-2 bg-[#2B7A78] hover:bg-[#236866] text-white text-xs font-bold rounded-xl cursor-pointer"
+                className="px-4 py-2 bg-[#166E7A] hover:bg-[#105F68] text-white text-xs font-bold rounded-xl cursor-pointer"
               >
                 {loadingSearch ? 'Buscando...' : 'Buscar'}
               </button>
@@ -916,7 +957,10 @@ export const NuevaAtencionPage: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={handleConfirmarCancelacion}
+                onClick={() => {
+                  resetFormularioCompleto();
+                  navigate('/brigadista/dashboard/resumen');
+                }}
                 className="flex-1 py-2 bg-rose-600 text-white font-bold text-xs rounded-xl cursor-pointer"
               >
                 Sí, Descartar
@@ -932,14 +976,23 @@ export const NuevaAtencionPage: React.FC = () => {
         estado={modalEstado}
         pacienteNombre={pacienteNombre}
         mensajeError={mutationError}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          if (modalEstado === 'EXITO') {
+            resetFormularioCompleto();
+          } else {
+            setIsModalOpen(false);
+          }
+        }}
         onConfirmarGuardar={handleConfirmarGuardar}
         onVerExpediente={() => {
-          clearLocalDraft();
+          resetFormularioCompleto();
           navigate('/brigadista/pacientes/expediente');
         }}
-        onNuevaAtencion={handleIniciarNuevaAtencion}
-        onVolverJornada={handleVolverJornada}
+        onNuevaAtencion={resetFormularioCompleto}
+        onVolverJornada={() => {
+          resetFormularioCompleto();
+          navigate('/brigadista/brigada/jornada');
+        }}
       />
     </div>
   );
