@@ -29,6 +29,7 @@ import { adminRoutes } from '../modules/admin/admin.routes.js';
 import medicoRoutes from '../modules/medico/medico.routes.js';
 import clinicalKnowledgeRoutes from '../modules/clinical-knowledge/clinical-knowledge.routes.js';
 import { documentRoutes } from '../modules/documents/documents.routes.js';
+import { syncRoutes } from '../modules/sync/sync.routes.js';
 import { patientsController } from '../modules/patients/patients.controller.js';
 import { checkAuth, checkRole } from '../middleware/auth.middleware.js';
 
@@ -38,6 +39,7 @@ const router = Router();
 // RUTAS PRINCIPALES DEL SISTEMA
 // ==========================================
 router.use('/health', healthRoutes);
+router.use('/sync', syncRoutes);
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/patients', patientRoutes);
