@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/modules/patients/hooks/useCreatePatient.ts
-// DESCRIPCIÓN: Hook reactivo con soporte para división territorial (Depto/Mpio/Distrito)
+// DESCRIPCIÓN: Hook reactivo para registro de pacientes. Cuenta digital
+//              opcional con cuenta nominal de respaldo y validaciones asíncronas limpias.
 // =========================================================================
 
 import { useState, useCallback, useEffect } from 'react';
@@ -15,7 +16,7 @@ export interface PatientFormState {
   dui: string;
   sex: Sex;
 
-  // Cuenta MedicOS
+  // Cuenta MedicOS (Opcional pero recomendada)
   email: string;
   password: string;
   confirmPassword: string;
@@ -82,6 +83,15 @@ export function useCreatePatient() {
 
   const setField = useCallback(<K extends keyof PatientFormState>(field: K, value: PatientFormState[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+
+    // Limpieza de estados de disponibilidad directamente en el evento
+    if (field === 'email') {
+      setEmailAvailability(null);
+    }
+    if (field === 'dui') {
+      setDuiAvailability(null);
+    }
+
     setErrors((prev) => {
       if (prev[field]) {
         const copy = { ...prev };
@@ -169,11 +179,13 @@ export function useCreatePatient() {
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
+    // 1. Datos obligatorios de identificación
     if (!formData.firstName.trim()) newErrors.firstName = 'Los nombres son obligatorios.';
     if (!formData.lastName.trim()) newErrors.lastName = 'Los apellidos son obligatorios.';
     if (!formData.dateOfBirth) newErrors.dateOfBirth = 'La fecha de nacimiento es requerida.';
     if (!formData.address.trim()) newErrors.address = 'La dirección de residencia es requerida.';
 
+    // Validación DUI (si se ingresa)
     if (formData.dui.trim()) {
       const duiRegex = /^\d{8}-\d{1}$/;
       if (!duiRegex.test(formData.dui.trim())) {
@@ -183,9 +195,8 @@ export function useCreatePatient() {
       }
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'El correo electrónico es obligatorio para la cuenta.';
-    } else {
+    // 2. Cuenta Digital (OPCIONAL: solo se valida si el usuario ingresó correo o contraseña)
+    if (formData.email.trim()) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email.trim())) {
         newErrors.email = 'El formato del correo no es válido.';
@@ -194,16 +205,16 @@ export function useCreatePatient() {
       }
     }
 
-    if (!formData.password) {
-      newErrors.password = 'La contraseña es obligatoria.';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'La contraseña debe tener al menos 6 caracteres.';
+    if (formData.password.trim()) {
+      if (formData.password.length < 6) {
+        newErrors.password = 'La contraseña debe tener al menos 6 caracteres.';
+      }
+      if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = 'Las contraseñas no coinciden.';
+      }
     }
 
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Las contraseñas no coinciden.';
-    }
-
+    // 3. Confirmación de veracidad
     if (!formData.confirmed) {
       newErrors.confirmed = 'Debes confirmar la veracidad de los datos antes de continuar.';
     }
@@ -229,14 +240,38 @@ export function useCreatePatient() {
         formData.department?.trim(),
       ].filter(Boolean);
 
+      // Si no se proporcionó correo o contraseña (cuenta omitida en campo),
+      // se genera una cuenta nominal de respaldo para el backend
+      const cleanDui = formData.dui.replace(/\D/g, '');
+      const cleanFirstName = formData.firstName
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]/g, '');
+      const cleanLastName = formData.lastName
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]/g, '');
+
+      const finalEmail = formData.email.trim()
+        ? formData.email.trim().toLowerCase()
+        : `${cleanFirstName}.${cleanLastName}.${cleanDui || Date.now().toString().slice(-4)}@padron.medicos.sv`;
+
+      const finalPassword = formData.password.trim()
+        ? formData.password
+        : `MedicOS.${cleanDui || '2026'}!`;
+
       const payload: CreatePatientDto = {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         dateOfBirth: formData.dateOfBirth,
         dui: formData.dui.trim() || null,
         sex: formData.sex,
-        email: formData.email.trim().toLowerCase(),
-        password: formData.password,
+        email: finalEmail,
+        password: finalPassword,
         phone: formData.phone.trim() || null,
         address: direccionPartes.join(', '),
         district: formData.district.trim() || null,

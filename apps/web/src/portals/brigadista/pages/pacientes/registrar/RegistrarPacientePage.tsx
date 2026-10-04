@@ -1,6 +1,7 @@
 // =========================================================================
 // ARCHIVO: apps/web/src/portals/brigadista/pages/pacientes/registrar/RegistrarPacientePage.tsx
-// DESCRIPCIÓN: Página de registro con panel lateral enfocado en validación en vivo y estado del sistema.
+// DESCRIPCIÓN: Página de registro de pacientes. Paso 2 de cuenta digital
+//              ahora es OPCIONAL PERO RECOMENDADO para trabajo de brigada.
 // =========================================================================
 
 import React, { useState, useEffect } from 'react';
@@ -13,7 +14,9 @@ import {
   Wifi, 
   WifiOff, 
   ShieldAlert,
-  Check
+  Check,
+  UserX,
+  ArrowRight
 } from 'lucide-react';
 import {
   RegistrarPacienteHeader,
@@ -32,6 +35,9 @@ export const RegistrarPacientePage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [stepError, setStepError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+  
+  // Cuenta digital: Opcional pero Recomendada
+  const [crearCuentaDigital, setCrearCuentaDigital] = useState<boolean>(true);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -64,6 +70,7 @@ export const RegistrarPacientePage: React.FC = () => {
   const validateCurrentStep = (): boolean => {
     setStepError(null);
 
+    // Paso 1: Datos de Identificación (Obligatorios)
     if (currentStep === 1) {
       if (!formData.firstName.trim() || !formData.lastName.trim() || !formData.dateOfBirth) {
         setStepError('Por favor completa los nombres, apellidos y fecha de nacimiento.');
@@ -82,30 +89,39 @@ export const RegistrarPacientePage: React.FC = () => {
       }
     }
 
+    // Paso 2: Cuenta Digital (OPCIONAL PERO RECOMENDADA)
     if (currentStep === 2) {
-      if (!formData.email.trim()) {
-        setStepError('El correo electrónico es obligatorio para la cuenta del paciente.');
-        return false;
+      // Si el brigadista optó por NO crear cuenta o dejarla vacía, pasa sin trabas
+      if (!crearCuentaDigital || (!formData.email.trim() && !formData.password.trim())) {
+        return true;
       }
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email.trim())) {
-        setStepError('El formato del correo electrónico no es válido.');
-        return false;
+
+      // Si decidió crear cuenta y escribió datos, validamos que sean correctos
+      if (formData.email.trim()) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email.trim())) {
+          setStepError('El formato del correo electrónico no es válido.');
+          return false;
+        }
+        if (emailAvailability === false) {
+          setStepError('Este correo electrónico ya está en uso.');
+          return false;
+        }
       }
-      if (emailAvailability === false) {
-        setStepError('Este correo electrónico ya está en uso.');
-        return false;
-      }
-      if (!formData.password || formData.password.length < 6) {
-        setStepError('La contraseña debe tener al menos 6 caracteres.');
-        return false;
-      }
-      if (formData.password !== formData.confirmPassword) {
-        setStepError('Las contraseñas no coinciden.');
-        return false;
+
+      if (formData.password) {
+        if (formData.password.length < 6) {
+          setStepError('La contraseña debe tener al menos 6 caracteres.');
+          return false;
+        }
+        if (formData.password !== formData.confirmPassword) {
+          setStepError('Las contraseñas no coinciden.');
+          return false;
+        }
       }
     }
 
+    // Paso 3: Contacto y Ubicación
     if (currentStep === 3) {
       if (!formData.address.trim()) {
         setStepError('La dirección de residencia es obligatoria.');
@@ -127,9 +143,19 @@ export const RegistrarPacientePage: React.FC = () => {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
+  const handleOmitirPasoCuenta = () => {
+    setCrearCuentaDigital(false);
+    setField('email', '');
+    setField('password', '');
+    setField('confirmPassword', '');
+    setStepError(null);
+    setCurrentStep(3);
+  };
+
   const handleReset = () => {
     setCurrentStep(1);
     setStepError(null);
+    setCrearCuentaDigital(true);
     resetForm();
   };
 
@@ -168,7 +194,7 @@ export const RegistrarPacientePage: React.FC = () => {
               </div>
             )}
 
-            <div className="transition-all duration-200">
+            <div className="transition-all duration-200 space-y-4">
               {currentStep === 1 && (
                 <DatosIdentificacionCard
                   formData={formData}
@@ -180,13 +206,75 @@ export const RegistrarPacientePage: React.FC = () => {
               )}
 
               {currentStep === 2 && (
-                <CuentaMedicOSCard
-                  formData={formData}
-                  setField={setField}
-                  errors={errors}
-                  checkingEmail={checkingEmail}
-                  emailAvailability={emailAvailability}
-                />
+                <div className="space-y-3">
+                  {/* Selector rápido: Opcional pero Recomendado */}
+                  <div className="p-4 rounded-2xl bg-white border border-[#D3E8EC] shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-[#1A282D]">
+                          ¿Crear Cuenta Digital MedicOS?
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-[#166E7A] border border-teal-200">
+                          Recomendado
+                        </span>
+                      </div>
+                      <p className="text-[11.5px] text-slate-500">
+                        Permite al paciente consultar sus recetas, citas y carnet desde su propio teléfono. Puedes omitirlo si es adulto mayor o menor sin correo.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={handleOmitirPasoCuenta}
+                        className="px-3.5 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+                      >
+                        <UserX className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Omitir cuenta</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setCrearCuentaDigital(!crearCuentaDigital)}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
+                          crearCuentaDigital
+                            ? 'bg-[#166E7A] text-white shadow-xs'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}
+                      >
+                        {crearCuentaDigital ? 'Activada' : 'Desactivada'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {crearCuentaDigital ? (
+                    <CuentaMedicOSCard
+                      formData={formData}
+                      setField={setField}
+                      errors={errors}
+                      checkingEmail={checkingEmail}
+                      emailAvailability={emailAvailability}
+                    />
+                  ) : (
+                    <div className="p-6 rounded-2xl bg-slate-50 border border-dashed border-slate-300 text-center space-y-2">
+                      <UserX className="w-8 h-8 text-slate-400 mx-auto" />
+                      <h4 className="text-xs font-black text-slate-700">
+                        Cuenta de acceso digital omitida
+                      </h4>
+                      <p className="text-[11px] text-slate-500 max-w-md mx-auto">
+                        El paciente quedará debidamente inscrito en el Padrón Territorial y se le generará su expediente y Carnet con QR sin requerir inicio de sesión digital.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentStep(3)}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 mt-2 bg-[#166E7A] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
+                      >
+                        <span>Continuar al Paso 3: Contacto</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
 
               {currentStep === 3 && (
@@ -249,7 +337,7 @@ export const RegistrarPacientePage: React.FC = () => {
               <div className="space-y-2 text-xs">
                 {[
                   { num: 1, label: 'Identificación Personal' },
-                  { num: 2, label: 'Credenciales y Cuenta' },
+                  { num: 2, label: 'Credenciales y Cuenta (Opcional)' },
                   { num: 3, label: 'Contacto y Ubicación' },
                   { num: 4, label: 'Antecedentes Médicos' },
                   { num: 5, label: 'Emergencia y Cierre' },
@@ -274,7 +362,7 @@ export const RegistrarPacientePage: React.FC = () => {
                         }`}>
                           {isDone ? <Check className="w-2.5 h-2.5 stroke-3" /> : s.num}
                         </div>
-                        <span className="text-xs">{s.label}</span>
+                        <span className="text-xs truncate">{s.label}</span>
                       </div>
                       <span className="text-[10px] font-semibold">
                         {isDone ? '✓' : isAct ? '●' : '○'}
@@ -315,8 +403,10 @@ export const RegistrarPacientePage: React.FC = () => {
 
                 {/* Validación Correo */}
                 <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="font-semibold text-slate-700">Correo Electrónico:</span>
-                  {checkingEmail ? (
+                  <span className="font-semibold text-slate-700">Cuenta Digital:</span>
+                  {!crearCuentaDigital ? (
+                    <span className="text-slate-500 font-bold text-[11px]">Omitida (Opcional)</span>
+                  ) : checkingEmail ? (
                     <span className="text-[10px] text-teal-600 font-bold animate-pulse">Verificando...</span>
                   ) : formData.email.trim() ? (
                     emailAvailability ? (
@@ -329,7 +419,7 @@ export const RegistrarPacientePage: React.FC = () => {
                       </span>
                     )
                   ) : (
-                    <span className="text-[10px] text-slate-400 font-medium">Pendiente de ingresar</span>
+                    <span className="text-[10px] text-slate-400 font-medium">Sin cuenta (Opcional)</span>
                   )}
                 </div>
 
@@ -343,10 +433,10 @@ export const RegistrarPacientePage: React.FC = () => {
                       <span className="text-amber-700 font-bold text-[11px]">⚠ Datos incompletos</span>
                     )
                   ) : currentStep === 2 ? (
-                    formData.email && formData.password ? (
-                      <span className="text-emerald-700 font-bold text-[11px]">✓ Completo</span>
+                    !crearCuentaDigital || (formData.email && formData.password) ? (
+                      <span className="text-emerald-700 font-bold text-[11px]">✓ Listo para avanzar</span>
                     ) : (
-                      <span className="text-amber-700 font-bold text-[11px]">⚠ Faltan credenciales</span>
+                      <span className="text-teal-700 font-bold text-[11px]">Opcional / Pendiente</span>
                     )
                   ) : (
                     <span className="text-teal-700 font-bold text-[11px]">En proceso</span>
