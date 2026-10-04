@@ -6,6 +6,7 @@
 
 import { prisma } from '../../config/prisma.js';
 import { BaseService } from '../../services/base.service.js';
+import { syncOutboxService } from '../../services/sync-outbox.service.js';
 import { AppError } from '../../middleware/error.middleware.js';
 import {
   BloodType,
@@ -14,6 +15,7 @@ import {
   SyncStatus,
   Prisma,
   EmergencyRelationship,
+  QueuePriority,
 } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
@@ -321,7 +323,11 @@ export class PatientsService extends BaseService {
   }
 
   async createPatient(data: CreatePatientDTO) {
-    const deviceId = data.originDeviceId || 'SERVER_CENTRAL';
+    const isStation = syncOutboxService.isStation();
+    const deviceId = isStation
+      ? syncOutboxService.getDeviceId()
+      : data.originDeviceId || 'SERVER_CENTRAL';
+
     const emailNormalizado = data.email.trim().toLowerCase();
     const cleanDui = normalizarDui(data.dui);
     const validBloodType = normalizarBloodType(data.bloodType as string);
@@ -329,6 +335,7 @@ export class PatientsService extends BaseService {
     const emailExistente = await prisma.user.findFirst({
       where: { email: emailNormalizado, deletedAt: null },
     });
+
     if (emailExistente) {
       throw new Error('El correo electrónico ya se encuentra registrado en MedicOS.');
     }
@@ -337,8 +344,11 @@ export class PatientsService extends BaseService {
       const duiExistente = await prisma.patient.findFirst({
         where: { dui: cleanDui, deletedAt: null },
       });
+
       if (duiExistente) {
-        throw new Error(`El DUI ${cleanDui} ya está asociado al paciente ${duiExistente.firstName} ${duiExistente.lastName}.`);
+        throw new Error(
+          `El DUI ${cleanDui} ya está asociado al paciente ${duiExistente.firstName} ${duiExistente.lastName}.`,
+        );
       }
     }
 
@@ -350,6 +360,7 @@ export class PatientsService extends BaseService {
       data.municipality?.trim(),
       data.department?.trim(),
     ].filter(Boolean);
+
     const direccionCompleta = partesDireccion.join(', ');
 
     const healthMetadata = JSON.stringify({
@@ -359,6 +370,10 @@ export class PatientsService extends BaseService {
     });
 
     return prisma.$transaction(async (tx) => {
+      const syncStatus = isStation
+        ? SyncStatus.PENDING
+        : SyncStatus.SYNCED;
+
       const user = await tx.user.create({
         data: {
           email: emailNormalizado,
@@ -384,7 +399,7 @@ export class PatientsService extends BaseService {
           emergencyName: data.emergencyName?.trim() || null,
           emergencyPhone: data.emergencyPhone?.trim() || null,
           emergencyRelation: data.emergencyRelation?.trim() || null,
-          syncStatus: SyncStatus.SYNCED,
+          syncStatus,
           version: 1,
           originDeviceId: deviceId,
           lastModifiedByDeviceId: deviceId,
@@ -398,20 +413,24 @@ export class PatientsService extends BaseService {
           familyHistory: data.familyHistory?.trim() || null,
           surgicalHistory: data.surgicalHistory?.trim() || null,
           observations: healthMetadata,
-          syncStatus: SyncStatus.SYNCED,
+          syncStatus,
           version: 1,
           originDeviceId: deviceId,
           lastModifiedByDeviceId: deviceId,
         },
       });
 
+      let emergencyContact = null;
+
       if (data.emergencyName?.trim() && data.emergencyPhone?.trim()) {
         const partsName = data.emergencyName.trim().split(/\s+/);
         const contactFirst = partsName[0] || 'Contacto';
         const contactLast = partsName.slice(1).join(' ') || 'Emergencia';
-        const { relationship, customRelation } = parseLegacyRelationship(data.emergencyRelation);
 
-        await tx.emergencyContact.create({
+        const { relationship, customRelation } =
+          parseLegacyRelationship(data.emergencyRelation);
+
+        emergencyContact = await tx.emergencyContact.create({
           data: {
             patientId: patient.id,
             firstName: contactFirst,
@@ -421,12 +440,111 @@ export class PatientsService extends BaseService {
             primaryPhone: data.emergencyPhone.trim(),
             isPrimary: true,
             isActive: true,
-            syncStatus: SyncStatus.SYNCED,
+            syncStatus,
             version: 1,
             originDeviceId: deviceId,
             lastModifiedByDeviceId: deviceId,
           },
         });
+      }
+
+      if (isStation) {
+        await syncOutboxService.enqueueEntityInTransaction(
+          tx,
+          'User',
+          user.id,
+          'CREATE',
+          {
+            id: user.id,
+            email: user.email,
+            passwordHash,
+            role: user.role,
+            status: user.status,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            phone: user.phone,
+            createdAt: user.createdAt.toISOString(),
+            updatedAt: user.updatedAt.toISOString(),
+          },
+          QueuePriority.HIGH,
+          deviceId,
+        );
+
+        await syncOutboxService.enqueueEntityInTransaction(
+          tx,
+          'Patient',
+          patient.id,
+          'CREATE',
+          {
+            id: patient.id,
+            userId: user.id,
+            firstName: patient.firstName,
+            lastName: patient.lastName,
+            dateOfBirth: patient.dateOfBirth.toISOString(),
+            dui: patient.dui,
+            sex: patient.sex,
+            phone: patient.phone,
+            address: patient.address,
+            emergencyName: patient.emergencyName,
+            emergencyPhone: patient.emergencyPhone,
+            emergencyRelation: patient.emergencyRelation,
+            originDeviceId: patient.originDeviceId,
+            lastModifiedByDeviceId: patient.lastModifiedByDeviceId,
+            version: patient.version,
+            lastModified: patient.lastModified.toISOString(),
+          },
+          QueuePriority.HIGH,
+          deviceId,
+        );
+
+        await syncOutboxService.enqueueEntityInTransaction(
+          tx,
+          'ClinicalRecord',
+          clinicalRecord.id,
+          'CREATE',
+          {
+            id: clinicalRecord.id,
+            patientId: clinicalRecord.patientId,
+            bloodType: clinicalRecord.bloodType,
+            familyHistory: clinicalRecord.familyHistory,
+            surgicalHistory: clinicalRecord.surgicalHistory,
+            observations: clinicalRecord.observations,
+            originDeviceId: clinicalRecord.originDeviceId,
+            lastModifiedByDeviceId:
+              clinicalRecord.lastModifiedByDeviceId,
+            version: clinicalRecord.version,
+            lastModified: clinicalRecord.lastModified.toISOString(),
+          },
+          QueuePriority.HIGH,
+          deviceId,
+        );
+
+        if (emergencyContact) {
+          await syncOutboxService.enqueueEntityInTransaction(
+            tx,
+            'EmergencyContact',
+            emergencyContact.id,
+            'CREATE',
+            {
+              id: emergencyContact.id,
+              patientId: emergencyContact.patientId,
+              firstName: emergencyContact.firstName,
+              lastName: emergencyContact.lastName,
+              relationship: emergencyContact.relationship,
+              customRelation: emergencyContact.customRelation,
+              primaryPhone: emergencyContact.primaryPhone,
+              isPrimary: emergencyContact.isPrimary,
+              isActive: emergencyContact.isActive,
+              originDeviceId: emergencyContact.originDeviceId,
+              lastModifiedByDeviceId:
+                emergencyContact.lastModifiedByDeviceId,
+              version: emergencyContact.version,
+              lastModified: emergencyContact.lastModified.toISOString(),
+            },
+            QueuePriority.MEDIUM,
+            deviceId,
+          );
+        }
       }
 
       return {
@@ -442,7 +560,11 @@ export class PatientsService extends BaseService {
         emergencyName: patient.emergencyName,
         emergencyPhone: patient.emergencyPhone,
         emergencyRelation: patient.emergencyRelation,
-        user: { id: user.id, email: user.email, role: user.role },
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+        },
         clinicalRecord: {
           id: clinicalRecord.id,
           bloodType: clinicalRecord.bloodType,
